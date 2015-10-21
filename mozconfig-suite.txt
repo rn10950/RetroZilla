@@ -1,0 +1,22 @@
+#
+# RETROZILLA SUITE (SEAMONKEY).MOZCONFIG TEMPLATE
+#
+
+# Make Options
+mk_add_options MOZ_MAKE_FLAGS="-j4"
+
+# Set line below to your desired object directory
+mk_add_options MOZ_OBJDIR=/c/projects/moz95/obj-sm95-release
+
+# Configure Options
+ac_add_options --target=i586-pc-msvc
+ac_add_options --enable-application=suite
+ac_add_options --enable-optimize
+ac_add_options --disable-debug
+ac_add_options --disable-tests
+ac_add_options --without-system-jpg
+ac_add_options --without-system-zlib
+ac_add_options --enable-extensions=default,tasks
+ac_add_options --enable-crypto
+ac_add_options --enable-svg
+ac_add_options --enable-canvas

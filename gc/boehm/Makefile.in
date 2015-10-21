@@ -1,0 +1,96 @@
+# The contents of this file are subject to the Netscape Public
+# License Version 1.1 (the "License"); you may not use this file
+# except in compliance with the License. You may obtain a copy of
+# the License at http://www.mozilla.org/NPL/
+# 
+# Software distributed under the License is distributed on an "AS
+# IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# rights and limitations under the License.
+# 
+# The Original Code is Mozilla Communicator client code, released
+# March 31, 1998.
+# 
+# The Initial Developer of the Original Code is Netscape
+# Communications Corporation. Portions created by Netscape are
+#  Copyright (C) 1998-1999 Netscape Communications Corporation. All
+# Rights Reserved.
+
+
+DEPTH = ../..
+topsrcdir	= @top_srcdir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+include $(DEPTH)/config/autoconf.mk
+
+MODULE=boehm
+LIBRARY_NAME=boehm
+
+DEFINES += -DNO_SIGNALS -DNO_EXECUTE_PERMISSION -DALL_INTERIOR_POINTERS -DLARGE_CONFIG
+
+# Define following when attempting to take over ALL calls to malloc/free. For now just
+# intercepting new/delete to concentrate on making collector work on Linux.
+#DEFINES += -DREDIRECT_MALLOC=GC_MALLOC_UNCOLLECTABLE
+DEFINES += -DREDIRECT_MALLOC=GC_MALLOC
+#DEFINES += -DSILENT
+
+ifeq ($(OS_ARCH),Linux)
+#DEFINES += -DLINUX_THREADS -D_REENTRANT
+DEFINES += -DTHREADS -DGENERIC_THREADS -D_REENTRANT -DGC_DEBUG -DFIND_LEAK -DOPERATOR_NEW_ARRAY -DSAVE_CALL_CHAIN -DUSE_PROC
+endif
+ifdef ($(OS_ARCH)$(OS_RELEASE),SUNOS5)
+DEFINES += -DSOLARIS_THREADS -D_SOLARIS_PTHREADS -D_REENTRANT
+endif
+ifdef ($(OS_ARCH),IRIX)
+DEFINES	+= -DIRIX_THREADS
+endif
+
+
+EXPORTS = gc.h \
+	generic_threads.h \
+	$(NULL)
+
+#EXPORTS	:= $(addprefix $(srcdir)/, $(EXPORTS))
+
+CSRCS= allchblk.c \
+		alloc.c \
+		blacklst.c \
+		checksums.c \
+		dbg_mlc.c \
+		dyn_load.c \
+		finalize.c \
+		headers.c \
+		irix_threads.c \
+		linux_threads.c \
+		mach_dep.c \
+		malloc.c \
+		mallocx.c \
+		mark.c \
+		mark_rts.c \
+		misc.c \
+		new_hblk.c \
+		obj_map.c \
+		os_dep.c \
+		pcr_interface.c \
+		ptr_chck.c \
+		real_malloc.c \
+		reclaim.c \
+		solaris_pthreads.c \
+		solaris_threads.c \
+		stubborn.c \
+		typd_mlc.c \
+		generic_threads.c \
+		$(NULL)
+
+CPPSRCS= \
+		typeinfo.cpp \
+		$(NULL)
+
+LCPPSRCS = gc_cpp.cc
+LOBJS	:= $(LCPPSRCS:.cc=.$(OBJ_SUFFIX))
+
+include $(topsrcdir)/config/rules.mk
+
+export:: libs
+

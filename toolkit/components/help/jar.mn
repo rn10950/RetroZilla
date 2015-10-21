@@ -1,0 +1,9 @@
+toolkit.jar:
+% content help %content/help/ xpcnativewrappers=yes
+#ifndef MINIMO
+* content/help/help.xul                 (content/help.xul)
+* content/help/contextHelp.js           (content/contextHelp.js)
+* content/help/help.js                  (content/help.js)
+* content/help/helpContextOverlay.xul   (content/helpContextOverlay.xul)
+* content/help/platformClasses.css      (content/platformClasses.css)
+#endif

@@ -1,0 +1,11 @@
+[gecko]
+#if SHARED_LIBRARY
+dist/bin/components/@SHARED_LIBRARY@
+#else
+!staticcomp @LIBRARY@ @MODULE_NAME@
+#endif
+
+#if ENABLE_TESTS
+[gecko-tests]
+dist/bin/TestXMLExtras@BINS@
+#endif

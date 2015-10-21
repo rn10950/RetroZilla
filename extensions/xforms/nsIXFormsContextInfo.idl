@@ -1,0 +1,76 @@
+/* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Mozilla XForms support.
+ *
+ * The Initial Developer of the Original Code is
+ * IBM Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 2007
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *  Merle Sterling <msterlin@us.ibm.com>
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+#include "nsISupports.idl"
+#include "nsIDOMNode.idl"
+#include "nsIDOMXPathResult.idl"
+
+/**
+ * Interface exposing the event context info of an XForms control.
+ *
+ * Context info is accessed by name using nsIXFormsDOMEvent::GetContextInfo
+ * or the XPath function event().
+ *
+ */
+
+[scriptable, uuid(b012a3e5-7dbc-42b4-99da-5e94c37dc44e)]
+interface nsIXFormsContextInfo : nsISupports
+{
+  // Name of the event property; eg. 'resource-uri'
+  readonly attribute DOMString name;
+
+  // Type of the property: String, Number, Node, Nodeset
+  const unsigned short STRING_TYPE  = 1;
+  const unsigned short NUMBER_TYPE  = 2;
+  const unsigned short NODE_TYPE    = 3;
+  const unsigned short NODESET_TYPE = 4;
+  readonly attribute long type;
+
+  /** Get the value of a STRING_TYPE context info property.
+   */
+  readonly attribute DOMString stringValue;
+  /** Get the value of a NUMBER_TYPE context info property.
+   */
+  readonly attribute long numberValue;
+  /** Get the value of a NODE_TYPE context info property.
+   */
+  readonly attribute nsIDOMNode nodeValue;
+  /** Get the value of a NODESET_TYPE context info property.
+   */
+  readonly attribute nsIDOMXPathResult nodesetValue;
+};

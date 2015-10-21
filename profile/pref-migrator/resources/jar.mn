@@ -1,0 +1,8 @@
+comm.jar:
+	content/communicator/profile/profileMigrationProgress.js	(content/profileMigrationProgress.js)
+	content/communicator/profile/profileMigrationProgress.xul	(content/profileMigrationProgress.xul)
+
+en-US.jar:
+#ifndef MINIMO
+	locale/en-US/communicator/profile/profileMigrationProgress.dtd	(locale/en-US/profileMigrationProgress.dtd)
+#endif

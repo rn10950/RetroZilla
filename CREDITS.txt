@@ -1,0 +1,14 @@
+RetroZilla Credits
+==================
+For now, I'm just listing the contributors to the RetroZilla
+project in this file, but I plan to create a replacement for
+about:credits in the future. If you've contributed to RetroZilla
+and your name isn't already in this list, send an email to
+rn10950+retrozilla@gmail.com, and I will verify your contributions
+and add your name to the list.
+
+SPECIAL THANKS TO:
+==================
+Ryan Nematz
+Nathan Lineback
+Mozilla.org Developers

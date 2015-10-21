@@ -1,0 +1,5 @@
+<!-- brand.dtd -->
+<!ENTITY  vendorURL             "http://www.seamonkey-project.org/">
+#expand <!ENTITY  releaseURL            "http://www.seamonkey-project.org/releases/seamonkey__MOZ_APP_VERSION__/">
+<!ENTITY  getNewThemesURL       "http://www.mozilla.org/themes/download/">
+#expand <!ENTITY  content.version       "__MOZILLA_REGION_VERSION__">

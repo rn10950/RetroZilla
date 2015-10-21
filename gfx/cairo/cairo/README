@@ -1,0 +1,147 @@
+Cairo - Multi-platform 2D graphics library
+http://cairographics.org
+
+What is cairo
+=============
+Cairo is a 2D graphics library with support for multiple output
+devices. Currently supported output targets include the X Window
+System, win32, and image buffers. Experimental backends include OpenGL
+(through glitz), Quartz, XCB, PostScript and PDF file output.
+
+Cairo is designed to produce consistent output on all output media
+while taking advantage of display hardware acceleration when available
+(for example, through the X Render Extension).
+
+The cairo API provides operations similar to the drawing operators of
+PostScript and PDF. Operations in cairo including stroking and filling
+cubic Bézier splines, transforming and compositing translucent images,
+and antialiased text rendering. All drawing operations can be
+transformed by any affine transformation (scale, rotation, shear,
+etc.).
+
+Cairo has been designed to let you draw anything you want in a modern
+2D graphical user interface.  At the same time, the cairo API has been
+designed to be as fun and easy to learn as possible. If you're not
+having fun while programming with cairo, then we have failed
+somewhere---let us know and we'll try to fix it next time around.
+
+Cairo is free software and is available to be redistributed and/or
+modified under the terms of either the GNU Lesser General Public
+License (LGPL) version 2.1 or the Mozilla Public License (MPL) version
+1.1.
+
+Where to get more information about cairo
+=========================================
+The primary source of information about cairo is:
+
+	http://cairographics.org/
+
+The latest releases of cairo can be found at:
+
+	http://cairographics.org/releases
+
+Snapshots of in-development versions of cairo:
+
+	http://cairographics.org/snapshots
+
+The programming manual for using cairo:
+
+	http://cairographics.org/manual
+
+Mailing lists for contacting cairo users and developers:
+
+	http://cairographics.org/lists
+
+Answers to some frequently asked questions about cairo:
+
+	http://cairographics.org/FAQ
+
+Dependencies
+============
+The set of libraries needed to compile cairo depends on which backends
+are enabled when cairo is configured. Here are the dependencies for
+each backend:
+
+Surface backends:
+
+	image backend
+	-------------
+	no dependencies
+
+	glitz backend
+	-------------
+	glitz >= 0.4.4 		http://freedesktop.org/Software/glitz
+
+	pdf backend
+	-----------
+	freetype >= 2.1.4	http://freetype.org
+	zlib			http://www.gzip.org/zlib
+
+	postscript backend
+	------------------
+	freetype >= 2.1.4	http://freetype.org
+	zlib			http://www.gzip.org/zlib
+
+	quartz backend
+	--------------
+	[*]
+
+	win32 backend
+	-------------
+	[*]
+
+	xcb backend
+	-----------
+	XCB			http://xcb.freedesktop.org
+
+	xlib backend
+	------------
+	Xrender >= 0.6		http://freedesktop.org/Software/xlibs
+
+Font backends:
+
+	freetype font backend
+	---------------------
+	freetype >= 2.1.4	http://freetype.org
+	fontconfig		http://fontconfig.org
+
+	win32 font backend
+	------------------
+	[*]
+
+	atsui font backend
+	------------------
+	[*]
+
+	[*] I don't know specifically what packages might need to be
+	    installed on a Mac OS X system to use the Quartz and ATSUI
+	    backends. As far as win32, the situation is rather complex:
+
+	    The Win32 backend should work on Windows 2000 and newer
+	    (excluding Windows Me.) Most testing has been done on
+	    Windows XP. While some portions of the code have been
+	    adapted to work on older versions of Windows, considerable
+	    work still needs to done to get cairo running in these
+	    environments.
+
+	    Cairo can be compiled on Windows either with the GCC
+	    toolchain (see http://www.mingw.org) or with Microsoft
+	    Visual C++. Makefiles or project files for compiling with
+	    MSVC are however not provided as of this release. We have
+	    received reports that MSVC 6.0 compiles parts of cairo
+	    incorrectly, (leading to incorrect color). MSVC 7.0 is
+	    known to work.
+
+Compiling
+=========
+See the INSTALL document for build instructions.
+
+History
+=======
+Cairo was originally developed by Carl Worth <cworth@cworth.org> and
+Keith Packard <keithp@keithp.com>. Many thanks are due to Lyle Ramshaw
+without whose patient help our ignorance would be much more apparent.
+
+Since the original development, many more people have contributed to
+cairo. See the AUTHORS files for as complete a list as we've been able
+to compile so far.

@@ -1,0 +1,383 @@
+<?xml version="1.0"?>
+
+# ***** BEGIN LICENSE BLOCK *****
+# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+#
+# The contents of this file are subject to the Mozilla Public License Version
+# 1.1 (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS" basis,
+# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+# for the specific language governing rights and limitations under the
+# License.
+#
+# The Original Code is the Places Organizer.
+#
+# The Initial Developer of the Original Code is Google Inc.
+# Portions created by the Initial Developer are Copyright (C) 2005-2006
+# the Initial Developer. All Rights Reserved.
+#
+# Contributor(s):
+#   Ben Goodger <beng@google.com>
+#   Annie Sullivan <annie.sullivan@gmail.com>
+#
+# Alternatively, the contents of this file may be used under the terms of
+# either the GNU General Public License Version 2 or later (the "GPL"), or
+# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# in which case the provisions of the GPL or the LGPL are applicable instead
+# of those above. If you wish to allow use of your version of this file only
+# under the terms of either the GPL or the LGPL, and not to allow others to
+# use your version of this file under the terms of the MPL, indicate your
+# decision by deleting the provisions above and replace them with the notice
+# and other provisions required by the GPL or the LGPL. If you do not delete
+# the provisions above, a recipient may use your version of this file under
+# the terms of any one of the MPL, the GPL or the LGPL.
+#
+# ***** END LICENSE BLOCK ***** 
+
+<?xml-stylesheet href="chrome://browser/content/places/places.css"?>
+<?xml-stylesheet href="chrome://browser/content/places/organizer.css"?>
+
+<?xml-stylesheet href="chrome://global/skin/"?>
+<?xml-stylesheet href="chrome://browser/skin/places/places.css"?>
+
+<?xul-overlay href="chrome://browser/content/baseMenuOverlay.xul"?>
+
+<!DOCTYPE window SYSTEM "chrome://browser/locale/places/places.dtd">
+
+<window id="places" title="&places.title;" 
+        windowtype="Places:Organizer" 
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        onload="PlacesOrganizer.init();"
+        width="700" height="500" screenX="10" screenY="10"
+        persist="width height screenX screenY sizemode">
+  
+  <script type="application/x-javascript"
+          src="chrome://browser/content/places/controller.js"/>
+  <script type="application/x-javascript"
+          src="chrome://browser/content/places/treeHelpers.js"/>
+  <script type="application/x-javascript"
+          src="chrome://browser/content/places/places.js"/>
+  <!-- ew. -->
+  <script type="application/x-javascript"
+          src="chrome://global/content/nsDragAndDrop.js"/>
+  
+  <stringbundleset id="stringbundles">
+    <stringbundle id="bundle_browser" src="chrome://browser/locale/browser.properties"/>
+    <stringbundle id="placeBundle" src="chrome://browser/locale/places/places.properties"/>
+    <stringbundle id="brandBundle" src="chrome://branding/locale/brand.properties"/>
+  </stringbundleset>
+  
+  <commandset id="TMCommandSet"
+              commandupdater="true" events="*" 
+              oncommandupdate="PlacesController.updateTMCommands()">
+    <command id="cmd_undo" 
+             label="&cmd.edit_undo.label;" accesskey="&cmd.edit_undo.accesskey;"
+             oncommand="PlacesController.doCommand(this.id);" disabled="true"/>
+    <command id="cmd_redo" 
+             label="&cmd.edit_redo.label;" accesskey="&cmd.edit_redo.accesskey;"
+             oncommand="PlacesController.doCommand(this.id);" disabled="true"/>
+  </commandset>
+#include commands.inc
+  <commandset id="organizerCommandSet">
+    <command id="placesCmd_find:all" 
+             label="&cmd.find.label;" accesskey="&cmd.find.accesskey;"
+             oncommand="PlacesSearchBox.findAll();"/>
+    <command id="placesCmd_find:current" 
+             label="&cmd.findCurrent.label;" accesskey="&cmd.findCurrent.accesskey;"
+             oncommand="PlacesSearchBox.findCurrent();"/>
+    <command id="placesCmd_export" 
+             label="&cmd.export.label;" accesskey="&cmd.export.accesskey;"
+             oncommand="PlacesOrganizer.exportBookmarks();"/>
+    <command id="placesCmd_import" 
+             label="&cmd.import.label;" accesskey="&cmd.import.accesskey;"
+             oncommand="PlacesOrganizer.importBookmarks();"/>
+    <command id="placesCmd_search:save"/>
+    <command id="placesCmd_search:moreCriteria"
+             oncommand="PlacesQueryBuilder.addRow();"/>
+  </commandset>
+
+  <broadcasterset id="placesGroupingBroadcasters">
+    <broadcaster id="placesBC_grouping:off"/>
+    <broadcaster id="placesBC_grouping:on"/>
+    <broadcaster id="placesBC_grouping:separator"/>
+  </broadcasterset>
+
+  <keyset id="placesOrganizerKeyset">
+    <!-- Instantiation Keys -->
+    <key id="placesKey_close" key="&cmd.close.key;" modifiers="accel" 
+         oncommand="close();"/>
+
+    <key id="placesKey_edit:undo" key="&cmd.edit_undo.key;" modifiers="accel" 
+         command="cmd_undo"/>
+    <key id="placesKey_edit:redo" key="&cmd.edit_redo.key;" modifiers="accel" 
+         command="cmd_redo"/>
+    
+    <key id="placesKey_show:debug"
+         key="d" modifiers="accel,shift"
+         oncommand="PlacesOrganizer.toggleDebugPanel();"/>
+         
+    <!-- Command Keys -->
+    <key id="placesKey_find:all" command="placesCmd_find:all" 
+         key="&cmd.find.key;" modifiers="accel"/>
+    <key id="placesKey_find:current" command="placesCmd_find:current" 
+         key="&cmd.find.key;" modifiers="accel,shift"/>
+    <key id="placesKey_select:all" command="placesCmd_select:all" 
+         key="&cmd.select_all.key;" modifiers="accel"/>
+    <key id="placesKey_edit:cut" command="placesCmd_edit:cut" 
+         key="&cmd.edit_cut.key;" modifiers="accel"/>
+    <key id="placesKey_edit:copy" command="placesCmd_edit:copy" 
+         key="&cmd.edit_copy.key;" modifiers="accel"/>
+    <key id="placesKey_edit:paste" command="placesCmd_edit:paste" 
+         key="&cmd.edit_paste.key;" modifiers="accel"/>
+    <key id="placesKey_edit:delete" command="placesCmd_edit:delete" 
+         keycode="VK_DELETE"/>
+    <key id="placesKey_open" command="placesCmd_open" 
+         keycode="VK_ENTER"/>
+    <key id="placesKey_open" command="placesCmd_open" 
+         keycode="VK_RETURN"/>
+    <key id="placesKey_open:window" command="placesCmd_open:window" 
+         keycode="VK_ENTER" modifiers="shift"/>
+    <key id="placesKey_open:window" command="placesCmd_open:window" 
+         keycode="VK_RETURN" modifiers="shift"/>
+    <key id="placesKey_open:tab" command="placesCmd_open:tab" 
+         keycode="VK_ENTER" modifiers="accel"/>
+    <key id="placesKey_open:tab" command="placesCmd_open:tab" 
+         keycode="VK_RETURN" modifiers="accel"/>
+    <key id="placesKey_show:info" command="placesCmd_show:info" 
+         key="&cmd.show_info.key;" modifiers="accel"/>
+    <key id="placesKey_rename" command="placesCmd_rename" 
+         keycode="VK_F2"/>
+    <key id="placesKey_reload" command="placesCmd_reload" 
+         key="&cmd.reload.key;" modifiers="accel"/>
+  </keyset>
+  
+  <popupset id="placesPopupset">
+#include context.inc
+  </popupset>
+  
+  <toolbox>
+    <menubar id="placesMenubar">
+      <menu id="fileMenu" label="&file.label;" accesskey="&file.accesskey;">
+        <menupopup>
+          <menuitem id="fileNewBookmark" command="placesCmd_new:bookmark"/>
+          <menuitem id="fileNewFolder" command="placesCmd_new:folder" accesskey="&cmd.new_folder.accesskey;"/>
+          <menuitem id="fileNewSeparator" command="placesCmd_new:separator"/>
+          <menuseparator/>
+          <menuitem id="fileImport" command="placesCmd_import"/>
+          <menuitem id="fileExport" command="placesCmd_export"/>
+#ifndef XP_MACOSX
+          <menuseparator/>
+          <menuitem id="properties" command="placesCmd_show:info"/>
+#endif
+          <menuseparator/>
+          <menuitem id="fileClose" key="placesKey_close" 
+                    label="&file.close.label;" accesskey="&file.close.accesskey;" 
+                    oncommand="close();"/>
+        </menupopup>
+      </menu>
+      <menu id="editMenu" label="&edit.label;" accesskey="&edit.accesskey;">
+        <menupopup>
+          <menuitem id="editUndo" command="cmd_undo" key="placesKey_edit:undo"/>
+          <menuitem id="editRedo" command="cmd_redo" key="placesKey_edit:redo"/>
+          <menuseparator/>
+          <menuitem id="editCut" command="placesCmd_edit:cut" 
+                    key="placesKey_edit:cut"/>
+          <menuitem id="editCopy" command="placesCmd_edit:copy" 
+                    key="placesKey_edit:copy"/>
+          <menuitem id="editPaste" command="placesCmd_edit:paste"
+                    key="placesKey_edit:paste"/>
+          <menuitem id="editDelete" command="placesCmd_edit:delete"
+                    key="placesKey_edit:delete"/>
+          <menuseparator/>
+          <menuitem id="editSelectAll" command="placesCmd_select:all"
+                    key="placesKey_select:all"/>
+          <menuseparator/>
+          <menuitem id="editSortByName" command="placesCmd_sortby:name"
+                    accesskey="&cmd.sortby_name.accesskey;"/>
+          <menuseparator/>
+          <menuitem id="editFindAll" command="placesCmd_find:all"
+                    key="placesKey_find:all"/>
+          <menuitem id="editFindCurrent" command="placesCmd_find:current"
+                    key="placesKey_find:current"/>
+#ifdef XP_MACOSX
+          <menuseparator/>
+          <menuitem id="properties" command="placesCmd_show:info"
+                    key="placesKey_show:info"/>
+#endif
+        </menupopup>
+      </menu>
+      <menu id="viewMenu" label="&view.label;" accesskey="&view.accesskey;"
+            onpopupshowing="ViewMenu.populate(event);"
+            oncommand="ViewMenu.setSortColumn(event.target, null);">
+        <menupopup>
+          <menuitem id="viewReload" command="placesCmd_reload"
+                    key="placesKey_reload"/>
+          <menuseparator/>
+          <menuitem id="viewToolbar" type="checkbox"
+                    label="&view.toolbar.label;" accesskey="&view.toolbar.accesskey;"/>
+          <menu id="viewColumns" 
+                label="&view.columns.label;" accesskey="&view.columns.accesskey;">
+            <menupopup onpopupshowing="ViewMenu.fillWithColumns(event, null, null, 'checkbox', null);"
+                       oncommand="ViewMenu.showHideColumn(event.target); event.stopPropagation();"/>
+          </menu>
+          <menuseparator id="groupingSeparator" observes="placesBC_grouping:separator"/>
+          <menuitem id="viewGroupNone" type="radio" name="group"
+                    observes="placesBC_grouping:off"/>
+          <menuitem id="viewGroupGroup" type="radio" name="group"
+                    observes="placesBC_grouping:on"/>
+          <menuseparator id="columnSeparator"/>
+          <menuitem id="viewUnsorted" type="radio" name="columns" 
+                    label="&view.unsorted.label;" accesskey="&view.unsorted.accesskey;"
+                    oncommand="ViewMenu.setSortColumn(null, null);"/>
+          <menuseparator id="directionSeparator"/>
+          <menuitem id="viewSortAscending" type="radio" name="direction" 
+                    label="&view.sortAscending.label;" accesskey="&view.sortAscending.accesskey;"
+                    oncommand="ViewMenu.setSortColumn(null, 'ascending'); event.stopPropagation();"/>
+          <menuitem id="viewSortDescending" type="radio" name="direction" 
+                    label="&view.sortDescending.label;" accesskey="&view.sortDescending.accesskey;"
+                    oncommand="ViewMenu.setSortColumn(null, 'descending'); event.stopPropagation();"/>
+        </menupopup>
+      </menu>
+      <menu id="helpMenu">
+        <menupopup id="menu_HelpPopup">
+          <menuitem id="helpUsingBookmarks"
+                    label="&help.usingBookmarks.label;" accesskey="&help.usingBookmarks.accesskey;"/>
+          <menuitem id="helpUsingHistory"
+                    label="&help.usingHistory.label;" accesskey="&help.usingHistory.accesskey;"/>
+          <menuitem id="helpAdvancedTips"
+                    label="&help.advancedTips.label;" accesskey="&help.advancedTips.accesskey;"/>
+        </menupopup>
+      </menu>
+    </menubar>
+    <toolbar class="chromeclass-toolbar">
+
+      <textbox id="searchFilter" style="width: 23em;" timeout="500"
+               oncommand="PlacesSearchBox.search(this.value);" 
+               onreset="PlacesOrganizer.onPlaceSelected(false); return true;" 
+               collection="all">
+        <button type="menu" class="filterList" id="filterList_history">
+          <menupopup>
+            <menuitem label="&search.all.label;" accesskey="&search.all.accesskey;"
+                      type="radio" name="collection" value="all" 
+                      checked="true" default="true"/>
+            <menuitem label="&search.collection.label;" accesskey="&search.collection.accesskey;"
+                      type="radio" name="collection" value="collection"/>
+          </menupopup>
+        </button>
+      </textbox>
+      <toolbarbutton id="toolbarNewFolder" command="placesCmd_new:folder" accesskey="&cmd.new_folder.accesskey;"/>
+      <toolbarbutton id="toolbarDelete" command="placesCmd_edit:delete"/>
+      <spacer flex="1"/>
+      <toolbarbutton id="toolbarGroupOff" type="radio" group="grouping" 
+                     observes="placesBC_grouping:off"/>
+      <toolbarbutton id="toolbarGroupOn" type="radio" group="grouping" 
+                     observes="placesBC_grouping:on" />
+    </toolbar>
+  </toolbox>
+  <hbox flex="1" id="placesView">
+    <tree id="placesList" class="placesTree" type="places" 
+          place="place:&amp;folder=1&amp;group=3&amp;excludeItems=1" 
+          hidecolumnpicker="true" context="placesContext"
+          onselect="PlacesOrganizer.onPlaceSelected(true);"
+          onclick="PlacesOrganizer.onTreeClick(event);"
+          seltype="single">
+      <treecols>
+        <treecol id="title" flex="1" primary="true" hideheader="true"/>
+      </treecols>
+      <treechildren id="placesListChildren" view="placesList"  flex="1"/>
+    </tree>
+    <splitter id="splitter"/>
+    <vbox id="contentView" flex="4">
+      <deck id="contentDeck" flex="1">
+        <vbox flex="1">
+          <hbox id="titlebar" align="center">
+            <label id="showingPrefix"/>
+            <deck id="titleDeck" flex="1">
+              <label id="contentTitle" flex="1" crop="right"/>
+              <hbox align="center" id="titlebarMatch" hidden="true">
+                <label value="&advancedSearch.match.label;"/>
+                <menulist id="advancedSearchType"
+                          oncommand="PlacesQueryBuilder.doSearch();">
+                  <menupopup>
+                    <menuitem value="and" label="&advancedSearch.all.label;"/>
+                    <menuitem value="or" label="&advancedSearch.any.label;"/>
+                  </menupopup>
+                </menulist>
+                <label value="&advancedSearch.rules.label;"/>
+              </hbox>
+            </deck>
+            <hbox id="searchModifiers" hidden="true" align="center">
+              <button id="saveSearch" class="small" 
+                      label="&saveSearch.label;" accesskey="&saveSearch.accesskey;"
+                      command="placesCmd_search:save"/>
+              <button id="moreCriteria"
+                      class="small"
+                      label="&moreCriteria.label;"
+                      command="placesCmd_search:moreCriteria"/>
+            </hbox>
+          </hbox>
+#include advancedSearch.inc          
+          <tree id="placeContent" class="placesTree" context="placesContext" 
+                flex="1" type="places" 
+                ondblclick="PlacesController.mouseLoadURI(event);"
+                onclick="PlacesOrganizer.onTreeClick(event);">
+            <treecols id="placeContentColumns">
+              <treecol label="&col.title.label;" id="title" flex="5" primary="true" 
+                       persist="width hidden ordinal sortActive sortDirection"/>
+              <splitter class="tree-splitter"/>
+              <treecol label="&col.url.label;" id="url" flex="5" 
+                       persist="width hidden ordinal sortActive sortDirection"/>
+              <splitter class="tree-splitter"/>
+              <treecol label="&col.lastvisit.label;" id="date" flex="1" 
+                       persist="width hidden ordinal sortActive sortDirection"/>
+              <splitter class="tree-splitter"/>
+              <treecol label="&col.visitcount.label;" id="visitCount" flex="1" hidden="true" 
+                       persist="width hidden ordinal sortActive sortDirection"/>
+            </treecols>
+            <treechildren id="placeContentChildren" view="placeContent" flex="1"/>
+          </tree>
+          <vbox id="debugPanel" hidden="true">
+            <grid>
+              <columns>
+                <column/>
+                <column flex="1"/>
+                <column/>
+              </columns>
+              <rows>
+                <row align="center">
+                  <label value="Debug:"/>
+                  <textbox id="placeURI" flex="1" 
+                           onkeypress="PlacesOrganizer.onPlaceURIKeypress(event);"/>
+                  <button label="Load" oncommand="PlacesOrganizer.loadPlaceURI();"/>
+                </row>
+                <row>
+                  <spacer/>
+                  <hbox>
+                    <checkbox id="autoFilterResults" 
+                              label="Apply user filtering of results"
+                              checked="true"/>
+                  </hbox>
+                  <spacer/>
+                </row>
+                <separator class="thin"/>
+                <row align="center">
+                  <label value="Loaded:"/>
+                  <textbox id="loadedURI" flex="1" readonly="true"/>
+                  <spacer/>
+                </row>
+              </rows>
+            </grid>
+            <separator class="thin"/>
+          </vbox>
+        </vbox>
+      </deck>
+    </vbox>
+  </hbox>
+  <statusbar>
+    <statusbarpanel id="status" flex="1"/>
+  </statusbar>
+</window>
+

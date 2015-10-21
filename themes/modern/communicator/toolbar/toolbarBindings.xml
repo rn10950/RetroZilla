@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+
+<bindings id="toolbarBindings"
+          xmlns="http://www.mozilla.org/xbl"
+          xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+          xmlns:xbl="http://www.mozilla.org/xbl">
+
+  <binding id="toolbar-primary"
+           extends="chrome://global/content/bindings/toolbar.xml#toolbar-primary">
+    <content>
+      <xul:toolbargrippy xbl:inherits="last-toolbar"
+          tbattr="toolbar-grippy" class="toolbar-primary-grippy"/>
+      <xul:hbox class="toolbar-holder toolbar-primary-holder" flex="1" xbl:inherits="orient=tborient,buttonstyle">
+        <xul:image class="toolbar-primary-icon" xbl:inherits="buttonstyle"/>
+        <xul:hbox class="toolbar-button-box" flex="1">
+          <children/>
+        </xul:hbox>
+      </xul:hbox>
+    </content>
+  </binding>
+
+  <binding id="toolbargrippy-primary"
+           extends="chrome://global/content/bindings/toolbar.xml#toolbargrippy">
+    <content>
+      <xul:image class="toolbargrippy-arrow"/>
+      <xul:image class="toolbargrippy-texture" flex="1"/>
+    </content>
+  </binding>
+
+</bindings>

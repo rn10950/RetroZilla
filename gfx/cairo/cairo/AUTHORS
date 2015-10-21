@@ -1,0 +1,52 @@
+Josh Aas <joshmoz@gmail.com> Memory leak fix for quartz backend
+Shawn T. Amundson <amundson@gtk.org> Build fix
+Olivier Andrieu <oliv__a@users.sourceforge.net> PNG backend
+Peter Dennis Bartok <peter@novonyx.com> Bug fix for clipping
+Dave Beckett <dajobe@debian.org> Build fixes, Debian packaging
+Billy Biggs <vektor@dumbterm.net> Pixman code merge. Optimization. Fixes for subtle rendering bugs.
+Damien Carbery <damien.carbery@sun.com> Build fixes
+Andrew Chant <andrew.chant@utoronto.ca> Adding const where needed
+Steve Chaplin <stevech1097@yahoo.com.au> Bug fixes for PNG reading
+Tomasz Cholewo <cholewo@ieee-cis.org> Bug fixes
+John Ehresman <jpe@wingide.com> Build fixes for win32
+John Ellson <ellson@research.att.com> First font/glyph extents functions
+Behdad Esfahbod <behdad@behdad.org> Release script improvements, bug fixes.
+Bertram Felgenhauer <int-e@gmx.de> Fixes for subtle arithmetic errors
+J. Ali Harlow <ali@avrc.city.ac.uk> win32 backend updates
+Richard Henderson <rth@twiddle.net> "slim" macros for better shared libraries 
+James Henstridge <james@daa.com.au> Build fixes related to freetype
+Graydon Hoare <graydon@redhat.com> Support for non-render X server, first real text support
+Thomas Hunger <info@teh-web.de> Initial version of cairo_in_stroke/fill
+Kristian Høgsberg <krh@redhat.com> PDF backend, PS backend with meta-surfaces
+Amaury Jacquot <sxpert@esitcom.org> Documentation review, appplication testing
+Adrian Johnson <ajohnson@redneon.com> PDF backend improvement
+Michael Johnson <ahze@ahze.net> Bug fix for pre-C99 compilers
+Øyvind Kolås <pippin@freedesktop.org> Bug fixes. Better default values.
+Martin Kretzschmar <martink@gnome.org> Arithmetic fix for 64-bit architectures
+Alexander Larsson <alexl@redhat.com> Profiling and performance fixes.
+Tor Lillqvist <tml@novell.com> win32 build fixes, build scripts
+Luke-Jr <luke-jr@utopios.org> Build fix for cross-compiling
+Jordi Mas <jordi@ximian.com> Bug fix for cairo_show_text
+Jeff Muizelaar <jeff@infidigm.net> Patient, painful, pixman code merge. Test fixes
+Peter Nilsson <c99pnn@cs.umu.se> Glitz backend
+Geoff Norton <gnorton@customerdna.com> Build fixes
+Robert O'Callahan <rocallahan@novell.com> Const-correctness fixes.
+Mike Owens <etc@filespanker.com> Bug fixes
+Keith Packard <keithp@keithp.com> Original concept, polygon tessellation, dashing, font metrics rewrite
+Stuart Parmenter <pavlov@pavlov.net> Original GDI+ backend, win32 fixes
+Christof Petig <christof@petig-baender.de> Build fixes related to freetype
+David Reveman <davidr@novell.com> New pattern API, glitz backend
+Calum Robinson <calumr@mac.com> Quartz backend
+Tim Rowley <tim.rowley@gmail.com> Quartz/ATSUI fixes, X server workarounds, win32 glyph path support
+Jamey Sharp <jamey@minilop.net> Surface/font backend virtualization, XCB backend
+Jason Dorje Short <jdorje@users.sf.net> Build fixes and bug fixes
+Travis Spencer <tspencer@cs.pdx.edu> XCB backend fix
+Bill Spitzak <spitzak@d2.com> Build fix to find Xrender.h without xrender.pc
+Owen Taylor <otaylor@redhat.com> Font rewrite, documentation, win32 backend
+Malcolm Tredinnick <malcolm@commsecure.com.au> Documentation fixes
+Sasha Vasko <sasha@aftercode.net> Build fix to compile without xlib backend
+Vladimir Vukicevic <vladimir@pobox.com> Bug fix for clipping
+Carl Worth <cworth@isi.edu> Original library, support for paths, images
+Richard D. Worth <richard@theworths.org> Build fixes for cygwin
+
+(please let us know if we have missed anyone)

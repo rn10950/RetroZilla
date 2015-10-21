@@ -1,0 +1,33 @@
+
+DEPTH		= ../../..
+topsrcdir	= @top_srcdir@
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+include $(DEPTH)/config/autoconf.mk
+
+MODULE		= thebes
+
+EXPORTS		= 	gfxASurface.h \
+			gfxColor.h \
+			gfxContext.h \
+			gfxFilter.h \
+			gfxImageSurface.h \
+			gfxMatrix.h \
+			gfxPattern.h \
+			gfxPoint.h \
+			gfxRect.h \
+			gfxRegion.h \
+			gfxTextRun.h \
+			gfxTypes.h \
+			$(NULL)
+
+ifeq ($(MOZ_GFX_TOOLKIT),windows)
+EXPORTS	+=	gfxWindowsSurface.h
+endif
+
+ifeq ($(MOZ_GFX_TOOLKIT),gtk2)
+EXPORTS	+=	gfxXlibSurface.h
+endif
+
+include $(topsrcdir)/config/rules.mk

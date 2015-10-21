@@ -1,0 +1,209 @@
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is mozilla.org code.
+ *
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Seth Spitzer <sspitzer@netscape.com>
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+ 
+#include "nsISupports.idl"
+#include "nsIAbCard.idl"
+#include "nsISupportsArray.idl"
+
+[ptr] native nsFileSpec(nsFileSpec);
+
+%{C++
+#include "nsFileSpec.h"
+#include "nsDirPrefs.h"
+%}
+
+// used for when creating new directories
+// either from user input, or during bootstrapping
+[scriptable, uuid(f94812de-1dd1-11b2-b0ab-9eb5e055f712)]
+interface nsIAbDirectoryProperties : nsISupports {
+  attribute AString description;
+  attribute string URI;
+  attribute string prefName;
+  attribute string fileName;
+  attribute unsigned long dirType;
+  attribute unsigned long maxHits;
+  attribute string authDn;
+  attribute unsigned long syncTimeStamp;
+  attribute long categoryId;
+  attribute long position;
+};
+
+[scriptable, uuid(AA920C90-1DD1-11B2-96D3-AA81268ADAFC)]
+interface nsIAbDirectory : nsISupports {
+
+	// Types of operation
+	// Perform linear reading of directory card
+	// content
+    const long opRead = 0x1;
+	// Perform modification and deletion on a
+	// directories content
+    const long opWrite = 0x2;
+	// Perform searching on a directory card
+	// content via the uri format:
+	// 	scheme://path?query
+    const long opSearch = 0x4;
+
+	// The supported operations
+	readonly attribute long operations;
+
+	// The description of the directory
+    attribute wstring dirName;
+    
+    // will be used for LDAP replication
+    attribute unsigned long  lastModifiedDate;
+
+	// Defines whether this directory is a mail
+	// list or not
+	attribute PRBool isMailList;
+
+  // Get the directory properties
+  readonly attribute nsIAbDirectoryProperties directoryProperties;
+
+	// Get the children directories
+	readonly attribute nsISimpleEnumerator childNodes;
+
+	// Get the cards associated with the directory
+	// This will return the cards associated with
+	// the mailing lists too
+	readonly attribute nsIEnumerator childCards;
+
+  // Modifies a top level directory, 
+  // which also updates the preferences
+  void modifyDirectory(in nsIAbDirectory directory, in nsIAbDirectoryProperties aProperties);
+
+	// Deletes either a mailing list or a top
+	// level directory, which also updates the
+	// preferences
+	void deleteDirectory(in nsIAbDirectory dierctory);
+
+	// Delete the array of cards
+	void deleteCards(in nsISupportsArray cards);
+
+	// Check if directory contains card
+	// If the implementation is asynchronous the card
+	// may not yet have arrived. If it is in the process
+	// of obtaining cards the method will throw an
+	// NS_ERROR_NOT_AVAILABLE exception if the card
+	// cannot be found.
+	boolean hasCard(in nsIAbCard cards);
+
+	// Check if directory contains directory
+	boolean hasDirectory(in nsIAbDirectory dir);
+
+    /**
+     * return value is the card that got added
+     * we need to do this, as the card we pass in might
+     * be an abstract nsIAbCard, and the caller might need
+     * the "real" card (the mdbcard) to get / set 
+     * non-standard card values
+     */
+    nsIAbCard addCard(in nsIAbCard card);
+
+    void dropCard(in nsIAbCard card, in boolean needToCopyCard);
+
+    /**
+     * directory is local (example, mork based) or remote (example, LDAP)
+     */
+    readonly attribute boolean isRemote;
+
+    /**
+     * directory is secure (as in LDAP over SSL)
+     */
+    readonly attribute boolean isSecure;
+
+    /**
+     * directory should be searched when doing local autocomplete
+     */
+    readonly attribute boolean searchDuringLocalAutocomplete;
+
+    // Mail list specific
+    readonly attribute boolean supportsMailingLists;
+
+        // XXX todo
+        // fix this, ugh
+	// This attribute servers two purposes 
+	// depending if the directory is a mail list.
+	// If not mail list directories are stored here
+	// If so mail list card entries are stored here
+	attribute nsISupportsArray addressLists;
+
+	// Specific to a directory which stores mail lists
+
+	// Creates a new mailing list in the directory
+	// with the properties defined by list
+	void addMailList (in nsIAbDirectory list);
+
+  // Creates a new mailing list in the directory with
+  // the properties defined by list and return a db key
+  void addMailListWithKey (in nsIAbDirectory list, out PRUint32 key);
+
+	// Specific to a directory which is a mail list
+	attribute wstring listNickName;
+	attribute wstring description;
+
+    /**
+     * Edits an existing mailing list (specified as listCard)
+	 * into the directory specified by the uri
+	 * XXX javadoc me
+     */
+	void editMailListToDatabase(in string uri, in nsIAbCard listCard);
+
+	// Copies mail list properties from the srcList
+	void copyMailList(in nsIAbDirectory srcList);
+
+	/*
+		Only creates a top level address book
+		which is stored in the preferences
+
+		Need to change to factory based approach
+		to create new address books
+
+		This method should become redundant or 
+		be only associated with card folders
+	*/
+    void createNewDirectory(in nsIAbDirectoryProperties aProperties);
+
+    /* create a directory by passing the display name and address book uri */
+	void createDirectoryByURI(in wstring displayName, in string uri, in boolean migrating);
+
+	wstring getValueForCard(in nsIAbCard card, in string name);
+	void setValueForCard(in nsIAbCard card, in string name, in wstring value);
+
+  // the id of the directory used in prefs
+	attribute ACString dirPrefId;
+};

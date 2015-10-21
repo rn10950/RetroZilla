@@ -1,0 +1,43 @@
+@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+
+#reporterMenuButton {
+   list-style-image: url("chrome://reporter/skin/reporter-icon-large.png");
+   /*http://www.eightlines.com/neil/mozskin/organize.html*/
+}
+
+#reporterMenuButton {
+  -moz-image-region: rect(0px 23px 23px 0px);
+}
+
+#reporterMenuButton:hover {
+  -moz-image-region: rect(0px 46px 23px 23px);
+}
+
+#reporterMenuButton:hover:active {
+  -moz-image-region: rect(0px 69px 23px 46px);
+}
+
+#reporterMenuButton[disabled="true"] {
+  -moz-image-region: rect(0px 92px 23px 69px) !important;
+}
+
+/* Small */
+toolbar[iconsize="small"] #reporterMenuButton {
+   list-style-image: url("chrome://reporter/skin/reporter-icon-small.png");
+}
+
+toolbar[iconsize="small"] #reporterMenuButton {
+  -moz-image-region: rect(0px 16px 15px 0px);
+}
+
+toolbar[iconsize="small"] #reporterMenuButton:hover {
+  -moz-image-region: rect(0px 32px 15px 16px);
+}
+
+toolbar[iconsize="small"] #reporterMenuButton:hover:active {
+  -moz-image-region: rect(0px 48px 15px 32px);
+}
+
+toolbar[iconsize="small"] #reporterMenuButton[disabled="true"] {
+  -moz-image-region: rect(0px 64px 15px 48px) !important;
+}

@@ -1,0 +1,5 @@
+toolkit.jar:
+#ifndef MINIMO
+    content/global/notfound.wav                   (content/notfound.wav)
+*   content/global/findBar.js                     (content/findBar.js)
+#endif

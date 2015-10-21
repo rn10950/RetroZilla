@@ -1,0 +1,25 @@
+
+@import url("chrome://global/skin/");
+@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+
+
+#configTreeBody::-moz-tree-cell-text(user)
+{
+  font-weight: bold;
+}
+
+#configTreeBody::-moz-tree-cell-text(locked)
+{
+  font-style: italic;
+}
+
+#configTree 
+{  
+  margin-top: 5px !important;
+  margin-bottom: 5px !important;
+}
+
+#filterRow
+{
+  margin-top: 5px;
+}

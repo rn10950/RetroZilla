@@ -1,0 +1,5 @@
+classic.jar:
+#ifndef MINIMO
+  skin/classic/mozapps/profile/profileSelection.css
+  skin/classic/mozapps/profile/profileicon.png
+#endif

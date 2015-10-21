@@ -1,0 +1,5 @@
+toolkit.jar:
+#ifndef MINIMO
+* content/global/alerts/alert.xul (resources/content/alert.xul)
+* content/global/alerts/alert.js  (resources/content/alert.js)
+#endif

@@ -1,0 +1,3 @@
+_NSRegisterSelf ; 1
+_NSCanUnload ; 1
+??0?$nsCOMPtr@VnsIServiceManager@@@@QAE@ABVnsCOMPtr_helper@@@Z ; 1

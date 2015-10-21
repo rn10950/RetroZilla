@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE dialog SYSTEM "chrome://browser/locale/feeds/addFeedReader.dtd">
+
+<?xml-stylesheet href="chrome://global/skin/"?>
+<?xml-stylesheet href="chrome://browser/skin/feeds/addFeedReader.css"?>
+
+<dialog id="addFeedReader"
+        title="&addFeedReader.title;"
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        onload="gAddFeedReader.init();"
+        defaultButton="cancel"
+        ondialogaccept="gAddFeedReader.onDialogAccept();"
+        buttons="accept,cancel">
+
+  <script type="application/x-javascript"
+          src="chrome://browser/content/feeds/addFeedReader.js"/>
+          
+  <stringbundle id="strings"
+                src="chrome://browser/locale/feeds/subscribe.properties"/>
+
+  <hbox flex="1">
+    <vbox id="imageBox"/>
+    <vbox flex="1" id="content">
+      <label id="addQuestion" flex="1"/>
+      <hbox align="center" id="siteBox">
+        <label id="siteLabel">&forSite.label;</label>
+        <textbox id="site" readonly="true" flex="1" class="plain"/>
+      </hbox>
+    </vbox>
+  </hbox>
+</dialog>

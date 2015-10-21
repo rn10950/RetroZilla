@@ -1,0 +1,125 @@
+/* -*- Mode: IDL; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is mozilla.org code.
+ *
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 2000
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   David Hyatt <hyatt@netscape.com> (original author)
+ *   Johnny Stenback <jst@netscape.com>
+ *   Brett Wilson <brettw@gmail.com>
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+#include "domstubs.idl"
+
+interface nsIDOMXULCommandDispatcher;
+interface nsIObserver;
+
+[scriptable, uuid(e64bb081-13ba-430e-ab70-73a9f1d3de58)]
+interface nsIDOMXULDocument : nsISupports
+{
+           attribute nsIDOMNode                 popupNode;
+           attribute nsIDOMNode                 tooltipNode;
+
+  readonly attribute nsIDOMXULCommandDispatcher commandDispatcher;
+
+  readonly attribute long                       width;
+  readonly attribute long                       height;
+
+  nsIDOMNodeList            getElementsByAttribute(in DOMString name,
+                                                   in DOMString value);
+
+  void                      addBroadcastListenerFor(in nsIDOMElement broadcaster,
+                                                    in nsIDOMElement observer,
+                                                    in DOMString attr);
+
+  void                      removeBroadcastListenerFor(in nsIDOMElement broadcaster,
+                                                       in nsIDOMElement observer,
+                                                       in DOMString attr);
+
+  void                      persist(in DOMString id, in DOMString attr);
+
+  /**
+   * Loads a XUL overlay and merges it with the current document, notifying an
+   * observer when the merge is complete. 
+   * @param   url
+   *          The URL of the overlay to load and merge
+   * @param   observer
+   *          An object implementing nsIObserver that will be notified with a
+   *          message of topic "xul-overlay-merged" when the merge is complete. 
+   *          The subject parameter of |observe| will QI to a nsIURI - the URI 
+   *          of the merged overlay. This parameter is optional and may be null.
+   *
+   * NOTICE:  In the 2.0 timeframe this API will change such that the 
+   *          implementation will fire a DOMXULOverlayMerged event upon merge
+   *          completion rather than notifying an observer. Do not rely on this
+   *          API's behavior _not_ to change because it will!
+   *          - Ben Goodger (8/23/2005)
+   */
+  void                      loadOverlay(in DOMString url, in nsIObserver aObserver);
+};
+
+/**
+ * This interface is a hack for bug 319434 since we have to preserve the
+ * nsIDOMXULDocument interface on the branch. It provides non-scriptable
+ * functions that don't do security checks to access the popup and tooltip
+ * nodes.
+ *
+ * @status TEMPORARY
+ */
+[uuid(87545e48-b966-4579-829a-ca01b0fca9b3)]
+interface nsIDOMXULDocument2 : nsIDOMXULDocument
+{
+  nsIDOMNode trustedGetPopupNode();
+  nsIDOMNode trustedGetTooltipNode();
+
+  attribute nsIDOMEvent trustedPopupEvent;
+};
+
+/**
+ * This interface adds the popup event for the inline spell checker on brach,
+ * because we can't change nsIDOMXULDoucument. We can't use nsIDOMXULDocument2
+ * because it isn't scriptable.
+ *
+ * @status TEMPORARY
+ */
+[scriptable, uuid(8cc6316d-ecbc-4c5f-8fda-28c91fb56e3d)]
+interface nsIDOMXULDocument_MOZILLA_1_8_BRANCH : nsISupports
+{
+  /**
+   * These attributes correspond to trustedGetPopupNode().rangeOffset and
+   * rangeParent. They will help you find where in the DOM the popup is
+   * happening. Can be accessed from chrome only, and only during a popup
+   * event. Accessing any other time will be an error.
+   */
+  readonly attribute nsIDOMNode popupRangeParent;
+  readonly attribute long popupRangeOffset;
+};

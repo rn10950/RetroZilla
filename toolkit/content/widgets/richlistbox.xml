@@ -1,0 +1,589 @@
+<?xml version="1.0"?>
+
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Richlistbox code.
+   -
+   - The Initial Developer of the Original Code is
+   - IBM Corporation.
+   - Portions created by the Initial Developer are Copyright (C) 2005
+   - IBM Corporation. All Rights Reserved.
+   -
+   - Contributor(s):
+   -   Doron Rosenberg <doronr@us.ibm.com> (Original Author)
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either the GNU General Public License Version 2 or later (the "GPL"), or
+   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the GPL or the LGPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<bindings id="richlistboxBindings"
+          xmlns="http://www.mozilla.org/xbl"
+          xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+          xmlns:xbl="http://www.mozilla.org/xbl">
+
+  <binding id="richlistbox">
+    <content>
+      <xul:scrollbox allowevents="true" orient="vertical" anonid="main-box"
+                     flex="1" style="overflow: auto;">
+        <children />
+      </xul:scrollbox>
+    </content>
+
+    <resources>
+      <stylesheet src="chrome://global/skin/richlistbox.css"/>
+    </resources>
+
+    <implementation implements="nsIAccessibleProvider, nsIDOMXULSelectControlElement">
+      <field name="scrollBoxObject">null</field>
+      <constructor>
+        <![CDATA[
+          var x = document.getAnonymousElementByAttribute(this, "anonid", "main-box");
+          this.scrollBoxObject = x.boxObject.QueryInterface(Components.interfaces.nsIScrollBoxObject);
+
+          // add a template build listener
+          if (this.builder)
+            this.builder.addListener(this._builderListener);
+          else
+            this._refreshSelection();
+        ]]>
+      </constructor>
+
+      <destructor>
+        <![CDATA[
+          // remove the template build listener
+          if (this.builder)
+            this.builder.removeListener(this._builderListener);
+
+          this._selectedItem = null;
+        ]]>
+      </destructor>
+
+      <property name="accessible">
+        <getter>
+          <![CDATA[
+            var accService = Components.classes["@mozilla.org/accessibilityService;1"].getService(Components.interfaces.nsIAccessibilityService);
+            return accService.createXULListboxAccessible(this);
+          ]]>
+        </getter>
+      </property>
+
+      <property name="children">
+        <getter>
+          <![CDATA[
+            var childNodes = [];
+            for (var i = 0; i < this.childNodes.length; ++i) {
+              if (this.childNodes[i] instanceof Components.interfaces.nsIDOMXULSelectControlItemElement)
+                childNodes.push(this.childNodes[i]);
+            }
+            return childNodes;
+          ]]>
+        </getter>
+      </property>
+
+      <field name="_builderListener">
+        <![CDATA[
+          ({
+            mOuter: this,
+            item: null,
+            willRebuild : function(builder) {},
+            didRebuild : function(builder) {
+              this.mOuter._refreshSelection();
+            }
+          });
+        ]]>
+      </field>
+
+      <method name="_refreshSelection">
+        <body>
+          <![CDATA[
+            // when this method is called, we know that either the selectedItem
+            // we have is null (ctor) or a reference to an element no longer in
+            // the DOM (template).
+
+            // fist look for a last-selected attribute
+            var lastSelected = this.getAttribute("last-selected");
+            if (lastSelected != "") {
+              var element = document.getElementById(lastSelected);
+
+              if (element) {
+                this.selectedItem = element;
+                if (!this._isItemVisible(this.selectedItem))
+                  this.scrollBoxObject.scrollToElement(this.selectedItem);
+                return;
+              }
+            }
+
+            // cache the selected index
+            var selectedIndex = this._selectedIndex;
+
+            // refreshes selection.  Called for example when a template rebuild
+            // happens.
+            if (this.selectedItem) {
+              if (this.selectedItem.hasAttribute("id")) {
+                var id = this.selectedItem.getAttribute("id");
+                var item = document.getElementById(id);
+
+                // if we find no item, clear selection so that the code at the bottom
+                // takes over
+                if (item) {
+                  this.selectedItem = item;
+                } else {
+                  this.clearSelection();
+                }
+              } else {
+                 // if no id, we clear selection so that the below code will select
+                 // based on the current index
+                 this.clearSelection();
+              }
+            }
+
+            // if we have no previously selected item or the above if check fails to
+            // find the previous node (which causes it to clear selection)
+            if (!this.selectedItem) {
+              // if the selectedIndex is larger than the row count, select the last
+              // item.
+              if (selectedIndex >= this.getRowCount())
+                this.selectedIndex = this.getRowCount() - 1;
+              else
+                this.selectedIndex = selectedIndex;
+
+              // XXX: downloadmanager needs the following line, else we scroll to
+              // the middle on inital load.
+              this.ensureSelectedElementIsVisible();
+            }
+          ]]>
+        </body>
+      </method>
+
+      <method name="fireActiveItemEvent">
+        <body>
+          <![CDATA[
+            if (this.selectedItem) {
+              var event = document.createEvent("Events");
+              event.initEvent("DOMMenuItemActive", true, true);
+              this.selectedItem.dispatchEvent(event);
+            }
+            return false;
+          ]]>
+        </body>
+      </method>
+
+      <field name="_selectedIndex">0</field>
+      <property name="selectedIndex">
+        <getter>
+          <![CDATA[
+            return this.getIndexOf(this.selectedItem);
+          ]]>
+        </getter>
+        <setter>
+          <![CDATA[
+            if (val == -1) {
+              // clear selection
+              this.clearSelection();
+            } else if (val >= 0) {
+              // only set if we get an item returned
+              var item = this.getItemAtIndex(val);
+              if (item)
+                this.selectedItem = item;
+            }
+          ]]>
+        </setter>
+      </property>
+
+      <field name="_selectedItem">null</field>
+      <property name="selectedItem">
+        <getter>
+          return this._selectedItem;
+        </getter>
+        <setter>
+          <![CDATA[
+            if (this._selectedItem == val)
+              return;
+
+            this._setItemSelection(val);
+
+            if (val)
+              this.fireActiveItemEvent();
+
+            this._fireOnSelect();
+          ]]>
+        </setter>
+      </property>
+
+      <!-- sets selection but doesn't cause any events -->
+      <method name="_setItemSelection">
+        <parameter name="aItem"/>
+        <body>
+          <![CDATA[
+            // unselect current item
+            if (this._selectedItem)
+              this._selectedItem.selected = false
+
+            this._selectedItem = aItem;
+            this._selectedIndex = this.getIndexOf(aItem);
+            this.ensureSelectedElementIsVisible();
+
+            if (aItem) {
+              aItem.selected = true;
+              aItem.focus();
+            }
+          ]]>
+        </body>
+      </method>
+
+      <method name="clearSelection">
+        <body>
+          <![CDATA[
+            this.selectedItem = null;
+          ]]>
+        </body>
+      </method>
+
+      <method name="getRowCount">
+        <body>
+          <![CDATA[
+            return this.children.length;
+          ]]>
+        </body>
+      </method>
+
+      <method name="goUp">
+        <body>
+          <![CDATA[
+            // if nothing selected, we go from the bottom
+            for (var i = this.selectedItem ? this.selectedItem.previousSibling : this.lastChild; i; i = i.previousSibling) {
+              // could have a template element, which would be a sibling
+              if (i instanceof Components.interfaces.nsIDOMXULSelectControlItemElement) {
+                this.selectedItem = i;
+                return true;
+              }
+            }
+            return false;
+          ]]>
+        </body>
+      </method>
+
+      <method name="goDown">
+        <body>
+          <![CDATA[
+            // if nothing selected, we go from the top
+            for (var i = this.selectedItem ? this.selectedItem.nextSibling : this.firstChild; i; i = i.nextSibling) {
+              // could have a template element, which would be a sibling
+              if (i instanceof Components.interfaces.nsIDOMXULSelectControlItemElement) {
+                this.selectedItem = i;
+                return true;
+              }
+            }
+            return false;
+          ]]>
+        </body>
+      </method>
+
+      <method name="_isItemVisible">
+        <parameter name="aItem"/>
+        <body>
+          <![CDATA[
+            if (!aItem)
+              return false;
+
+            var y = {};
+            this.scrollBoxObject.getPosition({}, y);
+            y.value += this.scrollBoxObject.y;
+
+            // Partially visible items are also considered visible
+            return (aItem.boxObject.y + aItem.boxObject.height > y.value) &&
+                   (aItem.boxObject.y < y.value + this.scrollBoxObject.height);
+          ]]>
+        </body>
+      </method>
+
+      <method name="scrollOnePage">
+        <parameter name="aDirection"/> <!-- Must be -1 or 1 -->
+        <body>
+          <![CDATA[
+            var children = this.children;
+
+            if (children.length == 0)
+              return false;
+
+            var index = children.indexOf(this.selectedItem);
+
+            // If nothing is selected, we just select the first element
+            // at the extreme we're moving away from
+            if (index == -1) {
+              index = aDirection == -1 ? children.length - 1 : 0;
+              this.selectedItem = children[index];
+              return true;
+            }
+
+            // If the selected item is visible, we scroll by one page so that
+            // the newly selected item is at approximately the same position as
+            // the currently selected one
+            var currentItem = children[index];
+            if (this._isItemVisible(currentItem))
+              this.scrollBoxObject.scrollBy(0, this.scrollBoxObject.height * aDirection);
+
+            // Figure out, how many items fully fit into the view port
+            // (including the currently selected one), and determine
+            // the index of the first one lying (partially) outside
+            var height = this.scrollBoxObject.height;
+            var border = currentItem.boxObject.y;
+            if (aDirection == -1)
+              border += currentItem.boxObject.height;
+            while (index >= 0 && index < children.length) {
+              var border2 = children[index].boxObject.y;
+              if (aDirection == -1)
+                border2 += children[index].boxObject.height;
+              if ((border2 - border) * aDirection > height)
+                break;
+              index += aDirection;
+            }
+            index -= aDirection;
+
+            if (this.selectedItem != children[index]) {
+              this.selectedItem = children[index];
+              return true;
+            }
+
+            // Move by at least one item if the view port is too small
+            if (aDirection == -1)
+              return this.goUp();
+
+            return this.goDown();
+          ]]>
+        </body>
+      </method>
+
+      <method name="getItemAtIndex">
+        <parameter name="aIndex"/>
+        <body>
+          <![CDATA[
+            return this.children[aIndex];
+          ]]>
+        </body>
+      </method>
+
+      <method name="getIndexOf">
+        <parameter name="aElement"/>
+        <body>
+          <![CDATA[
+            // don't search the children, if we're looking for none of them
+            if (aElement == null)
+              return -1;
+
+            return this.children.indexOf(aElement);
+          ]]>
+        </body>
+      </method>
+
+      <method name="ensureElementIsVisible">
+        <parameter name="aElement"/>
+        <body>
+          <![CDATA[
+            if (aElement)
+              this.scrollBoxObject.ensureElementIsVisible(aElement);
+          ]]>
+        </body>
+      </method>
+
+      <method name="ensureSelectedElementIsVisible">
+        <body>
+          <![CDATA[
+	    if (this.selectedItem) {
+              this.ensureElementIsVisible(this.selectedItem);
+	    }
+          ]]>
+        </body>
+      </method>
+
+      <property name="suppressOnSelect">
+        <getter>
+          <![CDATA[
+            return this.getAttribute("suppressonselect") == "true";
+          ]]>
+        </getter>
+      </property>
+
+      <method name="_fireOnSelect">
+        <body>
+          <![CDATA[
+            if (this.selectedItem)
+              this.setAttribute("last-selected", this.selectedItem.getAttribute("id"));
+            else
+              this.removeAttribute("last-selected");
+
+            if (!this.suppressOnSelect) {
+              var event = document.createEvent("Events");
+              event.initEvent("select", true, true);
+              this.dispatchEvent(event);
+
+              // if we have controllers, notify the command dispatcher
+              if (this.controllers.getControllerCount() > 0)
+                document.commandDispatcher.updateCommands("richlistbox-select");
+            }
+          ]]>
+        </body>
+      </method>
+    </implementation>
+
+    <handlers>
+      <handler event="keypress" keycode="VK_UP" action="goUp(); event.preventDefault();"/>
+      <handler event="keypress" keycode="VK_DOWN" action="goDown(); event.preventDefault();"/>
+      <handler event="keypress" keycode="VK_PAGE_UP" action="scrollOnePage(-1); event.preventDefault();"/>
+      <handler event="keypress" keycode="VK_PAGE_DOWN" action="scrollOnePage(1); event.preventDefault();"/>
+      <handler event="keypress" keycode="VK_HOME" action="clearSelection(); goDown(); event.preventDefault();"/>
+      <handler event="keypress" keycode="VK_END" action="clearSelection(); goUp(); event.preventDefault();"/>
+
+      <handler event="click">
+        <![CDATA[
+          // clicking into nothing should unselect
+          if (event.originalTarget.getAttribute("anonid") == "main-box")
+            this.clearSelection();
+        ]]>
+      </handler>
+      <handler event="contextmenu">
+        <![CDATA[
+          // if the context menu was opened via the keyboard, display it in the
+          // right location.
+          if (event.button != 2) {
+            var popup = document.getElementById(this.getAttribute("context"));
+            if (popup)
+              popup.showPopup(this.selectedItem, -1, -1, "context", "bottomleft", "topleft");
+          }
+        ]]>
+      </handler>
+      <handler event="focus">
+        <![CDATA[
+          if (event.target == this)
+            this.fireActiveItemEvent();
+        ]]>
+      </handler>
+    </handlers>
+  </binding>
+
+  <binding id="richlistitem"
+           extends="chrome://global/content/bindings/general.xml#basecontrol">
+    <content>
+      <children />
+    </content>
+
+    <resources>
+      <stylesheet src="chrome://global/skin/richlistbox.css"/>
+    </resources>
+
+    <implementation implements="nsIAccessibleProvider, nsIDOMXULSelectControlItemElement">
+      <destructor>
+        <![CDATA[
+          // When we are destructed and we are selected, unselect ourselves so
+          // that richlistbox's selection doesn't point to something not in the DOM.
+          // We don't want to reset last-selected, so we don't call clearSelection().
+          if (this.selected) {
+            this.control._setItemSelection(null);
+          }
+        ]]>
+      </destructor>
+
+      <!-- ///////////////// nsIAccessibleProvider ///////////////// -->
+      <property name="accessible">
+        <getter>
+          <![CDATA[
+            var accService = Components.classes["@mozilla.org/accessibilityService;1"].getService(Components.interfaces.nsIAccessibilityService);
+            return accService.createXULListitemAccessible(this);
+          ]]>
+        </getter>
+      </property>
+      <!-- ///////////////// nsIDOMXULSelectControlItemElement ///////////////// -->
+
+      <property name="value" onget="return this.getAttribute('value');"
+                             onset="this.setAttribute('value', val); return val;"/>
+
+      <property name="label">
+        <!-- Setter purposely not implemented; the getter returns a
+             concatentation of label text to expose via accessibility APIs-->
+        <getter>
+          <![CDATA[
+            var labelText = "";
+            var startEl = document.getAnonymousNodes(this)[0];
+            if (startEl) {
+              var labels = 
+                startEl.getElementsByTagNameNS('http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul',
+                                              'label');
+              var numLabels = labels.length;
+              for (count = 0; count < numLabels; count ++) {
+                if (labels[count].className != 'text-link') {
+                  labelText += labels[count].value + ' ';
+                }
+              }
+            }
+            return labelText;
+          ]]>
+        </getter>
+      </property>
+
+      <property name="selected"
+                onget="return this.getAttribute('selected') == 'true';"
+                onset="return this.setAttribute('selected',val);"/>
+
+      <property name="control">
+        <getter>
+          <![CDATA[
+            var parent = this.parentNode;
+            while (parent) {
+              if (parent instanceof Components.interfaces.nsIDOMXULSelectControlElement)
+                return parent;
+              parent = parent.parentNode;
+            }
+            return null;
+          ]]>
+        </getter>
+      </property>
+    </implementation>
+
+    <handlers>
+      <handler event="click">
+        <![CDATA[
+          var listbox = this.control;
+          if ((event.target == this) && event.ctrlKey && (listbox.selectedItem == this)) {
+            listbox.clearSelection();
+          } else {
+            listbox.selectedItem = this;
+          }
+        ]]>
+      </handler>
+      <handler event="contextmenu" phase="capturing">
+        <![CDATA[
+          // This needed to be called before the contextmenu gets shown to handle
+          // someone rightclicking on an unselected item
+          if (event.target == this) {
+            var listbox = this.control;
+            if (listbox) {
+              listbox.selectedItem = this;
+            }
+          }
+        ]]>
+      </handler>
+    </handlers>
+  </binding>
+</bindings>
+

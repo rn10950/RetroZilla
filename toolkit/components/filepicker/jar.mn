@@ -1,0 +1,5 @@
+toolkit.jar:
+#ifndef MINIMO
+* content/global/filepicker.xul                     (content/filepicker.xul)
+* content/global/filepicker.js                      (content/filepicker.js)
+#endif
