@@ -7,8 +7,8 @@
 ;            values.
 Run Mode=Normal
 
-Company Name=$CompanyName$
-Product Name=$ProductName$
+Company Name=RetroZilla
+Product Name=RetroZilla
 
 ; Valid Path values:
 ;   PROGRAMFILESDIR
@@ -58,14 +58,14 @@ Uninstall Filename=$UninstallFile$
 Defaults Info Filename=defaults_info.ini
 
 [Check Instance0]
-Class Name=$ProductName$MessageWindow
+Class Name=RetroZillaMessageWindow
 Window Name=
-Process Name=$MainExeFile$
-Pretty Name=$ProductNameInternal$
+Process Name=RetroZilla.exe
+Pretty Name=RetroZilla
 ;*** LOCALIZE ME BABY ***
-Message=$ProductNameInternal$ is detected to be currently running.  Please quit $ProductNameInternal$ before continuing.  Click OK to exit $ProductNameInternal$ automatically and proceed with uninstallation.
+Message=RetroZilla is detected to be currently running.  Please quit RetroZilla before continuing.  Click OK to exit RetroZilla automatically and proceed with uninstallation.
 ;*** LOCALIZE ME BABY ***
-Message wait=Shutting down $ProductNameInternal$.  Please wait...
+Message wait=Shutting down RetroZilla.  Please wait...
 
 ; This key indicates whether or not to close all the windows associated with
 ; the process id of this app instance window found.
@@ -74,7 +74,7 @@ Close All Process Windows=TRUE
 ; These keys are not normally necessary for checking instances.  They are
 ; set here because Mozilla requires a way to shut down its turbo mode.
 Extra Cmd0 Reg Key Root=HKEY_LOCAL_MACHINE
-Extra Cmd0 Reg Key=Software\Microsoft\Windows\CurrentVersion\App Paths\$MainExeFile$
+Extra Cmd0 Reg Key=Software\Microsoft\Windows\CurrentVersion\App Paths\RetroZilla.exe
 Extra Cmd0 Reg Name=
 Extra Cmd0 Parameter=-kill
 
@@ -141,7 +141,7 @@ CHARSET=0
 ;  CHINESEBIG5_CHARSET = 136
 ;  OEM_CHARSET 255
 Show Dialog=TRUE
-Title=$ProductName$ Uninstaller
+Title=RetroZilla Uninstaller
 Message0=Are you sure you want to completely remove %s and all of its components?
 
 Uninstall=&Uninstall
@@ -184,5 +184,5 @@ MB_ATTENTION_STR=Attention
 MSG_FORCE_QUIT_PROCESS=Uninstall has detected that %s (%s) is still running.  Click OK to quit %s and proceed with uninstallation. Alternatively, use the Windows Task Manager to quit %s, and then click OK to continue with uninstallation.
 MSG_FORCE_QUIT_PROCESS_FAILED=Uninstall will now exit.  Uninstall could not continue because %s (%s) is still running. Try manually quitting %s using Windows Task Manager, and then run Uninstall again.
 MSG_DELETE_INSTALLATION_PATH=Not all files were uninstalled from the installation directory:\n\n  %s\n\nDo you want to completely delete this directory?
-MSG_INSTALLATION_PATH_WITHIN_WINDIR=Uninstall has detected that the installation path of $ProductNameInternal$ is installed to a folder within your Windows folder.  Uninstall will not attempt to delete this installation due to the potential removal of critical system files.
+MSG_INSTALLATION_PATH_WITHIN_WINDIR=Uninstall has detected that the installation path of RetroZilla is installed to a folder within your Windows folder.  Uninstall will not attempt to delete this installation due to the potential removal of critical system files.
 
