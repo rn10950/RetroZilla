@@ -63,15 +63,15 @@ $inStagePath              = "$topobjdir/stage"               if !defined($inStag
 $inDistPath               = "$topobjdir/dist"                if !defined($inDistPath);
 $inXpiURL                 = "ftp://not.supplied.invalid"     if !defined($inXpiURL);
 $inRedirIniURL            = $inXpiURL                        if !defined($inRedirIniURL);
-$inInstName               = "seamonkey-win32-installer"      if !defined($inInstName);
-$inStubName               = "seamonkey-win32-stub-installer" if !defined($inStubName);
+$inInstName               = "retrozilla-win32-installer"      if !defined($inInstName);
+$inStubName               = "retrozilla-win32-stub-installer" if !defined($inStubName);
 
 $seiFileNameGeneric       = "nsinstall.exe";
 $seiFileNameSpecific      = "$inInstName.exe";
 $seiStubRootName          = $inStubName;
 $seiFileNameSpecificStub  = "$seiStubRootName.exe";
-$seuFileNameSpecific      = "SeaMonkeyUninstall.exe";
-$seuzFileNameSpecific     = "seamonkeyuninstall.zip";
+$seuFileNameSpecific      = "retrozillaUninstall.exe";
+$seuzFileNameSpecific     = "retrozillauninstall.zip";
 $seiGreFileNameSpecific   = "gre-win32-installer.exe";
 $seizGreFileNameSpecific  = "gre-win32-installer.zip";
 
@@ -88,7 +88,7 @@ if(defined($ENV{DEBUG_INSTALLER_BUILD}))
 $gDefaultProductVersion   = StageUtils::GetProductY2KVersion($topobjdir, $topsrcdir, $topsrcdir);
 
 print "\n";
-print " Building SeaMonkey\n";
+print " Building RetroZilla\n";
 print "  Raw version id   : $gDefaultProductVersion\n";
 
 # $gDefaultProductVersion has the form maj.min.release.bld where maj, min, release
@@ -161,10 +161,10 @@ copy("$gDirDistInstGre/$seiGreFileNameSpecific", "$gDirStageProduct/gre") ||
   die "copy(\"$gDirDistInstGre/$seiGreFileNameSpecific\", \"$gDirStageProduct/gre\"): $!\n";
 
 $versionLanguage               = "en";
-$ENV{WIZ_nameCompany}          = "mozilla.org";
-$ENV{WIZ_nameProduct}          = "SeaMonkey";
-$ENV{WIZ_nameProductInternal}  = "SeaMonkey"; # product name without the version string
-$ENV{WIZ_fileMainExe}          = "SeaMonkey.exe";
+$ENV{WIZ_nameCompany}          = "RetroZilla";
+$ENV{WIZ_nameProduct}          = "RetroZilla";
+$ENV{WIZ_nameProductInternal}  = "RetroZilla"; # product name without the version string
+$ENV{WIZ_fileMainExe}          = "RetroZilla.exe";
 $ENV{WIZ_fileUninstall}        = $seuFileNameSpecific;
 $ENV{WIZ_fileUninstallZip}     = $seuzFileNameSpecific;
 # The following variables are for displaying version info in the 

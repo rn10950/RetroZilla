@@ -14,6 +14,7 @@ toolkit.jar:
 *+ content/global/globalOverlay.js            (globalOverlay.js)
 *+ content/global/inlineSpellCheckUI.js       (inlineSpellCheckUI.js)
 +  content/global/mozilla.xhtml               (mozilla.xhtml)
++  content/global/retrozilla.xhtml            (retrozilla.xhtml)
 +  content/global/nsTransferable.js           (nsTransferable.js)
 *+ content/global/bindings/autocomplete.xml    (widgets/autocomplete.xml)
 *+ content/global/bindings/browser.xml         (widgets/browser.xml)

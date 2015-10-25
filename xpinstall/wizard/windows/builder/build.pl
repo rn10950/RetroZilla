@@ -61,9 +61,8 @@ $DEPTH         = "../../../../../obj-sm95-release/";
 $topsrcdir     = GetTopSrcDir();
 # ensure that Packager.pm is in @INC, since we might not be called from
 # mozilla/xpinstall/packager
+# line below is "<source dir>/xpinstall/packager"
 push(@INC, "/c/projects/moz95/mozilla/xpinstall/packager");
-#push(@INC, "/c/projects/moz95/mozilla/xpinstall/packager/windows");
-#push(@INC, "$topsrcdir/xpinstall/packager");
 require StageUtils;
 
 ParseArgv(@ARGV);

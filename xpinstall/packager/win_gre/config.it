@@ -290,8 +290,8 @@ exe_param=
 [Check Instance0]
 Class Name=$ProductName$MessageWindow
 Window Name=
-Process Name=seamonkey.exe
-Pretty Name=SeaMonkey
+Process Name=retrozilla.exe
+Pretty Name=RetroZilla
 ;*** LOCALIZE ME BABY ***
 Message=Download of $ProductName$ was successful. However, $ProductName$ must be closed to proceed with this installation. Click OK to exit $ProductName$ automatically and to begin installation.
 ;*** LOCALIZE ME BABY ***
@@ -306,7 +306,7 @@ Close All Process Windows=TRUE
 ; These keys are not normally necessary for checking instances.  They are
 ; set here because Mozilla requires a way to shut down its turbo mode.
 Extra Cmd0 Reg Key Root=HKEY_LOCAL_MACHINE
-Extra Cmd0 Reg Key=Software\Microsoft\Windows\CurrentVersion\App Paths\seamonkey.exe
+Extra Cmd0 Reg Key=Software\Microsoft\Windows\CurrentVersion\App Paths\retrozilla.exe
 Extra Cmd0 Reg Name=
 Extra Cmd0 Parameter=-kill
 

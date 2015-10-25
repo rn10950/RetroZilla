@@ -319,17 +319,17 @@ Message1=These settings allow you to set default Internet preferences for browsi
 ; shows up as a checkbox in the Windows Integration dialog.
 [Windows Integration-Item0]
 CheckBoxState=FALSE
-Description=Make SeaMonkey my default Internet browser
+Description=Make RetroZilla my default Internet browser
 Archive=
 
 [Windows Integration-Item1]
 CheckBoxState=FALSE
-Description=Make SeaMonkey Netcenter my home page
+Description=Make RetroZilla Netcenter my home page
 Archive=
 
 [Windows Integration-Item2]
 CheckBoxState=FALSE
-Description=Use SeaMonkey Netcenter to search the Web
+Description=Use RetroZilla Netcenter to search the Web
 Archive=
 ;*** DO NOT LOCALIZE - END ***
 
@@ -383,7 +383,7 @@ Show Dialog=TRUE
 ;*** LOCALIZE ME BABY ***
 Title=RetroZilla Setup - Quick Launch
 ;*** LOCALIZE ME BABY ***
-Message0=Quick Launch starts SeaMonkey faster by keeping portions of the program in computer memory.
+Message0=Quick Launch starts RetroZilla faster by keeping portions of the program in computer memory.
 ;*** LOCALIZE ME BABY ***
 Message1=You can access Quick Launch through the icon on the Windows taskbar tray.
 ;*** LOCALIZE ME BABY ***
@@ -443,7 +443,7 @@ Message wait=Shutting down RetroZilla.  Please wait...
 Close All Process Windows=TRUE
 
 ; These keys are not normally necessary for checking instances.  They are
-; set here because SeaMonkey requires a way to shut down its turbo mode.
+; set here because RetroZilla requires a way to shut down its turbo mode.
 Extra Cmd0 Reg Key Root=HKEY_LOCAL_MACHINE
 Extra Cmd0 Reg Key=Software\Microsoft\Windows\CurrentVersion\App Paths\RetroZilla.exe
 Extra Cmd0 Reg Name=
@@ -466,7 +466,7 @@ Message wait=Shutting down Mozilla.  Please wait...
 Close All Process Windows=TRUE
 
 ; These keys are not normally necessary for checking instances.  They are
-; set here because SeaMonkey requires a way to shut down its turbo mode.
+; set here because RetroZilla requires a way to shut down its turbo mode.
 Extra Cmd0 Reg Key Root=HKEY_LOCAL_MACHINE
 Extra Cmd0 Reg Key=Software\Microsoft\Windows\CurrentVersion\App Paths\Mozilla.exe
 Extra Cmd0 Reg Name=
@@ -1206,13 +1206,13 @@ Timing=pre smartupdate
 
 [Cleanup Previous Product RegKeys]
 Reg Key Root0=HKEY_LOCAL_MACHINE
-Product Name0=SeaMonkey
-Product Reg Key0=Software\Mozilla.org\SeaMonkey
+Product Name0=RetroZilla
+Product Reg Key0=Software\RetroZilla\RetroZilla
 Current Version0=$UserAgent$
 
 Reg Key Root1=HKEY_CURRENT_USER
-Product Name1=SeaMonkey
-Product Reg Key1=Software\Mozilla.org\SeaMonkey
+Product Name1=RetroZilla
+Product Reg Key1=Software\RetroZilla\RetroZilla
 Current Version1=$UserAgent$
 
 
