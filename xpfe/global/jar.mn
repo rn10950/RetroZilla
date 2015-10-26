@@ -22,6 +22,7 @@ toolkit.jar:
         content/global/config.xul                   (resources/content/config.xul) 
         content/global/config.js                    (resources/content/config.js) 
         content/global/mozilla.xhtml                (resources/content/mozilla.xhtml) 
+        content/global/retrozilla.xhtml             (resources/content/retrozilla.xhtml) 
         content/global/charsetOverlay.xul           (resources/content/charsetOverlay.xul) 
         content/global/charsetOverlay.js            (resources/content/charsetOverlay.js) 
         content/global/selectDialog.js              (resources/content/selectDialog.js) 
