@@ -1,17 +1,17 @@
 ==============================================================
 
-= = = = = = = = = =   Mozilla Read Me    = = = = = = = = = = =
+= = = = = = = = = =   RetroZilla Read Me    = = = = = = = = = = =
 
 ==============================================================
 
-Mozilla is subject to the terms detailed in the license
+RetroZilla is subject to the terms detailed in the license
 agreement accompanying it.
 
 This Read Me file contains information about system
 requirements and installation instructions for the Windows,
-Mac OS, and Linux builds of Mozilla.
+Mac OS, and Linux builds of RetroZilla.
 
-For more info on Mozilla, see www.mozilla.org. To submit bugs
+For more info on RetroZilla, see www.mozilla.org. To submit bugs
 or other feedback, see the Navigator QA menu and check out
 Bugzilla at http://bugzilla.mozilla.org for links to known
 bugs, bug-writing guidelines, and more. You can also get help
@@ -21,12 +21,12 @@ at irc.mozilla.org.
 
 ==============================================================
 
-                      Getting Mozilla
+                      Getting RetroZilla
 
 ==============================================================
 
-You can download nightly builds of Mozilla from the
-Mozilla.org FTP site at
+You can download nightly builds of RetroZilla from the
+RetroZilla.org FTP site at
 
   ftp://ftp.mozilla.org/pub/mozilla.org/mozilla/nightly/
 
@@ -35,20 +35,20 @@ For the very latest builds, see
   ftp://ftp.mozilla.org/pub/mozilla.org/mozilla/nightly/latest-trunk
 
 Keep in mind that nightly builds, which are used by
-Mozilla.org developers for testing, may be buggy. If you are
-looking for a more polished version of Mozilla, Mozilla.org
-releases Milestone builds of Mozilla every six weeks or so
+RetroZilla.org developers for testing, may be buggy. If you are
+looking for a more polished version of RetroZilla, RetroZilla.org
+releases Milestone builds of RetroZilla every six weeks or so
 that you can download from
 
   http://www.mozilla.org/releases
 
-Be sure to read the Mozilla release notes for information
-on known problems and installation issues with Mozilla.
+Be sure to read the RetroZilla release notes for information
+on known problems and installation issues with RetroZilla.
 The release notes can be found at the preceding URL along
 with the milestone releases themselves.
 
 Note: Please use Talkback builds whenever possible. These
-builds allow transmission of crash data back to Mozilla
+builds allow transmission of crash data back to RetroZilla
 developers, improved crash analysis, and posting of crash
 information to our crash-data newsgroup.
 
@@ -64,11 +64,11 @@ information to our crash-data newsgroup.
 	To view and use the new streamlined "Modern" theme,
 	your display monitor should be set to display
 	thousands of colors. For users who cannot set their
-	displays to use	more than 256 colors, Mozilla.org
-	recommends using the "Classic" theme for Mozilla.
+	displays to use	more than 256 colors, RetroZilla.org
+	recommends using the "Classic" theme for RetroZilla.
 
 	To select the Modern theme after you have installed
-	Mozilla, from the Navigator browser, open the View
+	RetroZilla, from the Navigator browser, open the View
 	menu, and then open then open the Apply Theme submenu
 	and choose Modern.
 
@@ -94,7 +94,7 @@ information to our crash-data newsgroup.
 	 1.2.x, Libstdc++ 2.9.0. Red Hat Linux 6.0,
 	 Debian 2.1, and SuSE 6.2 (or later) installations
 	 should work.
-	-Red Hat 6.x users who want to install the Mozilla
+	-Red Hat 6.x users who want to install the RetroZilla
 	 RPM must have at least version 4.0.2 of rpm
 	 installed.
 	-Intel Pentium class processor (233 MHz or faster
@@ -121,8 +121,8 @@ For all platforms, install into a clean (new) directory.
 Installing on top of previously released builds may cause
 problems.
 
-Note: These instructions do not tell you how to build Mozilla.
-For info on building the Mozilla source, see
+Note: These instructions do not tell you how to build RetroZilla.
+For info on building the RetroZilla source, see
 
   http://www.mozilla.org/source.html
 
@@ -131,20 +131,20 @@ Windows Installation Instructions
 ---------------------------------
 
 Note: For Windows NT/2000/XP systems, you need Administrator
-privileges to install Mozilla. If you see an "Error 5" message
+privileges to install RetroZilla. If you see an "Error 5" message
 during installation, make sure you're running the installation
 with Administrator privileges.
 
 
-    To install Mozilla by downloading the Mozilla installer,
+    To install RetroZilla by downloading the RetroZilla installer,
     follow these steps:
 
 	1. Click the the mozilla-win32-installer.exe link on
-	the site you're downloading Mozilla from to download
+	the site you're downloading RetroZilla from to download
 	the installer file to your machine.
 
 	2. Navigate to where you downloaded the file and
-	double-click the Mozilla program icon on your machine
+	double-click the RetroZilla program icon on your machine
 	to begin the Setup program.
 
 	3. Follow the on-screen instructions in the setup
@@ -152,12 +152,12 @@ with Administrator privileges.
 	time.
 
 
-    To install Mozilla by downloading the .zip file and
+    To install RetroZilla by downloading the .zip file and
     installing manually, follow these steps:
 
 	1. Click the mozilla-win32-talkback.zip link or the
 	mozilla-win32.zip link on the site you're down-
-	loading Mozilla from to download the .zip file to
+	loading RetroZilla from to download the .zip file to
 	your machine.
 
 	2. Navigate to where you downloaded the file and
@@ -169,17 +169,17 @@ with Administrator privileges.
 	about the program at www.winzip.com.
 
 	3. Extract the .zip file to a directory such as
-	C:\Program Files\mozilla.org\Mozilla.
+	C:\Program Files\mozilla.org\RetroZilla.
 
-	4. To start Mozilla, navigate to the directory you
-	extracted Mozilla to and double-click the Mozilla.exe
+	4. To start RetroZilla, navigate to the directory you
+	extracted RetroZilla to and double-click the RetroZilla.exe
 	icon.
 
 
 Mac OS X Installation Instructions
 ----------------------------------
 
-    To install Mozilla by downloading the Mozilla disk image,
+    To install RetroZilla by downloading the RetroZilla disk image,
     follow these steps:
 
 	1. Click the mozilla-mac-MachO.dmg.gz link to download
@@ -196,16 +196,16 @@ Mac OS X Installation Instructions
 	use "Open with" from the context menu.
 
 	3. Once the disk image mounts, open it, and drag the
-	Mozilla icon onto your hard disk.
+	RetroZilla icon onto your hard disk.
 
 	4. We recommend that you copy it to the Applications
 	folder.
 
 	5. Now Eject the disk image.
 
-	6. If you like, you can drag Mozilla to your dock to
+	6. If you like, you can drag RetroZilla to your dock to
 	have it easily accessible at all times. You might also
-	wish to select Mozilla as your default browser in the
+	wish to select RetroZilla as your default browser in the
 	Internet system preferences pane (under the Web tab).
 
 
@@ -215,19 +215,19 @@ Linux Installation Instructions
 Note: If you install in the default directory (which is
 usually /usr/local/mozilla), or any other directory where
 only the root user normally has write-access, you must
-start Mozilla first as root before other users can start
+start RetroZilla first as root before other users can start
 the program. Doing so generates a set of files required
 for later use by other users.
 
 
-    To install Mozilla by downloading the Mozilla installer,
+    To install RetroZilla by downloading the RetroZilla installer,
     follow these steps:
 
 	1. Create a directory named mozilla (mkdir mozilla)
 	and change to that directory (cd mozilla).
 
 	2. Click the link on the site you're downloading
-	Mozilla from to download the installer file
+	RetroZilla from to download the installer file
 	(called mozilla-1686-pc-linux-gnu-installer.tar.gz)
 	to your machine.
 
@@ -237,31 +237,31 @@ for later use by other users.
 	  tar zxvf moz*.tar.gz
 
 	The installer is now located in a subdirectory of
-	Mozilla	named mozilla-installer.
+	RetroZilla	named mozilla-installer.
 
 	4. Change to the mozilla-installer directory
 	(cd mozilla-installer) and run the installer with the
 	./mozilla-installer command.
 
  	5. Follow the instructions in the install wizard for
-	installing Mozilla.
+	installing RetroZilla.
 
 	Note: If you have a slower machine, be aware that the
 	installation may take some time. In this case, the
 	installation progress may appear to hang indefinitely,
 	even though the installation is still in process.
 
-	6. To start Mozilla, change to the directory where you
+	6. To start RetroZilla, change to the directory where you
 	installed it and run the ./mozilla command.
 
 
-    To install Mozilla by downloading the tar.gz file:
+    To install RetroZilla by downloading the tar.gz file:
 
 	1. Create a directory named "mozilla" (mkdir mozilla)
 	and change to that directory (cd mozilla).
 
 	2. Click the link on the site you're downloading
-	Mozilla from to download the non-installer
+	RetroZilla from to download the non-installer
 	(mozilla*.tar.gz) file into the mozilla directory.
 
 	3. Change to the mozilla directory (cd mozilla) and
@@ -274,24 +274,24 @@ for later use by other users.
 
 	4. Change to the mozilla directory (cd mozilla).
 
-	5. Run Mozilla with the following run script:
+	5. Run RetroZilla with the following run script:
 
 	  ./mozilla
 
 
-    To hook up Mozilla complete with icon to the GNOME Panel,
+    To hook up RetroZilla complete with icon to the GNOME Panel,
     follow these steps:
 
 	1. Click the GNOME Main Menu button, open the Panel menu,
 	and then open the Add to Panel submenu and choose Launcher.
 
-	2. Right-click the icon for Mozilla on the Panel and
+	2. Right-click the icon for RetroZilla on the Panel and
 	enter the following command:
 	  directory_name./mozilla
 
 	where directory_name is the name of the directory
 	you downloaded mozilla to. For example, the default
-	directory that Mozilla suggests is /usr/local/mozilla.
+	directory that RetroZilla suggests is /usr/local/mozilla.
 
 	3. Type in a name for the icon, and type in a comment
 	if you wish.
@@ -302,5 +302,5 @@ for later use by other users.
 	  directory_name/icons/mozicon50.xpm
 
 	where directory name is the directory where you
-	installed Mozilla. For example, the default directory
+	installed RetroZilla. For example, the default directory
 	is /usr/local/mozilla/icons/mozicon50.xpm.

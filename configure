@@ -5098,7 +5098,7 @@ TARGET_MD_ARCH=unix
 DIRENT_INO=d_ino
 CYGWIN_WRAPPER=
 WIN_TOP_SRC=
-MOZ_USER_DIR=".mozilla"
+MOZ_USER_DIR=".retrozilla"
 HOST_AR='$(AR)'
 HOST_AR_FLAGS='$(AR_FLAGS)'
 
@@ -6001,7 +6001,7 @@ fi
     _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Wno-multichar"
     _MOZ_USE_RTTI=1
     USE_DEPENDENT_LIBS=
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
     ;;
 
 *-bsdi*)
@@ -6317,7 +6317,7 @@ EOF
     USE_SHORT_LIBNAME=1
     MOZ_ENABLE_COREXFONTS=
     MOZ_ENABLE_POSTSCRIPT=
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
 ;;
 
 
@@ -6444,7 +6444,7 @@ EOF
     BIN_SUFFIX='.exe'
     USE_SHORT_LIBNAME=1
     MOZ_ENABLE_POSTSCRIPT=
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
 
         TARGET_NSPR_MDCPUCFG='\"md/_win95.cfg\"'
 
@@ -6715,7 +6715,7 @@ EOF
     MOZ_ENABLE_POSTSCRIPT=
     RC=rc.exe
     RCFLAGS='-n'
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
 
     if test "$MOZTOOLS"; then
         MOZ_TOOLS_DIR=`echo $MOZTOOLS | sed -e 's|\\\\|/|g'`
@@ -12310,7 +12310,7 @@ mac|cocoa)
     TK_CFLAGS="-I${MACOS_SDK_DIR}/Developer/Headers/FlatCarbon"
     CFLAGS="$CFLAGS $TK_CFLAGS"
     CXXFLAGS="$CXXFLAGS $TK_CFLAGS"
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
     cat >> confdefs.h <<\EOF
 #define XP_MACOSX 1
 EOF

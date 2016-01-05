@@ -1,16 +1,16 @@
 ================================================================================
 
-= = = = = = = = = = = = = =   Firefox Read Me    = = = = = = = = = = = = = = = =
+= = = = = = = = = = = = = =   RetroZilla Browser Read Me    = = = = = = = = = = = = = = = =
 
 ================================================================================
 
-Firefox is subject to the terms detailed in the license agreement
+RetroZilla Browser is subject to the terms detailed in the license agreement
 accompanying it.
 
 This Read Me file contains information about system requirements and
-installation instructions for the OS/2 build of Firefox.
+installation instructions for the OS/2 build of RetroZilla Browser.
 
-For more info on Firefox, see http://www.mozilla.org/products/firefox/.
+For more info on RetroZilla Browser, see http://www.mozilla.org/products/firefox/.
 For more info on the OS/2 port see http://www.mozilla.org/ports/os2. To submit
 bugs or other feedback check out Bugzilla at https://bugzilla.mozilla.org for
 links to known bugs, bug-writing guidelines, and more. You can also get help
@@ -21,18 +21,18 @@ mozilla.dev.ports.os2 on news.mozilla.org.
 
 ================================================================================
 
-                            Getting Firefox
+                            Getting RetroZilla Browser
 
 ================================================================================
 
-Official Milestone builds of Firefox are published on the release page at
+Official Milestone builds of RetroZilla Browser are published on the release page at
 
   http://www.mozilla.org/products/firefox/releases/
 
 OS/2 releases are not created by Mozilla.org staff and may appear on the page
 http://www.mozilla.org/ports/os2 before the releases page. Be sure to read the
-Firefox release notes linked on the releases page for information on known 
-problems and installation issues with Firefox.
+RetroZilla Browser release notes linked on the releases page for information on known 
+problems and installation issues with RetroZilla Browser.
 
 
 ================================================================================
@@ -44,7 +44,7 @@ problems and installation issues with Firefox.
 - This release requires updated C runtime DLLs (libc-0.5.1) from
      http://www.innotek.de/products/gccos2/download/gccos2download_e.html
   in order to run. By default the installation routine places them in \OS2\DLL 
-  on your bootdrive, but you can put them in the same directory as Firefox's
+  on your bootdrive, but you can put them in the same directory as RetroZilla Browser's
   executable, or somewhere else in your LIBPATH.
 
 - Minimum hardware requirements
@@ -56,7 +56,7 @@ problems and installation issues with Firefox.
 - Recommended hardware for acceptable performance
   + 500 MHz processor
   + 256 MiB RAM plus 64 MiB free swap space
-    NOTE: Firefox's performance and stability increases the more physical
+    NOTE: RetroZilla Browser's performance and stability increases the more physical
     RAM is available. Especially for long sessions 512 MiB of memory is
     recommended.
   + Graphics card and driver capable of displaying more than 256 colors
@@ -69,8 +69,8 @@ problems and installation issues with Firefox.
   + TCP/IP version 4.1
   + INETVER: SOCKETS.SYS=5.3007, AFOS2.SYS=5.3001, AFINET.SYS=5.3006
     NOTE: Do not attempt to use MPTS & TCP/IP versions below these INETVER
-    levels. Although Firefox may seem to start and run normally with older
-    stacks, some features Firefox needs are not implemented correctly in
+    levels. Although RetroZilla Browser may seem to start and run normally with older
+    stacks, some features RetroZilla Browser needs are not implemented correctly in
     older MPTS versions, which may result in crashes and data loss.
 
   + Convenience Pack 2 or eComStation 1.0 or later meet these requirements
@@ -84,10 +84,10 @@ problems and installation issues with Firefox.
 ================================================================================
 
 For all platforms, unpack into a clean (new) directory.  Installing on top of
-previously released builds may cause problems with Firefox.
+previously released builds may cause problems with RetroZilla Browser.
 
-Note: These instructions do not tell you how to build Firefox.
-For info on building the Firefox source, see
+Note: These instructions do not tell you how to build RetroZilla Browser.
+For info on building the RetroZilla Browser source, see
 
   http://www.mozilla.org/build/
 
@@ -95,12 +95,12 @@ For info on building the Firefox source, see
 OS/2 Installation Instructions
 ------------------------------
 
-   On OS/2, Firefox does not have an installation program. To install it,
+   On OS/2, RetroZilla Browser does not have an installation program. To install it,
    download the .zip file and follow these steps:
 
-     1. Click the "Zip" link on the site you're downloading Firefox from
+     1. Click the "Zip" link on the site you're downloading RetroZilla Browser from
      to download the ZIP package to your machine. This file is typically called 
-     firefox-os2-*.zip where the "*" is replaced by the Firefox version.
+     firefox-os2-*.zip where the "*" is replaced by the RetroZilla Browser version.
 
      2. Navigate to where you downloaded the file and unpack it using your
      favorite unzip tool.
@@ -108,38 +108,38 @@ OS/2 Installation Instructions
      3. Keep in mind that the unzip process creates a directory "firefox"
      below the location you point it to, i.e. 
         unzip firefox-os2-1.0.1.zip -d c:\firefox-1.0.1
-     will unpack Firefox into c:\firefox-1.0.1\firefox.
+     will unpack RetroZilla Browser into c:\firefox-1.0.1\firefox.
 
      4. Make sure that you are _not_ unpacking over an old installation. This is
      known to cause problems.
 
-     5. To start Firefox, navigate to the directory you extracted 
-     Firefox to, make sure that the C library DLLs are copied to the
+     5. To start RetroZilla Browser, navigate to the directory you extracted 
+     RetroZilla Browser to, make sure that the C library DLLs are copied to the
      installation directory or installed in the LIBPATH, and then double-click
-     the Firefox.exe object.
+     the RetroZilla Browser.exe object.
 
 
 Running multiple versions concurrently
 --------------------------------------
 
-Because various members of the Mozilla family (i.e. Mozilla, Firefox, 
+Because various members of the Mozilla family (i.e. Mozilla, RetroZilla Browser, 
 Thunderbird, IBM Web Browser) may use different, incompatible versions of the
 same DLL, some extra steps may be required to run them concurrently.
 
-One workaround is the LIBPATHSTRICT variable. To run Firefox one can create
-a CMD script like the following example (where an installation of Firefox
+One workaround is the LIBPATHSTRICT variable. To run RetroZilla Browser one can create
+a CMD script like the following example (where an installation of RetroZilla Browser
 exists in the directory d:\internet\firefox is assumed):
 
    set LIBPATHSTRICT=T
    rem The next line may be needed when a different Mozilla program is listed in LIBPATH
    rem set BEGINLIBPATH=d:\internet\firefox
-   rem The next line is only needed to run two different versions of Firefox
+   rem The next line is only needed to run two different versions of RetroZilla Browser
    rem set MOZ_NO_REMOTE=1
    d:
    cd d:\internet\firefox
    firefox.exe %1 %2 %3 %4 %5 %6 %7 %8 %9
 
-Similarly, one can create a program object to start Firefox using the
+Similarly, one can create a program object to start RetroZilla Browser using the
 following settings:
 
    Path and file name: *
@@ -168,9 +168,9 @@ or in a script or using a program object as listed above. If you add
 
    set MOZILLA_HOME=f:\Data
 
-the Firefox user profile will be created in "f:\Data\Mozilla\Firefox".
+the RetroZilla Browser user profile will be created in "f:\Data\Mozilla\RetroZilla Browser".
 
-If you are migrating from Mozilla, Firefox's import routine will only find
+If you are migrating from Mozilla, RetroZilla Browser's import routine will only find
 the existing Mozilla profile data if MOZILLA_HOME is correctly set to point to
 it.
 
@@ -179,19 +179,19 @@ Other important environment variables
 -------------------------------------
 
 There are a few enviroment variables that can be used to control special
-behavior of Firefox on OS/2:
+behavior of RetroZilla Browser on OS/2:
 
 - set NSPR_OS2_NO_HIRES_TIMER=1
-  This causes Firefox not to use OS/2's high resolution timer. Set this if
+  This causes RetroZilla Browser not to use OS/2's high resolution timer. Set this if
   other applications using the high resolution timer (multimedia apps) act
   strangely.
 
 - set MOZILLA_USE_EXTENDED_FT2LIB=T
   If you have the Innotek Font Engine installed this variable enables special
-  functions in Firefox to handle unicode characters.
+  functions in RetroZilla Browser to handle unicode characters.
 
 - set MOZ_NO_REMOTE=1
-  Use this to run two instances of Firefox simultaneously (like e.g. debug
+  Use this to run two instances of RetroZilla Browser simultaneously (like e.g. debug
   and optimized version).
 
 Find more information on this topic and other tips on
@@ -208,7 +208,7 @@ milestone release.
   https://bugzilla.mozilla.org/show_bug.cgi?id=167884
 On OS/2, Mozilla's rendering engine is known to have very slow performance on
 websites that use small, repeated images with transparency for their layout.
-This affects rendering in Firefox as well.
+This affects rendering in RetroZilla Browser as well.
 
 Other known problems can be found by following the link "Current Open Warpzilla
 Bugs" on the OS/2 Mozilla page <http://www.mozilla.org/ports/os2/>.

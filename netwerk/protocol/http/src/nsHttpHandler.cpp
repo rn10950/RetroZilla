@@ -663,9 +663,9 @@ nsHttpHandler::InitUserAgentComponents()
     if (GetVersionEx(&info)) {
         if (info.dwPlatformId == VER_PLATFORM_WIN32_NT) {
             if (info.dwMajorVersion      == 3)
-                mOscpu.AssignLiteral("WinNT3.51");
+                mOscpu.AssignLiteral("Windows NT 3.51");
             else if (info.dwMajorVersion == 4)
-                mOscpu.AssignLiteral("WinNT4.0");
+                mOscpu.AssignLiteral("Windows NT 4.0");
             else {
                 char *buf = PR_smprintf("Windows NT %ld.%ld",
                                         info.dwMajorVersion,
@@ -678,11 +678,11 @@ nsHttpHandler::InitUserAgentComponents()
         } else if (info.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS &&
                    info.dwMajorVersion == 4) {
             if (info.dwMinorVersion == 90)
-                mOscpu.AssignLiteral("Win 9x 4.90");  // Windows Me
+                mOscpu.AssignLiteral("Windows ME");  // Windows Me
             else if (info.dwMinorVersion > 0)
-                mOscpu.AssignLiteral("Win98");
+                mOscpu.AssignLiteral("Windows 98");
             else
-                mOscpu.AssignLiteral("Win95");
+                mOscpu.AssignLiteral("Windows 95");
         } else {
             char *buf = PR_smprintf("Windows %ld.%ld",
                                     info.dwMajorVersion,

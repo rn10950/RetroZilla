@@ -1,52 +1,44 @@
 ==========================================================================
 
-= = = = = = = = = = = = =  SeaMonkey Read Me   = = = = = = = = = = = = = =
+= = = = = = = = = = = = =  RetroZilla Read Me  = = = = = = = = = = = = = =
 
 ==========================================================================
 
-SeaMonkey is subject to the terms detailed in the license agreement
+RetroZilla is subject to the terms detailed in the license agreement
 accompanying it.
 
 This Read Me file contains information about system requirements and
-installation instructions for the Windows builds of SeaMonkey.
+installation instructions for the Windows builds of RetroZilla.
 
-For more info on SeaMonkey, see http://www.seamonkey-project.org/
+For more info on RetroZilla, see 
+
+  https://sites.google.com/site/rn10950mozilla/retrozilla
+
 To submit bugs or other feedback, see the Navigator QA menu and check out
-Bugzilla at https://bugzilla.mozilla.org/ for links to known bugs,
-bug-writing guidelines, and more. You can also get help with Bugzilla by
-pointing your IRC client to #mozillazine at irc.mozilla.org.
+GitHub at https://github.com/rn10950/RetroZilla for links to known bugs,
+bug-writing guidelines, and more. 
 
 
 ==========================================================================
 
-                          Getting SeaMonkey
+                          Getting RetroZilla
 
 ==========================================================================
 
-You can download nightly builds of SeaMonkey from the mozilla.org FTP site
+You can download the source code of RetroZilla from the RetroZilla GitHub
 at
 
-  http://ftp.mozilla.org/pub/mozilla.org/seamonkey/nightly/
+  https://github.com/rn10950/RetroZilla
 
-For the very latest builds, see
+Keep in mind that the source code in its raw form may be buggy. If you are
+looking for a more polished version of RetroZilla, the RetroZilla project 
+releases builds of RetroZilla regularly that you can download from
 
-  http://ftp.mozilla.org/pub/mozilla.org/seamonkey/nightly/latest-trunk/
-
-Keep in mind that nightly builds, which are used by mozilla.org developers
-for testing, may be buggy. If you are looking for a more polished version
-of SeaMonkey, the SeaMonkey project releases builds of SeaMonkey regularly
-that you can download from
-
-  http://www.seamonkey-project.org/
+  https://sites.google.com/site/rn10950mozilla/retrozilla
  
-Be sure to read the SeaMonkey release notes for information on known
-problems and installation issues with SeaMonkey.  The release notes can be
-found at the preceding URL along with the releases themselves.
-
-Note: Please use Talkback builds whenever possible. These builds allow
-transmission of crash data back to SeaMonkey and Mozilla developers,
-improved crash analysis, and posting of crash information to our
-crash-data newsgroup.
+Be sure to read the RetroZilla release notes for information on known
+problems and installation issues with RetroZilla.  The release notes 
+can be found at the preceding URL along with the releases themselves.
 
 
 ==========================================================================
@@ -59,11 +51,11 @@ crash-data newsgroup.
 
    If you want to view and use the "Modern" theme, your display monitor
    should be set to display thousands of colors. For users who cannot set
-   their displays to use more than 256 colors, the SeaMonkey project
-   recommends using the "Classic" theme for SeaMonkey.
+   their displays to use more than 256 colors, the RetroZilla project
+   recommends using the "Classic" theme for RetroZilla.
 
-   To select the Modern theme after you have installed SeaMonkey, from the
-   browser, open the View menu, then open the Apply Theme submenu and
+   To select the Modern theme after you have installed RetroZilla, from 
+   the browser, open the View menu, then open the Apply Theme submenu and
    choose Modern.
 
 *Windows
@@ -72,6 +64,16 @@ crash-data newsgroup.
    - Intel Pentium class processor (233 MHz or faster recommended)
    - 64 MB RAM
    - 26 MB free hard disk space
+
+* We recommend that Windows XP, Vista, 7, 8.x and 10 users not use 
+  RetroZilla, and instead use the current version of SeaMonkey or Firefox. 
+  They are much more secure and compatible with the modern web than 
+  RetroZilla is.
+
+* We recommend that Windows 2000 users use Firefox 12 or SeaMonkey 2.9.
+
+* We recommend that Windows 98 and Me users use Firefox 3.6 or SeaMonkey 
+  2.0.14 with the KernelEx platform.
 
 
 ==========================================================================
@@ -87,25 +89,25 @@ software.
 Install into a clean (new) directory. Installing on top of previously
 released builds may cause problems.
 
-Note: These instructions do not tell you how to build SeaMonkey.
-For info on building SeaMonkey from the mozilla.org source code, see
+Note: These instructions do not tell you how to build RetroZilla.
+For info on building RetroZilla from the mozilla.org source code, see
 
-  http://www.mozilla.org/build/
+  https://sites.google.com/site/rn10950mozilla/retrozilla/build
 
 
 Windows Installation Instructions
 ---------------------------------
 
 Note: For Windows NT/2000/XP systems, you need Administrator privileges to
-install SeaMonkey. If you see an "Error 5" message during installation,
+install RetroZilla. If you see an "Error 5" message during installation,
 make sure you're running the installation with Administrator privileges.
 
 
-   To install SeaMonkey by downloading the SeaMonkey installer,
+   To install RetroZilla by downloading the RetroZilla installer,
    follow these steps:
 
    1. Click the link to seamonkey-x.xx.en-US.win32.installer.exe (or
-      similar file name) on the site you're downloading SeaMonkey from to
+      similar file name) on the site you're downloading RetroZilla from to
       download the installer file to your machine.
 
    2. Navigate to where you downloaded the file and double-click the
@@ -115,11 +117,11 @@ make sure you're running the installation with Administrator privileges.
       starts automatically the first time.
 
 
-   To install SeaMonkey by downloading the .zip file and installing
+   To install RetroZilla by downloading the .zip file and installing
    manually, follow these steps:
 
    1. Click the link to seamonkey-x.xx.en-US.win32.zip (or similar file
-      name) on the site you're downloading SeaMonkey from to download the
+      name) on the site you're downloading RetroZilla from to download the
       .zip file to your machine.
 
    2. Navigate to where you downloaded the file and double-click the
@@ -131,7 +133,7 @@ make sure you're running the installation with Administrator privileges.
       www.winzip.com.
 
    3. Extract the .zip file to a directory such as
-        C:\Program Files\mozilla.org\SeaMonkey.
+        C:\Program Files\mozilla.org\RetroZilla.
 
-   4. To start SeaMonkey, navigate to the directory you extracted
-      SeaMonkey to and double-click the seamonkey.exe icon.
+   4. To start RetroZilla, navigate to the directory you extracted
+      RetroZilla to and double-click the seamonkey.exe icon.
