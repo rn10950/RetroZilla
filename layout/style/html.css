@@ -1,9 +1,41 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+/* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is mozilla.org code.
+ *
+ * The Initial Developer of the Original Code is
+ * Netscape Communications Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 1998
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *   Blake Ross <BlakeR1234@aol.com>
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either of the GNU General Public License Version 2 or later (the "GPL"),
+ * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
 
 @namespace url(http://www.w3.org/1999/xhtml); /* set default namespace to HTML */
-@namespace xul url(http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul);
 
 /* bidi */
 
@@ -15,102 +47,13 @@
   direction: ltr;
   unicode-bidi: embed;
 }
-
-bdi:-moz-dir(ltr), [dir="auto"]:-moz-dir(ltr) { direction: ltr; }
-bdi:-moz-dir(rtl), [dir="auto"]:-moz-dir(rtl) { direction: rtl; }
-
-/* To ensure http://www.w3.org/TR/REC-html40/struct/dirlang.html#style-bidi:
- *
- * "When a block element that does not have a dir attribute is transformed to
- * the style of an inline element by a style sheet, the resulting presentation
- * should be equivalent, in terms of bidirectional formatting, to the
- * formatting obtained by explicitly adding a dir attribute (assigned the
- * inherited value) to the transformed element."
- *
- * and the rules in http://dev.w3.org/html5/spec/rendering.html#rendering
- */
-
-address, address[dir],
-article, article[dir],
-aside, aside[dir],
-blockquote, blockquote[dir],
-body, body[dir],
-caption, caption[dir],
-center, center[dir],
-col, col[dir],
-colgroup, colgroup[dir],
-dd, dd[dir],
-dir, dir[dir],
-div, div[dir],
-dl, dl[dir],
-dt, dt[dir],
-fieldset, fieldset[dir],
-figcaption, figcaption[dir],
-figure, figure[dir],
-footer, footer[dir],
-form, form[dir],
-h1, h1[dir],
-h2, h2[dir],
-h3, h3[dir],
-h4, h4[dir],
-h5, h5[dir],
-h6, h6[dir],
-header, header[dir],
-hgroup, hgroup[dir],
-hr, hr[dir],
-html, html[dir],
-legend, legend[dir],
-li, li[dir],
-listing, listing[dir],
-main, main[dir],
-marquee, marquee[dir],
-menu, menu[dir],
-nav, nav[dir],
-noframes, noframes[dir],
-ol, ol[dir],
-p, p[dir],
-plaintext, plaintext[dir],
-pre, pre[dir],
-section, section[dir],
-summary, summary[dir],
-table, table[dir],
-tbody, tbody[dir],
-td, td[dir],
-tfoot, tfoot[dir],
-th, th[dir],
-thead, thead[dir],
-tr, tr[dir],
-ul, ul[dir],
-xmp, xmp[dir] {
-  unicode-bidi: -moz-isolate;
-}
-
-bdi, bdi[dir], output, output[dir], [dir="auto"] { 
-  unicode-bidi: -moz-isolate;
-}
-bdo, bdo[dir] {
+bdo[dir] {
   unicode-bidi: bidi-override;
 }
-bdo[dir="auto"] {
-  unicode-bidi: -moz-isolate-override;
-}
-textarea[dir="auto"], pre[dir="auto"] { unicode-bidi: -moz-plaintext; }
 
 /* blocks */
 
-article,
-aside,
-div,
-dt,
-figcaption,
-footer,
-form,
-header,
-hgroup,
-html,
-main,
-nav,
-section {
+html, div, map, dt, isindex, form {
   display: block;
 }
 
@@ -121,8 +64,7 @@ body {
 
 p, dl, multicol {
   display: block;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
+  margin: 1em 0;
 }
 
 dd {
@@ -130,12 +72,9 @@ dd {
   -moz-margin-start: 40px;
 }
 
-blockquote, figure {
+blockquote {
   display: block;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
-  -moz-margin-start: 40px;
-  -moz-margin-end: 40px;
+  margin: 1em 40px;
 }
 
 address {
@@ -150,12 +89,9 @@ center {
 
 blockquote[type=cite] {
   display: block;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
-  -moz-margin-start: 0;
-  -moz-margin-end: 0;
-  -moz-padding-start: 1em;
-  -moz-border-start: solid;
+  margin: 1em 0px;
+  padding-left: 1em;
+  border-left: solid;
   border-color: blue;
   border-width: thin;
 }
@@ -172,68 +108,41 @@ h1 {
   display: block;
   font-size: 2em;
   font-weight: bold;
-  margin-block-start: .67em;
-  margin-block-end: .67em;
+  margin: .67em 0;
 }
 
-h2,
-:-moz-any(article, aside, nav, section)
-h1 {
+h2 {
   display: block;
   font-size: 1.5em;
   font-weight: bold;
-  margin-block-start: .83em;
-  margin-block-end: .83em;
+  margin: .83em 0;
 }
 
-h3,
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-h1 {
+h3 {
   display: block;
   font-size: 1.17em;
   font-weight: bold;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
+  margin: 1em 0;
 }
 
-h4,
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-h1 {
+h4 {
   display: block;
-  font-size: 1.00em;
   font-weight: bold;
-  margin-block-start: 1.33em;
-  margin-block-end: 1.33em;
+  margin: 1.33em 0;
 }
 
-h5,
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-h1 {
+h5 {
   display: block;
   font-size: 0.83em;
   font-weight: bold;
-  margin-block-start: 1.67em;
-  margin-block-end: 1.67em;
+  margin: 1.67em 0;
 }
 
-h6,
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-:-moz-any(article, aside, nav, section)
-h1 {
+h6 {
   display: block;
   font-size: 0.67em;
   font-weight: bold;
-  margin-block-start: 2.33em;
-  margin-block-end: 2.33em;
+  margin: 2.33em 0;
 }
 
 listing {
@@ -241,16 +150,14 @@ listing {
   font-family: -moz-fixed;
   font-size: medium;
   white-space: pre;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
+  margin: 1em 0;
 }
 
 xmp, pre, plaintext {
   display: block;
   font-family: -moz-fixed;
   white-space: pre;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
+  margin: 1em 0;
 }
 
 /* tables */
@@ -259,8 +166,9 @@ table {
   display: table;
   border-spacing: 2px;
   border-collapse: separate;
-  /* XXXldb do we want this if we're border-collapse:collapse ? */
-  box-sizing: border-box;
+  margin-top: 0;
+  margin-bottom: 0;
+  -moz-box-sizing: border-box;
   text-indent: 0;
 }
 
@@ -273,161 +181,28 @@ table[align="right"] {
   text-align: start;
 }
 
-
-/* border collapse rules */
-
-  /* Set hidden if we have 'frame' or 'rules' attribute.
-     Set it on all sides when we do so there's more consistency
-     in what authors should expect */
-
-  /* Put this first so 'border' and 'frame' rules can override it. */
-table[rules] { 
-  border-width: thin;
-  border-style: hidden;
-}
-
-  /* 'border' before 'frame' so 'frame' overrides
-      A border with a given value should, of course, pass that value
-      as the border-width in pixels -> attr mapping */
-
-  /* :-moz-table-border-nonzero is like [border]:not([border="0"]) except it
-     also checks for other zero-like values according to HTML attribute
-     parsing rules */
-table:-moz-table-border-nonzero { 
-  border-width: thin;
-  border-style: outset;
-}
-
-table[frame] {
-  border: thin hidden;
-}
-
-/* specificity must beat table:-moz-table-border-nonzero rule above */
-table[frame="void"]   { border-style: hidden; }
-table[frame="above"]  { border-style: outset hidden hidden hidden; }
-table[frame="below"]  { border-style: hidden hidden outset hidden; }
-table[frame="lhs"]    { border-style: hidden hidden hidden outset; }
-table[frame="rhs"]    { border-style: hidden outset hidden hidden; }
-table[frame="hsides"] { border-style: outset hidden; }
-table[frame="vsides"] { border-style: hidden outset; }
-table[frame="box"],
-table[frame="border"] { border-style: outset; }
-
- 
-/* Internal Table Borders */
-
-  /* 'border' cell borders first */
-
-table:-moz-table-border-nonzero > * > tr > td,
-table:-moz-table-border-nonzero > * > tr > th,
-table:-moz-table-border-nonzero > * > td,
-table:-moz-table-border-nonzero > * > th,
-table:-moz-table-border-nonzero > td,
-table:-moz-table-border-nonzero > th
-{
-  border-width: thin;
-  border-style: inset;
-}
-
-/* collapse only if rules are really specified */
-table[rules]:not([rules="none"]):not([rules=""]) {
+table[rules]:not([rules="none"]) {
   border-collapse: collapse;
 }
-
-/* only specified rules override 'border' settings  
-  (increased specificity to achieve this) */
-table[rules]:not([rules=""])> tr > td,
-table[rules]:not([rules=""])> * > tr > td,
-table[rules]:not([rules=""])> tr > th,
-table[rules]:not([rules=""])> * > tr > th,
-table[rules]:not([rules=""])> td,
-table[rules]:not([rules=""])> th
-{
-  border-width: thin;
-  border-style: none;
-}
-
-
-table[rules][rules="none"]  > tr > td,
-table[rules][rules="none"] > * > tr > td,
-table[rules][rules="none"] > tr > th,
-table[rules][rules="none"] > * > tr > th,
-table[rules][rules="none"] > td,
-table[rules][rules="none"] > th
-{
-  border-width: thin;
-  border-style: none;
-}
-
-table[rules][rules="all"] > tr > td,
-table[rules][rules="all"] > * > tr > td,
-table[rules][rules="all"] > tr > th,
-table[rules][rules="all"] > * > tr > th,
-table[rules][rules="all"] > td,
-table[rules][rules="all"] > th 
-{
-  border-width: thin;
-  border-style: solid;
-}
-
-table[rules][rules="rows"] > tr,
-table[rules][rules="rows"] > * > tr {
-  border-block-start-width: thin;
-  border-block-end-width: thin;
-  border-block-start-style: solid;
-  border-block-end-style: solid;
-}
-
-
-table[rules][rules="cols"] > tr > td,
-table[rules][rules="cols"] > * > tr > td,
-table[rules][rules="cols"] > tr > th,
-table[rules][rules="cols"] > * > tr > th {
-  -moz-border-start-width: thin;
-  -moz-border-end-width: thin;
-  -moz-border-start-style: solid;
-  -moz-border-end-style: solid;
-}
-
-table[rules][rules="groups"] > colgroup {
-  -moz-border-start-width: thin;
-  -moz-border-end-width: thin;
-  -moz-border-start-style: solid;
-  -moz-border-end-style: solid;
-}
-table[rules][rules="groups"] > tfoot,
-table[rules][rules="groups"] > thead,
-table[rules][rules="groups"] > tbody {
-  border-block-start-width: thin;
-  border-block-end-width: thin;
-  border-block-start-style: solid;
-  border-block-start-style: solid;
-}
-  
-  
+   
 /* caption inherits from table not table-outer */  
 caption {
   display: table-caption;
   text-align: center;
+  -moz-box-sizing: border-box;
 }
 
 table[align="center"] > caption {
-  -moz-margin-start: auto;
-  -moz-margin-end: auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-table[align="center"] > caption[align="left"]:-moz-dir(ltr) {
-  -moz-margin-end: 0;
-}
-table[align="center"] > caption[align="left"]:-moz-dir(rtl) {
-  -moz-margin-start: 0;
+table[align="center"] > caption[align="left"] {
+  margin-right: 0;
 }
 
-table[align="center"] > caption[align="right"]:-moz-dir(ltr) {
-  -moz-margin-start: 0;
-}
-table[align="center"] > caption[align="right"]:-moz-dir(rtl) {
-  -moz-margin-end: 0;
+table[align="center"] > caption[align="right"] {
+  margin-left: 0;
 }
 
 tr {
@@ -484,20 +259,6 @@ table > form:-moz-is-html {
   display: none !important;
 }
 
-table[bordercolor] > tbody,
-table[bordercolor] > thead,
-table[bordercolor] > tfoot,
-table[bordercolor] > col,
-table[bordercolor] > colgroup,
-table[bordercolor] > tr,
-table[bordercolor] > * > tr,
-table[bordercolor]  > tr > td,
-table[bordercolor] > * > tr > td,
-table[bordercolor]  > tr > th,
-table[bordercolor] > * > tr > th {
-  border-color: inherit;
-}
-
 /* inlines */
 
 q:before {
@@ -528,6 +289,10 @@ s, strike, del {
   text-decoration: line-through;
 }
 
+blink {
+  text-decoration: blink;
+}
+
 big {
   font-size: larger;
 }
@@ -552,14 +317,9 @@ nobr {
   white-space: nowrap;
 }
 
-mark {
-  background: yellow;
-  color: black;
-}
-
 /* titles */
 abbr[title], acronym[title] {
-  text-decoration: dotted underline;
+  border-bottom: dotted 1px;
 }
 
 /* lists */
@@ -567,49 +327,52 @@ abbr[title], acronym[title] {
 ul, menu, dir {
   display: block;
   list-style-type: disc;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
+  margin: 1em 0;
   -moz-padding-start: 40px;
-}
-
-menu[type="context"] {
-  display: none !important;
 }
 
 ol {
   display: block;
   list-style-type: decimal;
-  margin-block-start: 1em;
-  margin-block-end: 1em;
+  margin: 1em 0;
   -moz-padding-start: 40px;
 }
 
 li {
   display: list-item;
-  text-align: match-parent;
+  -moz-float-edge: margin-box;
 }
 
 /* nested lists have no top/bottom margins */
-:-moz-any(ul, ol, dir, menu, dl) ul,
-:-moz-any(ul, ol, dir, menu, dl) ol,
-:-moz-any(ul, ol, dir, menu, dl) dir,
-:-moz-any(ul, ol, dir, menu, dl) menu,
-:-moz-any(ul, ol, dir, menu, dl) dl {
-  margin-block-start: 0;
-  margin-block-end: 0;
+ul ul,   ul ol,   ul dir,   ul menu,   ul dl,
+ol ul,   ol ol,   ol dir,   ol menu,   ol dl,
+dir ul,  dir ol,  dir dir,  dir menu,  dir dl,
+menu ul, menu ol, menu dir, menu menu, menu dl,
+dl ul,   dl ol,   dl dir,   dl menu,   dl dl {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /* 2 deep unordered lists use a circle */
-:-moz-any(ol, ul, menu, dir) ul,
-:-moz-any(ol, ul, menu, dir) menu,
-:-moz-any(ol, ul, menu, dir) dir {
+ol ul,   ul ul,   menu ul,   dir ul,
+ol menu, ul menu, menu menu, dir menu,
+ol dir,  ul dir,  menu dir,  dir dir {
   list-style-type: circle;
 }
 
 /* 3 deep (or more) unordered lists use a square */
-:-moz-any(ol, ul, menu, dir) :-moz-any(ol, ul, menu, dir) ul,
-:-moz-any(ol, ul, menu, dir) :-moz-any(ol, ul, menu, dir) menu,
-:-moz-any(ol, ul, menu, dir) :-moz-any(ol, ul, menu, dir) dir {
+ol ol ul,     ol ul ul,     ol menu ul,     ol dir ul,
+ol ol menu,   ol ul menu,   ol menu menu,   ol dir menu,
+ol ol dir,    ol ul dir,    ol menu dir,    ol dir dir,
+ul ol ul,     ul ul ul,     ul menu ul,     ul dir ul,
+ul ol menu,   ul ul menu,   ul menu menu,   ul dir menu,
+ul ol dir,    ul ul dir,    ul menu dir,    ul dir dir,
+menu ol ul,   menu ul ul,   menu menu ul,   menu dir ul,
+menu ol menu, menu ul menu, menu menu menu, menu dir menu,
+menu ol dir,  menu ul dir,  menu menu dir,  menu dir dir,
+dir ol ul,    dir ul ul,    dir menu ul,    dir dir ul,
+dir ol menu,  dir ul menu,  dir menu menu,  dir dir menu,
+dir ol dir,   dir ul dir,   dir menu dir,   dir dir dir {
   list-style-type: square;
 }
 
@@ -621,49 +384,19 @@ li {
  */
 hr {
   display: block;
-  border: 1px inset;
-  margin-block-start: 0.5em;
-  margin-block-end: 0.5em;
-  -moz-margin-start: auto;
-  -moz-margin-end: auto;
-  color: gray;
+  height: 2px;
+  border: 1px -moz-bg-inset;
+  margin: 0.5em auto 0.5em auto;
   -moz-float-edge: margin-box;
-  box-sizing: border-box;
+  -moz-box-sizing: border-box;
 }
 
 hr[size="1"] {
-  border-style: solid none none none;
+  border-style: -moz-bg-solid none none none;
 }
 
-img:-moz-broken::before, input:-moz-broken::before,
-img:-moz-user-disabled::before, input:-moz-user-disabled::before,
-img:-moz-loading::before, input:-moz-loading::before,
-applet:-moz-empty-except-children-with-localname(param):-moz-broken::before,
-applet:-moz-empty-except-children-with-localname(param):-moz-user-disabled::before {
-  content: -moz-alt-content !important;
-  unicode-bidi: -moz-isolate;
-}
-
-:-moz-any(object,applet):-moz-any(:-moz-broken,:-moz-user-disabled) > *|* {
-  /*
-    Inherit in the object's alignment so that if we aren't aligned explicitly
-    we'll end up in the right place vertically.  See bug 36997.  Note that this
-    is not !important because we _might_ be aligned explicitly.
-  */
-  vertical-align: inherit;
-}
-
-img:-moz-suppressed, input:-moz-suppressed, object:-moz-suppressed,
-embed:-moz-suppressed, applet:-moz-suppressed {
-  /*
-    Set visibility too in case the page changes display.  Note that we _may_
-    want to just set visibility and not display, in general, if we find that
-    display:none breaks too many layouts.  And if we decide we really do want
-    people to be able to right-click blocked images, etc, we need to set
-    neither one, and hack the painting code.... :(
-   */
-  display: none !important;
-  visibility: hidden !important;
+*|*:-moz-any-link img, img[usemap], object[usemap] {
+  border: 2px solid;
 }
 
 img[usemap], object[usemap] {
@@ -678,12 +411,8 @@ frameset {
   border: none ! important;
 }
 
-link { 
-  display: none;
-}
-
 frame {
-  border-radius: 0 ! important;
+  border: none ! important;
 }
 
 iframe {
@@ -703,82 +432,36 @@ canvas {
   -moz-user-select: none;
 }
 
-/* focusable content: anything w/ tabindex >=0 is focusable, but we
-   skip drawing a focus outline on a few things that handle it
-   themselves. */
-:-moz-focusring:not(input):not(button):not(select):not(textarea):not(iframe):not(frame):not(body):not(html) {
-  /* Don't specify the outline-color, we should always use initial value. */
-   outline: 1px dotted;
+/* focusable content: anything w/ tabindex >=0 is focusable */
+abbr:focus, acronym:focus, address:focus, applet:focus, b:focus, 
+base:focus, big:focus, blockquote:focus, br:focus, canvas:focus, caption:focus,
+center:focus, cite:focus, code:focus, col:focus, colgroup:focus, dd:focus,
+del:focus, dfn:focus, dir:focus, div:focus, dl:focus, dt:focus, em:focus,
+fieldset:focus, font:focus, form:focus, h1:focus, h2:focus, h3:focus, h4:focus,
+h5:focus, h6:focus, hr:focus, i:focus, img:focus, ins:focus, 
+kbd:focus, label:focus, legend:focus, li:focus, link:focus, menu:focus, 
+object:focus, ol:focus, p:focus, pre:focus, q:focus, s:focus, samp:focus, 
+small:focus, span:focus, strike:focus, strong:focus, sub:focus, sup:focus, 
+table:focus, tbody:focus, td:focus, tfoot:focus, th:focus, thead:focus, 
+tr:focus, tt:focus, u:focus, ul:focus, var:focus {
+   outline: 1px dotted invert;
 }
 
 /* hidden elements */
-base, basefont, datalist, head, meta, script, style, title,
-noembed, param, template {
+area, base, basefont, head, meta, script, style, title,
+noembed, param {
    display: none;
-}
-
-area {
-  /* Don't give it frames other than its imageframe */
-  display: none ! important;
-}
-
-iframe:-moz-full-screen {
-  /* iframes in full-screen mode don't show a border. */
-  border: none !important;
-  padding: 0 !important;
-}
-
-/* media elements */
-video > xul|videocontrols, audio > xul|videocontrols {
-  display: -moz-box;
-  -moz-box-orient: vertical;
-  -moz-binding: url("chrome://global/content/bindings/videocontrols.xml#videoControls");
-}
-
-video:not([controls]) > xul|videocontrols,
-audio:not([controls]) > xul|videocontrols {
-  visibility: hidden;
-  -moz-binding: none;
-}
-
-video {
-  object-fit: contain;
-}
-
-video > img:-moz-native-anonymous {
-  /* Video poster images should render with the video element's "object-fit" &
-     "object-position" properties */
-  object-fit: inherit !important;
-  object-position: inherit !important;
-}
-
-audio:not([controls]) {
-  display: none;
-}
-
-*|*::-moz-html-canvas-content {
-  display: block !important;
-  /* we want to be an absolute and fixed container */
-  -moz-transform: translate(0) !important;
-}
-
-video > .caption-box {
-  position: relative;
-  overflow: hidden;
 }
 
 /* emulation of non-standard HTML <marquee> tag */
 marquee {
-  inline-size: -moz-available;
-  display: inline-block;
-  vertical-align: text-bottom;
-  text-align: start;
+  display: block;
   -moz-binding: url('chrome://xbl-marquee/content/xbl-marquee.xml#marquee-horizontal');
 }
 
 marquee[direction="up"], marquee[direction="down"] {
   -moz-binding: url('chrome://xbl-marquee/content/xbl-marquee.xml#marquee-vertical');
-  block-size: 200px;
+  height: 200px;
 }
 
 /* PRINT ONLY rules follow */
@@ -786,48 +469,10 @@ marquee[direction="up"], marquee[direction="down"] {
 
   marquee { -moz-binding: none; }
 
-}
-
-/* Ruby */
-
-@supports (display: ruby) {
-  ruby {
-    display: ruby;
+  /* XXX this should not be necessary, we should be stopping blinking
+     of any kind in print preview, not just the <blink> element */
+  blink {
+    text-decoration: none;
   }
-  rb {
-    display: ruby-base;
-    white-space: nowrap;
-  }
-  rp {
-    display: none;
-  }
-  rt {
-    display: ruby-text;
-  }
-  rtc {
-    display: ruby-text-container;
-  }
-  rtc, rt {
-    white-space: nowrap;
-    font-size: 50%;
-    line-height: 1;
-    font-variant-east-asian: ruby;
-  }
-  @supports (text-emphasis: none) {
-    rtc, rt {
-      text-emphasis: none;
-    }
-  }
-  rtc:lang(zh), rt:lang(zh) {
-    ruby-align: center;
-  }
-  rtc:lang(zh-TW), rt:lang(zh-TW) {
-    font-size: 30%; /* bopomofo */
-  }
-  rtc > rt {
-    font-size: inherit;
-  }
-  ruby, rb, rt, rtc {
-    unicode-bidi: -moz-isolate;
-  }
+ 
 }
