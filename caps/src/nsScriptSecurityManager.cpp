@@ -1291,6 +1291,8 @@ nsScriptSecurityManager::GetBaseURIScheme(nsIURI* aURI,
         NS_ENSURE_SUCCESS(rv, rv);
         if (path.EqualsLiteral("blank")   ||
             path.EqualsLiteral("mozilla") ||
+            path.EqualsLiteral("retrozilla") ||
+            path.EqualsLiteral("home") ||
             path.EqualsLiteral("logo")    ||
             path.EqualsLiteral("license") ||
             path.EqualsLiteral("licence") ||

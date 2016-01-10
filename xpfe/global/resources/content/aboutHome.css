@@ -1,0 +1,17 @@
+#rzLogo {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 50px;
+	margin-bottom: 20px;
+}
+#searchContainer {
+	width: 60%;
+	margin-left: auto;
+	margin-right: auto;
+	display: block;
+	text-align: center;
+}
+#rzSearch {
+	width: 70%;
+}

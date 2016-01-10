@@ -65,6 +65,7 @@ static RedirEntry kRedirMap[] = {
     { "retrozilla", "chrome://global/content/retrozilla.xhtml", PR_TRUE },
     { "plugins", "chrome://global/content/plugins.html", PR_FALSE },
     { "config", "chrome://global/content/config.xul", PR_FALSE },
+    { "home", "chrome://global/content/aboutHome.html", PR_FALSE },
     { "logo", "chrome://global/content/logo.gif", PR_TRUE },
     { "buildconfig", "chrome://global/content/buildconfig.html", PR_TRUE },
     { "license", "chrome://global/content/license.html", PR_TRUE },

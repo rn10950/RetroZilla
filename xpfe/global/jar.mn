@@ -14,12 +14,17 @@ toolkit.jar:
         content/global/strres.js                    (resources/content/strres.js) 
 #ifdef MOZ_SUITE
         content/global/logo.gif                     (/suite/branding/content/logo.gif) 
+        content/global/logo.png                     (/suite/branding/content/logo.png) 
 #else
         content/global/logo.gif                     (resources/content/logo.gif) 
+        content/global/logo.png                     (resources/content/logo.png) 
 #endif
         content/global/aboutAbout.html              (resources/content/aboutAbout.html) 
         content/global/aboutCredits.html            (resources/content/aboutCredits.html) 
         content/global/aboutCredits.css             (resources/content/aboutCredits.css) 
+        content/global/aboutHome.html               (resources/content/aboutHome.html) 
+        content/global/aboutHome.css                (resources/content/aboutHome.css) 
+        content/global/aboutHome.js                 (resources/content/aboutHome.js) 
         content/global/about.xul                    (resources/content/about.xul) 
         content/global/config.xul                   (resources/content/config.xul) 
         content/global/config.js                    (resources/content/config.js) 

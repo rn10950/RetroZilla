@@ -1,0 +1,26 @@
+HOW TO ADD AN ABOUT: URI
+========================
+
+This is one of the things that was not straightforward to me in the beginning,
+so I will write this guide for future reference.
+
+1. Open /netwerk/protocol/about/src/nsAboutRedirector.cpp
+
+   - You will see a list of URIs under RedirEntry. Add a line and specify a
+     URI and a file location/internet URL that you would want to redirect to.
+   - At the end of the line, you will see PR_TRUE or PR_FALSE. For most cases,
+     PR_TRUE is the best option, you should only use PR_FALSE if the page you
+     want to add is to be used for changing settings or interacting with the
+     rest of the browser chrome. (IE preferences pages or about:config)
+
+
+2. Open /netwerk/build/nsNetModule.cpp
+
+   - At around line 1000, you will see a list of functions defining about: URIs.
+     Copy and paste one and modify it to reflect the new URI you want to add.
+     (just modifying the values in quotes should do)
+
+
+3. Open /caps/src/nsScriptSecurityManager.cpp
+   
+   - At about line 1290, you will see a list of URIs. Add your URI to that list.
