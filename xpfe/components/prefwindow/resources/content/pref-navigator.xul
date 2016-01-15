@@ -55,7 +55,7 @@
   <![CDATA[
     var _elementIDs = ["startupPage", "newWinPage", "newTabPage",
                        "bookmarksButton", "goButton", "homeButton",
-                       "printButton", "searchButton" ];
+                       "printButton", "searchButton", "rzHomeAutofocus" ];
   ]]>
   </script>
   
@@ -122,6 +122,12 @@
                 id="browserUseDefault"
                 prefstring="pref.browser.homepage.disable_button.default_page"/>
       </hbox>
+	  <hbox align="center">
+	    <checkbox id="rzHomeAutofocus"
+          label="&rzHomeAutofocus.label;"
+          accesskey="&rzHomeAutofocus.accesskey;"
+          prefstring="rzHome.autofocus"/>
+	  </hbox>
     </vbox>
   </groupbox>
   

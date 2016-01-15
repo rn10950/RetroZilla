@@ -5,17 +5,29 @@
 		<title>RetroZilla Home</title>
 		<link rel="stylesheet" type="text/css" href="chrome://global/content/aboutHome.css">
 		<!--<script src="aboutHome.js"></script>-->
-		<script src="chrome://global/content/aboutHome.js"></script>
+		<script src="chrome://global/content/aboutHome.js" type="application/x-javascript"></script>
 	</head>
 	<body>
 		<div id="logoContainer">
 			<img src="chrome://global/content/logo.png" id="rzLogo" alt="RetroZilla Logo">
 		</div>
 		<div id="searchContainer">
-			<form id="rzSearchForm">
-				<input type="text" name="rzSearch" id="rzSearch">
-				<input type="submit" id="rzSearchSubmit" value="Search">
-			</form>
+			<!-- add input box with a keypress event for the enter key to trigger submit button -->
+			<input type="text" name="rzSearch" id="rzSearch" onkeydown = "if (event.keyCode == 13)
+              document.getElementById('rzSearchSubmit').click()">
+			<button id="rzSearchSubmit" onClick="rzSearch();">Search</button>
+		</div>
+		<div id="rzFooter">
+			<p id="rzFooterText">
+				<a href="https://sites.google.com/site/rn10950mozilla/retrozilla" class="rzFooterlink">
+					RetroZilla
+				</a>
+				 - 
+				 Copyright 1998-2016,
+				 <a href="about:credits" class="rzFooterLink">
+					Contributors
+				 </a>
+			</p>
 		</div>
 	</body>
 </html>

@@ -36,9 +36,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
- // RETROZILLA PREFS
+ // RETROZILLA-SPECIFIC PREFS
 
 #expand pref("general.useragent.extra.__MOZ_APP_NAME__", "__MOZ_APP_DISPLAYNAME__/__MOZ_APP_VERSION__ SeaMonkey/1.1.19 Firefox/2.0.20");
+pref("rzHome.autofocus", true);
 
 /* The prefs in this file are specific to the seamonkey browser.
  * Generic default prefs that would be useful to embedders belong in

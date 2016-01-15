@@ -21,6 +21,6 @@ so I will write this guide for future reference.
      (just modifying the values in quotes should do)
 
 
-3. Open /caps/src/nsScriptSecurityManager.cpp
+3. Open /caps/src/nsScriptSecurityManager.cpp (for content pages only)
    
    - At about line 1290, you will see a list of URIs. Add your URI to that list.
