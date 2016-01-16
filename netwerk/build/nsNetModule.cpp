@@ -1008,6 +1008,11 @@ static const nsModuleComponentInfo gNetModuleInfo[] = {
       NS_ABOUT_MODULE_CONTRACTID_PREFIX "config",
       nsAboutRedirector::Create
     },
+    { "about:changelog",
+      NS_ABOUT_REDIRECTOR_MODULE_CID,
+      NS_ABOUT_MODULE_CONTRACTID_PREFIX "changelog",
+      nsAboutRedirector::Create
+    },
     { "about:credits",
       NS_ABOUT_REDIRECTOR_MODULE_CID,
       NS_ABOUT_MODULE_CONTRACTID_PREFIX "credits",
