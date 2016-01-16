@@ -1294,6 +1294,7 @@ nsScriptSecurityManager::GetBaseURIScheme(nsIURI* aURI,
             path.EqualsLiteral("changelog") ||
             path.EqualsLiteral("retrozilla") ||
             path.EqualsLiteral("logo")    ||
+            path.EqualsLiteral("logopng")    ||
             path.EqualsLiteral("license") ||
             path.EqualsLiteral("licence") ||
             path.EqualsLiteral("credits") ||
