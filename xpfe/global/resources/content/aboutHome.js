@@ -10,7 +10,16 @@ var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(
 var aboutHomeAutofocus = prefs.getBoolPref("rzHome.autofocus");
 var searchEngineURL = prefs.getCharPref("keyword.URL");
 
-var searchURL = "http://www.google.com/search?q=";
+//check to see if custom search pref url exists
+var prefServiceBranch = Components.classes["@mozilla.org/preferences-service;1"]
+	.getService(Components.interfaces.nsIPrefService).getBranch("");
+if(prefServiceBranch.getPrefType('rzHome.customsearch')){
+	//key exist!
+	var searchEngineURL = prefs.getCharPref("rzHome.customsearch");
+} else {
+	// use Google
+	var searchEngineURL = "http://www.google.com/search?q=";
+}
 
 // autofocus function
 function autoFocus() {
@@ -28,5 +37,6 @@ window.onload = function() {
 function rzSearch() {
 	var searchQuery = document.getElementById("rzSearch").value;
 	var searchURL = searchEngineURL + searchQuery;
+	//alert("Location: " + searchURL); // for debug purposes
 	window.location.replace(searchURL);
 }
