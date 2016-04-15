@@ -27,6 +27,10 @@
 <!ENTITY  rzHomeAutofocus.label     "Automatically focus search bar on RetroZilla Home">
 <!ENTITY  rzHomeAutofocus.accesskey "t">
 
+<!ENTITY  header3.label     "Session Restore">
+<!ENTITY  rzSessionRestore.label     "Restore your previous session when starting RetroZilla">
+<!ENTITY  rzSessionRestore.accesskey "i">
+
 <!ENTITY  toolbarIntro.label        "Select the buttons you want to see in the toolbars:">
 
 <!ENTITY  navToolbarIntro.label     "Navigation Toolbar">

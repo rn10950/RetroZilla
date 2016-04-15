@@ -55,7 +55,7 @@
   <![CDATA[
     var _elementIDs = ["startupPage", "newWinPage", "newTabPage",
                        "bookmarksButton", "goButton", "homeButton",
-                       "printButton", "searchButton", "rzHomeAutofocus" ];
+                       "printButton", "searchButton", "rzHomeAutofocus", "rzSessionRestoreCB" ];
   ]]>
   </script>
   
@@ -127,6 +127,19 @@
           label="&rzHomeAutofocus.label;"
           accesskey="&rzHomeAutofocus.accesskey;"
           prefstring="rzHome.autofocus"/>
+	  </hbox>
+    </vbox>
+  </groupbox>
+  
+  <!-- session restore groupbox -->
+  <groupbox>
+    <caption label="&header3.label;"/>
+    <vbox flex="1">
+	  <hbox align="center">
+	    <checkbox id="rzSessionRestoreCB"
+          label="&rzSessionRestore.label;"
+          accesskey="&rzSessionRestore.accesskey;"
+          prefstring="extensions.crashrecovery.resume_session"/>
 	  </hbox>
     </vbox>
   </groupbox>
