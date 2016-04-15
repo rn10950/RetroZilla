@@ -49,6 +49,8 @@
 <?xul-overlay href="chrome://communicator/content/sidebar/sidebarOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/communicatorOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/bookmarks/bookmarksOverlay.xul"?>
+<!-- Extension-specific overlays -->
+<?xul-overlay href="chrome://global/content/extensions/sessionmanager/sessionmanager.xul"?>
 
 
 <!DOCTYPE window [

@@ -1,0 +1,35 @@
+<!ENTITY sessionManager       "Session Manager">
+<!ENTITY toolsmenu.accesskey  "M">
+
+<!ENTITY save.label           "Save Session...">
+<!ENTITY save.accesskey       "S">
+<!ENTITY saveOne.label        "Save Current Window...">
+<!ENTITY saveOne.accesskey    "W">
+<!ENTITY rename.label         "Rename Session...">
+<!ENTITY rename.accesskey     "R">
+<!ENTITY remove.label         "Delete Session(s)...">
+<!ENTITY remove.accesskey     "D">
+<!ENTITY openFolder.label     "Open Session Folder">
+<!ENTITY openFolder.accesskey "F">
+
+<!ENTITY options.label        "&sessionManager; Options">
+<!ENTITY options.accesskey    "O">
+<!ENTITY resume.label         "Resume Current Session At Startup">
+<!ENTITY resume.accesskey     "m">
+<!ENTITY reload.label         "Reload All Restored Windows">
+<!ENTITY reload.accesskey     "l">
+<!ENTITY overwrite.label      "Replace Existing Windows">
+<!ENTITY overwrite.accesskey  "p">
+
+<!ENTITY undoClosed.label     "Reopen Closed ...">
+<!ENTITY undoClosed.accesskey "C">
+<!ENTITY closedWindows        "Closed Windows:">
+<!ENTITY closedTabs           "Closed Tabs:">
+<!ENTITY clearList.label      "Clear 'Closed' List...">
+<!ENTITY clearList.accesskey  "C">
+
+<!ENTITY toolbar.tooltip      "Save the current browsing session...">
+<!ENTITY toolbar.undo.label   "Undo Close">
+<!ENTITY toolbar.undo.tooltip "Reopen the most recently closed tab">
+
+<!ENTITY prompt.ignore.label  "Don't show this dialog again">

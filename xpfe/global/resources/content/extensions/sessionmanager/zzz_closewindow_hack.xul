@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE overlay>
+
+<overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+	<script type="application/x-javascript"><![CDATA[
+		if (typeof closeWindow == "function" && /canQuitApplication/.test(closeWindow))
+		{
+			window.closeWindow = function(aClose) {
+				if (aClose)
+				{
+					window.close();
+				}
+				
+				return true;
+			};
+		}
+	]]></script>
+</overlay>

@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+
+<!DOCTYPE dialog SYSTEM "chrome://global/locale/extensions/sessionmanager/sessionmanager.dtd">
+
+<dialog
+	xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+	xmlns:xhtml2="http://www.w3.org/TR/xhtml2"
+	xmlns:wairole="http://www.w3.org/2005/01/wai-rdf/GUIRoleTaxonomy#"
+	xhtml2:role="wairole:alert"
+	id="sessionmanagerPrompt"
+	title="&sessionManager;"
+	ondialogaccept="return onAcceptDialog();"
+	style="min-width: 35em; -moz-user-focus: ignore;"
+	persist="width"
+>
+	<script type="application/x-javascript" src="chrome://global/content/extensions/sessionmanager/sessionmanager.js"/>
+	<script type="application/x-javascript" src="chrome://global/content/extensions/sessionmanager/session_prompt.js"/>
+	
+	<stringbundleset id="stringbundleset">
+		<stringbundle id="bundle_sessionmanager" src="chrome://global/locale/extensions/sessionmanager/sessionmanager.properties"/>
+	</stringbundleset>
+	
+	<hbox flex="1">
+		<hbox align="center">
+			<image id="info.icon" class="spaced question-icon"/>
+		</hbox>
+		
+		<vbox flex="1">
+			<label id="mac_title" value="&sessionManager;" class="dialogTitle" hidden="true"/>
+			
+			<vbox id="session_label"/>
+			<vbox flex="1">
+				<listbox id="session_list" rows="3" flex="1"/>
+			</vbox>
+			<separator class="thin"/>
+			
+			<vbox id="text_container" hidden="true">
+				<vbox id="text_label" class="header"/>
+				<textbox id="text_box" oninput="onTextboxInput();"/>
+				<separator class="thin"/>
+			</vbox>
+			<vbox id="checkbox_container" hidden="true">
+				<checkbox id="checkbox" label="&prompt.ignore.label;"/>
+			</vbox>
+		</vbox>
+	</hbox>
+</dialog>

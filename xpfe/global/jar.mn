@@ -90,6 +90,20 @@ toolkit.jar:
         content/global/fontpackage.xul              (resources/content/fontpackage.xul)
         content/global/fontpackage.js               (resources/content/fontpackage.js)
         content/global/XPCNativeWrapper.js          (resources/content/XPCNativeWrapper.js) 
+        content/global/extensions/sessionmanager/sessionmanager.xul   (resources/content/extensions/sessionmanager/sessionmanager.xul) 
+        content/global/extensions/sessionmanager/zzz_closewindow_hack.xul   (resources/content/extensions/sessionmanager/zzz_closewindow_hack.xul) 
+        content/global/extensions/sessionmanager/options.xul   (resources/content/extensions/sessionmanager/options.xul) 
+        content/global/extensions/sessionmanager/restore_prompt.xul   (resources/content/extensions/sessionmanager/restore_prompt.xul) 
+        content/global/extensions/sessionmanager/session_prompt.xul   (resources/content/extensions/sessionmanager/session_prompt.xul) 
+        content/global/extensions/sessionmanager/sessionmanager.js   (resources/content/extensions/sessionmanager/sessionmanager.js) 
+        content/global/extensions/sessionmanager/options.js   (resources/content/extensions/sessionmanager/options.js) 
+        content/global/extensions/sessionmanager/session_prompt.js   (resources/content/extensions/sessionmanager/session_prompt.js) 
+        content/global/extensions/sessionmanager/contents.rdf   (resources/content/extensions/sessionmanager/contents.rdf) 
+        content/global/extensions/sessionmanager/skin/contents.rdf   (resources/content/extensions/sessionmanager/skin/contents.rdf) 
+        content/global/extensions/sessionmanager/skin/dougeeebear.png   (resources/content/extensions/sessionmanager/skin/dougeeebear.png) 
+        content/global/extensions/sessionmanager/skin/icon.png   (resources/content/extensions/sessionmanager/skin/icon.png) 
+        content/global/extensions/sessionmanager/skin/sessionmanager.css   (resources/content/extensions/sessionmanager/skin/sessionmanager.css) 
+        content/global/extensions/sessionmanager/skin/toolbar.png   (resources/content/extensions/sessionmanager/skin/toolbar.png) 
 #ifdef MOZ_SVG
         content/global/svg/svgBindings.xml          (/layout/svg/base/src/resources/content/svgBindings.xml)
 #endif
@@ -123,6 +137,10 @@ en-US.jar:
     locale/en-US/global/fontpackage.dtd             (resources/locale/en-US/fontpackage.dtd)
     locale/en-US/global/fontpackage.properties      (resources/locale/en-US/fontpackage.properties)
     locale/en-US/global/tree.dtd                    (resources/locale/en-US/tree.dtd)
+    locale/en-US/global/extensions/sessionmanager/contents.rdf  (resources/locale/en-US/extensions/sessionmanager/contents.rdf)
+    locale/en-US/global/extensions/sessionmanager/options.dtd  (resources/locale/en-US/extensions/sessionmanager/options.dtd)
+    locale/en-US/global/extensions/sessionmanager/sessionmanager.dtd  (resources/locale/en-US/extensions/sessionmanager/sessionmanager.dtd)
+    locale/en-US/global/extensions/sessionmanager/sessionmanager.properties  (resources/locale/en-US/extensions/sessionmanager/sessionmanager.properties)
 
 US.jar:
 *   locale/US/global-region/contents.rdf            (resources/locale/en-US/contents-region.rdf) 

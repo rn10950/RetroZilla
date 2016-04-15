@@ -106,7 +106,7 @@ var regName    = "defaults/mozilla/en-US";
 // --- END CHANGABLE STUFF ---
 
 srDest = 1;
-err    = initInstall(prettyName, regName, "1.0.0.0000000000"); 
+err    = initInstall(prettyName, regName, "1.1.0.0000000000"); 
 logComment("initInstall: " + err);
 
 fProgram = getFolder("Program");
@@ -117,7 +117,7 @@ if(verifyDiskSpace(fProgram, srDest))
   setPackageFolder(fProgram);
 
   err = addDirectory("",
-                     "1.0.0.0000000000",
+                     "1.1.0.0000000000",
                      "bin",              // dir name in jar to extract 
                      fProgram,           // Where to put this file (Returned from GetFolder) 
                      "",                 // subdir name to create relative to fProgram

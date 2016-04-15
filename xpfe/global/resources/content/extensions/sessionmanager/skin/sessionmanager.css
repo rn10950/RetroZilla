@@ -1,0 +1,46 @@
+#sessionmanager-menu menuitem[_id="windows"],
+#sessionmanager-toolbar menuitem[_id="windows"],
+#sessionmanager-undo menuitem[_id="windows"],
+#sessionmanager-menu menuitem[_id="tabs"],
+#sessionmanager-toolbar menuitem[_id="tabs"],
+#sessionmanager-undo menuitem[_id="tabs"] {
+	font-size: 80%;
+}
+
+#sessionmanager-menu menuitem[marked="true"],
+#sessionmanager-toolbar menuitem[marked="true"] {
+	font-weight: bold;
+}
+
+#sessionmanager-toolbar,
+#sessionmanager-undo {
+	list-style-image: url("chrome://global/content/extensions/sessionmanager/skin/toolbar.png");
+}
+
+#sessionmanager-toolbar {
+	-moz-image-region: rect(0px, 24px, 24px, 0px);
+}
+#sessionmanager-undo {
+	-moz-image-region: rect(0px, 48px, 24px, 24px);
+}
+#sessionmanager-undo[disabled="true"] {
+	-moz-image-region: rect(0px, 72px, 24px, 48px);
+}
+
+toolbar[iconsize="small"] #sessionmanager-toolbar {
+	-moz-image-region: rect(24px, 16px, 40px, 0px);
+}
+toolbar[iconsize="small"] #sessionmanager-undo {
+	-moz-image-region: rect(24px, 40px, 40px, 24px);
+}
+toolbar[iconsize="small"] #sessionmanager-undo[disabled="true"] {
+	-moz-image-region: rect(24px, 64px, 40px, 48px);
+}
+
+#sessionmanager-toolbar {
+	list-style-image: url("chrome://global/content/extensions/sessionmanager/skin/dougeeebear.png");
+	-moz-image-region: rect(8px, 56px, 32px, 32px);
+}
+toolbar[iconsize="small"] #sessionmanager-toolbar {
+	-moz-image-region: rect(15px, 72px, 31px, 56px);
+}

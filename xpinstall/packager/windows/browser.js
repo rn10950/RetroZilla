@@ -105,12 +105,12 @@ function registerProgramFolderKey(winreg, fFolderPath)
 
   subkey  = "SOFTWARE\\RetroZilla\\RetroZilla";
   winreg.createKey(subkey,"");
-  err     = winreg.setValueString(subkey, "CurrentVersion", "1.0 (en)");
+  err     = winreg.setValueString(subkey, "CurrentVersion", "1.1 (en)");
 
-  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.0 (en)";
+  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)";
   winreg.createKey(subkey,"");
 
-  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.0 (en)\\Main";
+  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)\\Main";
   winreg.createKey(subkey,"");
   err     = winreg.setValueString(subkey, "Program Folder Path", fFolderPath);
 }
@@ -219,7 +219,7 @@ function createShortcuts()
     }
     logComment("folderQuickLaunchExists: " + folderQuickLaunchExists);
 
-    subkey              = "SOFTWARE\\RetroZilla\\RetroZilla\\1.0 (en)\\Main";
+    subkey              = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)\\Main";
     fFolderPathStr      = winreg.getValueString(subkey, "Program Folder Path");
     if((fFolderPathStr == "") || (fFolderPathStr == null))
     {
@@ -293,7 +293,7 @@ function createShortcuts()
         fileDelete(fFolderPath);
     }
 
-    subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.0 (en)\\Setup";
+    subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)\\Setup";
     regvalue = winreg.getValueString(subkey, "browserargs");
 
     /* log this so if the user turns on turbo mode in the browser the uninstaller will undo it */
@@ -366,12 +366,12 @@ function registerMainKeys(winreg)
 
   subkey  = "SOFTWARE\\RetroZilla\\RetroZilla";
   winreg.createKey(subkey,"");
-  err     = winreg.setValueString(subkey, "CurrentVersion", "1.0 (en)");
+  err     = winreg.setValueString(subkey, "CurrentVersion", "1.1 (en)");
 
-  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.0 (en)";
+  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)";
   winreg.createKey(subkey,"");
 
-  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.0 (en)\\Main";
+  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)\\Main";
   winreg.createKey(subkey,"");
 
   err     = winreg.setValueString(subkey, "Install Directory", fProgram);
@@ -379,20 +379,20 @@ function registerMainKeys(winreg)
   // The following keys are required to be created to supply information
   // about the location of the Gecko Embedded Client to 3rd party apps.
   // "SOFTWARE\\Mozilla" must not be localized!
-  subkey  = "SOFTWARE\\Mozilla\\RetroZilla 1.0";
+  subkey  = "SOFTWARE\\Mozilla\\RetroZilla 1.1";
   winreg.createKey(subkey,"");
   err     = winreg.setValueString(subkey, "GeckoVer", "$GreVersion$");
 
-  subkey  = "SOFTWARE\\Mozilla\\RetroZilla 1.0\\Extensions";
+  subkey  = "SOFTWARE\\Mozilla\\RetroZilla 1.1\\Extensions";
   winreg.createKey(subkey,"");
   err     = winreg.setValueString(subkey, "Components", fProgram + "Components");
   err     = winreg.setValueString(subkey, "Plugins", fProgram + "Plugins");
 
-  subkey  = "SOFTWARE\\Mozilla\\RetroZilla 1.0\\bin";
+  subkey  = "SOFTWARE\\Mozilla\\RetroZilla 1.1\\bin";
   winreg.createKey(subkey,"");
   err     = winreg.setValueString(subkey, "PathToExe", fProgram + "RetroZilla.exe");
 
-  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.0 (en)\\Main";
+  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)\\Main";
   err     = winreg.setValueString(subkey, "PathToExe", fProgram + "RetroZilla.exe");
 
   // Register as a windows XP internet browser
@@ -416,7 +416,7 @@ function registerMainKeys(winreg)
     data = "\"" + fProgram + "RetroZilla.exe\"";
     winreg.setValueString(subkey + "\\shell\\open\\command", "", data);
 
-    data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"1.0 (en)\" /hs browser";
+    data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"1.1 (en)\" /hs browser";
     winreg.setValueString(subkey + "\\InstallInfo", "HideIconsCommand", data);
 
     winreg.setValueNumber(subkey + "\\InstallInfo", "IconsVisible", 1);
@@ -424,7 +424,7 @@ function registerMainKeys(winreg)
     data = "\"" + fProgram + "RetroZilla.exe\" -silent -nosplash -setDefaultBrowser ";
     winreg.setValueString(subkey + "\\InstallInfo", "ReinstallCommand", data);
 
-    data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"1.0 (en)\" /ss browser";
+    data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"1.1 (en)\" /ss browser";
     winreg.setValueString(subkey + "\\InstallInfo", "ShowIconsCommand", data);
   }
 }
@@ -725,7 +725,7 @@ if(args == "-greLocal")
   gGreLocal = true;
 
 srDest = 1;
-err    = initInstall("RetroZilla", "Browser", "1.0.0.0000000000"); 
+err    = initInstall("RetroZilla", "Browser", "1.1.0.0000000000"); 
 logComment("initInstall: " + err);
 
 fProgram  = getFolder("Program");
@@ -738,7 +738,7 @@ if(verifyDiskSpace(fProgram, srDest))
 
   upgradeCleanup();
   err = addDirectory("",
-                     "1.0.0.0000000000",
+                     "1.1.0.0000000000",
                      "bin",              // dir name in jar to extract 
                      fProgram,           // Where to put this file (Returned from GetFolder) 
                      "",                 // subdir name to create relative to fProgram
@@ -830,7 +830,7 @@ if(verifyDiskSpace(fProgram, srDest))
       if (! ('buildID' in Install))
       {
         logComment("Running Pre-Mozilla 0.9.1");
-        initInstall("Post-install Cleanup Utility", "Browser/xpicleanup", "1.0.0.0000000000");
+        initInstall("Post-install Cleanup Utility", "Browser/xpicleanup", "1.1.0.0000000000");
         cleanupUtility = getFolder(fProgram, "xpicleanup.exe");
         err = File.execute(cleanupUtility);
         logComment("execute() returned: " + err);

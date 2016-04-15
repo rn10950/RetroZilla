@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE dialog>
+
+<dialog xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+	<script type="application/x-javascript" src="chrome://global/content/extensions/sessionmanager/sessionmanager.js"/>
+	
+	<stringbundleset id="stringbundleset">
+		<stringbundle id="bundle_sessionmanager" src="chrome://global/locale/extensions/sessionmanager/sessionmanager.properties"/>
+	</stringbundleset>
+	
+	<script type="application/x-javascript"><![CDATA[
+		gSessionManager.restorePrompt = function() {
+			this.onLoad(true);
+			this.onLoad = function() { };
+			this.onUnload = function() { };
+			
+			var params = window.arguments[0].QueryInterface(Components.interfaces.nsIDialogParamBlock);
+			var values = { name: "*", addCurrentSession: true, ignorable: true }
+			var fileName = (location.search != "?cancel")?this.selectSession(this._string("recover_session"), this._string("recover_session_ok"), values):"";
+			if (fileName != "*")
+			{
+				if (fileName)
+				{
+					this.setPref("_recovering", fileName);
+				}
+				else if (!this.getPref("save_window_list", false))
+				{
+					this.clearUndoData("window", true);
+				}
+				params.SetInt(0, 1); // don't recover the crashed session
+			}
+			if (values.ignore)
+			{
+				params.SetInt(1, 1); // don't prompt again
+			}
+			
+			// save crashed session
+			var file = this.getProfileFile("crashrecovery.dat");
+			if (file.exists())
+			{
+				var name = this.getFormattedName("", new Date(), this._string("crashed_session"));
+				var state = this.nameState(this.readFile(file), name + "\ntimestamp=" + file.lastModifiedTime);
+				this.writeFile(this.getSessionDir(this.mBackupSessionName, true), state);
+			}
+		};
+		
+		gSessionManager.restorePrompt();
+		window.close();
+	]]></script>
+</dialog>

@@ -1,0 +1,32 @@
+#include "nsISupports.idl"
+
+interface nsIDOMWindow;
+
+/**
+ * nsICrashRecoveryService keeps track of the current browsing state - i.e.
+ * tab history, cookies, scroll state, form data, POSTDATA and window features
+ * - and allows to restore everything into one window.
+ */
+
+[scriptable, uuid(1280606b-2510-4fe0-97ef-9b5a22eafe33)]
+interface nsICrashRecoveryService : nsISupports
+{
+	/**
+	 * @return The current browsing state, serialized into a string.
+	 */
+	wstring getCurrentState();
+
+	/**
+	 * @param aWindow is the window whose state is to be returned.
+	 * 
+	 * @return The current state of one window, serialized into a string.
+	 */
+	wstring getWindowState(in nsIDOMWindow aWindow);
+
+	/**
+	 * @param aWindow        is the window into which the browsing state will be restored.
+	 * @param aState         is a serialized browsing state as produced by getCurrentState.
+	 * @param aOverwriteTabs indicates whether the window's tabs will be overwritten.
+	 */
+	void restoreWindow(in nsIDOMWindow aWindow, in wstring aState, in boolean aOverwriteTabs);
+};

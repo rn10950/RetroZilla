@@ -35,107 +35,17 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH       = ../..
-topsrcdir   = @top_srcdir@
-srcdir      = @srcdir@
-VPATH       = @srcdir@
+DEPTH   = ../../../..
+topsrcdir = @top_srcdir@
+srcdir    = @srcdir@
+VPATH   = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE = appcomps
+MODULE    = crashrecovery
+XPIDL_MODULE=crashrecovery
 
-EXPORTS = nsXPFEComponentsCID.h
-
-MOZ_HAVE_BROWSER=1
-ifdef MOZ_THUNDERBIRD
-MOZ_HAVE_BROWSER=
-endif
-ifdef MOZ_STANDALONE_COMPOSER
-MOZ_HAVE_BROWSER=
-endif
-ifdef MOZ_SUNBIRD
-MOZ_HAVE_BROWSER=
-endif
-
-ifneq (,$(MOZ_PHOENIX)$(MOZ_XULRUNNER))
-# Firefox and XULRunner use this flag to suppress the distribution of chrome from
-# the jar.mn file that lives parallel to this Makefile. The jar.mn is responsible
-# for the packaging of a large number of chrome files these apps don't need. 
-DEFINES += -DSUPPRESS_CHROME
-endif
-
-DIRS = \
-        find \
-        intl \
-        windowds \
-        $(NULL)
-
-ifdef MOZ_HAVE_BROWSER
-DIRS += \
-        directory \
-        resetPref \
-        killAll \
-        $(NULL)
-
-TOOL_DIRS = \
-        filepicker \
-        $(NULL)
-
-ifndef MOZ_PHOENIX
-ifndef MOZ_XULRUNNER
-DIRS += \
-        related \
-        prefwindow \
-        console \
-        updates \
-        autocomplete \
-        bookmarks \
-        download-manager \
-        history \
-        sidebar \
-        startup \
-        alerts \
-        extensions \
-		sessionstore \
-        $(NULL)
-endif
-endif
-
-ifeq ($(OS_ARCH),WINNT)
-ifndef MOZ_PHOENIX
-ifndef MOZ_XULRUNNER
-DIRS += urlwidget winhooks
-endif
-endif
-endif
-
-# build should be last
-DIRS += build
-
-else
-# !MOZ_HAVE_BROWSER
-
-DIRS += \
-        filepicker \
-        autocomplete \
-        console \
-        history/public \
-        bookmarks/public \
-        $(NULL)
-
-ifeq ($(OS_ARCH),WINNT)
-DIRS += winhooks
-endif
-
-# build2 should be last
-DIRS += build2
-
-endif
-
-ifndef MOZ_XUL_APP
-ifdef MOZ_ENABLE_XREMOTE
-TOOL_DIRS += xremote
-endif
-endif
+XPIDLSRCS = crashrecovery.idl \
 
 include $(topsrcdir)/config/rules.mk
+

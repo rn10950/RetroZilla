@@ -1,0 +1,60 @@
+<!ENTITY options.title         "Options">
+<!ENTITY options.width         "42em">
+
+<!ENTITY general.caption       "General">
+<!ENTITY startNend.caption     "Startup &amp; Shutdown">
+<!ENTITY resume_sess.label     "At startup always load the following session:">
+<!ENTITY resume_sess.accesskey "s">
+<!ENTITY backup_sess.label     "At shutdown">
+<!ENTITY backup_sess.accesskey "h">
+<!ENTITY backup_session.label0 "discard the current session">
+<!ENTITY backup_session.label1 "backup the current session">
+<!ENTITY backup_session.label2 "ask whether to backup the current session">
+
+<!ENTITY restoring.caption     "Session Restoring">
+<!ENTITY sessionList.caption   "Session List">
+<!ENTITY orderList.label       "Order the session list">
+<!ENTITY orderList.accesskey   "d">
+<!ENTITY orderList.label1      "alphabetically">
+<!ENTITY orderList.label2      "oldest to newest">
+<!ENTITY orderList.label_2     "newest to oldest">
+<!ENTITY max_backup.label      "Number of older (crashed) session backups to keep:">
+<!ENTITY max_backup.accesskey  "N">
+
+<!ENTITY undoClose.caption     "Undo Close">
+<!ENTITY windowsNtabs.caption  "Closed Windows &amp; Tabs">
+<!ENTITY max_closed.label      "Maximum number of remembered closed windows:">
+<!ENTITY max_closed.accesskey  "w">
+<!ENTITY max_tabs.label        "Maximum number of remembered closed tabs (per window):">
+<!ENTITY max_tabs.accesskey    "t">
+<!ENTITY submenu.label         "List all closed windows and tabs in a submenu">
+<!ENTITY submenu.accesskey     "c">
+
+<!ENTITY persistence.caption   "Persistence">
+<!ENTITY closed_tabs.label     "Restore the list of reopenable closed tabs for all windows:">
+<!ENTITY closed_tabs.accesskey "e">
+<!ENTITY closed_tabs.label0    "never">
+<!ENTITY closed_tabs.label1    "at startup">
+<!ENTITY closed_tabs.label2    "always">
+<!ENTITY window_list.label     "Don't clear the list of closed windows at shutdown">
+<!ENTITY window_list.accesskey "o">
+<!ENTITY clear_list.label      "Clear List">
+<!ENTITY clear_list.accesskey  "r">
+
+<!ENTITY advanced.caption      "Advanced">
+<!ENTITY name_format.caption   "Session Names">
+<!ENTITY name_format.label     "Format for the suggestions of session names:">
+<!ENTITY name_format.accesskey "F">
+<!ENTITY name_format.desc      "Use &#37;t for the active tab's title, &#37;d for today's date and &#37;m for the time; additionally the title's length can be limited to # characters: &#37;#t.">
+
+<!ENTITY service.caption       "&quot;Crash Recovery&quot; Settings">
+<!ENTITY service.description   "Don't touch these, unless you know what you're doing:">
+<!ENTITY interval.label        "Minimum time interval between two state saves (in seconds):">
+<!ENTITY interval.accesskey    "i">
+<!ENTITY postdata.label        "Maximum amount of POSTDATA to be stored (in bytes; -1 for all):">
+<!ENTITY postdata.accesskey    "x">
+<!ENTITY privacy.label         "Save sensitive data (form data, POSTDATA and cookies) for">
+<!ENTITY privacy.accesskey     "v">
+<!ENTITY privacy.level0        "all sites">
+<!ENTITY privacy.level1        "unencrypted sites only">
+<!ENTITY privacy.level2        "no sites at all">

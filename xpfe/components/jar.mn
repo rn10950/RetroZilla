@@ -105,6 +105,7 @@ comm.jar:
     content/communicator/sidebar/local-panels.rdf               (sidebar/resources/local-panels.rdf)
     content/communicator/alerts/alert.xul                       (alerts/resources/content/alert.xul)  
     content/communicator/alerts/alert.js                        (alerts/resources/content/alert.js)  
+    content/communicator/sessionstore/src/crashrecovery.js      (sessionstore/src/crashrecovery.js)
 *   content/cookie/contents.rdf                                 (/toolkit/components/cookie/content/contents.rdf)
     content/cookie/cookieAcceptDialog.xul                       (/toolkit/components/cookie/content/cookieAcceptDialog.xul)
     content/cookie/cookieAcceptDialog.js                        (/toolkit/components/cookie/content/cookieAcceptDialog.js)
@@ -191,6 +192,8 @@ en-US.jar:
 *   locale/en-US/cookie/contents.rdf                            (cookie/locale/en-US/contents.rdf)
     locale/en-US/cookie/cookieAcceptDialog.properties           (/toolkit/locales/en-US/chrome/cookie/cookieAcceptDialog.properties)
     locale/en-US/cookie/cookieAcceptDialog.dtd                  (/toolkit/locales/en-US/chrome/cookie/cookieAcceptDialog.dtd)
+    locale/en-US/sessionstore/crashrecovery.properties          (sessionstore/locale/en-US/crashrecovery.properties)
+	
 
 toolkit.jar:
     content/global/blank.html                                   (console/resources/content/blank.html)

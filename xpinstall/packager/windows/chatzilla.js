@@ -95,7 +95,7 @@ function getPlatform()
   return platformNode;
 }
 
-var err = initInstall("Chatzilla v0.5", "Chatzilla", "1.0.0.0000000000"); 
+var err = initInstall("Chatzilla v0.5", "Chatzilla", "1.1.0.0000000000"); 
 logComment("initInstall: " + err);
 
 addFile("Chatzilla service",

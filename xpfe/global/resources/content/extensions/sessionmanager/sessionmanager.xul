@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://global/content/extensions/sessionmanager/skin/sessionmanager.css" type="text/css"?>
+
+<!DOCTYPE overlay SYSTEM "chrome://global/locale/extensions/sessionmanager/sessionmanager.dtd">
+
+<overlay id="sessionmanagerOverlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+	<script type="application/x-javascript" src="chrome://global/content/extensions/sessionmanager/sessionmanager.js"/>
+	
+	<stringbundleset id="stringbundleset">
+		<stringbundle id="bundle_sessionmanager" src="chrome://global/locale/extensions/sessionmanager/sessionmanager.properties"/>
+	</stringbundleset>
+	
+	<toolbarpalette id="BrowserToolbarPalette"> <!-- Firefox (toolbar) -->
+		<toolbarbutton id="sessionmanager-toolbar" type="menu-button" class="toolbarbutton-1 chromeclass-toolbar-additional" label="&sessionManager;" oncommand="gSessionManager.save(null, event.shiftKey);" onclick="gSessionManager.onToolbarClick(event, this);" tooltiptext="&toolbar.tooltip;" contextmenu="">
+			<menupopup onpopupshowing="gSessionManager.init(this, true);" onpopuphiding="gSessionManager.uninit(this);" onmousemove="event.stopPropagation();" onclick="event.stopPropagation();" oncommand="event.stopPropagation();">
+				<menuitem label="&save.label;" accesskey="&save.accesskey;" oncommand="gSessionManager.save();"/>
+				<menuitem label="&saveOne.label;" accesskey="&saveOne.accesskey;" oncommand="gSessionManager.saveWindow();"/>
+				<menuseparator _id="start-separator"/>
+				<menuseparator _id="separator"/>
+				<menuitem label="&rename.label;" accesskey="&rename.accesskey;" oncommand="gSessionManager.rename();"/>
+				<menuitem label="&remove.label;" accesskey="&remove.accesskey;" oncommand="gSessionManager.remove();"/>
+				<menuitem label="&openFolder.label;" accesskey="&openFolder.accesskey;" oncommand="gSessionManager.openFolder();"/>
+				<menuseparator _id="options-separator"/>
+				<menuitem label="&options.label;" accesskey="&options.accesskey;" oncommand="gSessionManager.openOptions();"/>
+				<menuseparator/>
+				<menu _id="undo-menu" label="&undoClosed.label;" accesskey="&undoClosed.accesskey;" onpopupshowing="event.stopPropagation();" onpopuphiding="event.stopPropagation();">
+					<menupopup>
+						<menuitem _id="windows" label="&closedWindows;" disabled="true"/>
+						<menuseparator _id="closed-separator"/>
+						<menuitem _id="tabs" label="&closedTabs;" disabled="true"/>
+					</menupopup>
+				</menu>
+			</menupopup>
+		</toolbarbutton>
+		
+		<toolbarbutton id="sessionmanager-undo" type="menu-button" class="toolbarbutton-1 chromeclass-toolbar-additional" label="&toolbar.undo.label;" oncommand="if (event.shiftKey) gSessionManager.undoCloseWindow(); else if (gSessionManager.mClosedTabs.length) gSessionManager.undoCloseTab(); else this.open = true;" onclick="gSessionManager.onToolbarClick(event, this);" tooltiptext="&toolbar.undo.tooltip;" contextmenu="">
+			<menupopup onpopupshowing="gSessionManager.initUndo(this, true);" onpopuphiding="gSessionManager.uninitUndo(this);" onmousemove="event.stopPropagation();" onclick="event.stopPropagation();" oncommand="event.stopPropagation();">
+				<menuitem _id="windows" label="&closedWindows;" disabled="true"/>
+				<menuseparator _id="closed-separator"/>
+				<menuitem _id="tabs" label="&closedTabs;" disabled="true"/>
+			</menupopup>
+		</toolbarbutton>
+	</toolbarpalette>
+	
+	<menupopup id="menu_ToolsPopup"> <!-- Firefox -->
+		<menu id="sessionmanager-menu" label="&sessionManager;" accesskey="&toolsmenu.accesskey;" insertbefore="devToolsSeparator">
+			<menupopup onpopupshowing="gSessionManager.init(this);" onpopuphiding="gSessionManager.uninit(this);">
+				<menuitem label="&save.label;" accesskey="&save.accesskey;" oncommand="gSessionManager.save();"/>
+				<menuitem label="&saveOne.label;" accesskey="&saveOne.accesskey;" oncommand="gSessionManager.saveWindow();"/>
+				<menuseparator _id="start-separator"/>
+				<menuseparator _id="separator"/>
+				<menuitem label="&rename.label;" accesskey="&rename.accesskey;" oncommand="gSessionManager.rename();"/>
+				<menuitem label="&remove.label;" accesskey="&remove.accesskey;" oncommand="gSessionManager.remove();"/>
+				<menuitem label="&openFolder.label;" accesskey="&openFolder.accesskey;" oncommand="gSessionManager.openFolder();"/>
+				<menuseparator _id="options-separator"/>
+				<menuitem label="&options.label;" accesskey="&options.accesskey;" oncommand="gSessionManager.openOptions();"/>
+				<menuseparator/>
+				<menu _id="undo-menu" label="&undoClosed.label;" accesskey="&undoClosed.accesskey;" onpopupshowing="event.stopPropagation();" onpopuphiding="event.stopPropagation();">
+					<menupopup>
+						<menuitem _id="windows" label="&closedWindows;" disabled="true"/>
+						<menuseparator _id="closed-separator"/>
+						<menuitem _id="tabs" label="&closedTabs;" disabled="true"/>
+					</menupopup>
+				</menu>
+			</menupopup>
+		</menu>
+	</menupopup>
+	
+	<menupopup id="taskPopup"> <!-- SeaMonkey -->
+		<menu id="sessionmanager-menu" label="&sessionManager;" accesskey="&toolsmenu.accesskey;" insertbefore="navBeginGlobalItems">
+			<menupopup onpopupshowing="gSessionManager.init(this);" onpopuphiding="gSessionManager.uninit(this);">
+				<menuitem label="&save.label;" accesskey="&save.accesskey;" oncommand="gSessionManager.save();"/>
+				<menuitem label="&saveOne.label;" accesskey="&saveOne.accesskey;" oncommand="gSessionManager.saveWindow();"/>
+				<menuseparator _id="start-separator"/>
+				<menuseparator _id="separator"/>
+				<menuitem label="&rename.label;" accesskey="&rename.accesskey;" oncommand="gSessionManager.rename();"/>
+				<menuitem label="&remove.label;" accesskey="&remove.accesskey;" oncommand="gSessionManager.remove();"/>
+				<menuitem label="&openFolder.label;" accesskey="&openFolder.accesskey;" oncommand="gSessionManager.openFolder();"/>
+				<menuseparator _id="options-separator"/>
+				<menuitem _id="resume" type="checkbox" label="&resume.label;" accesskey="&resume.accesskey;" oncommand="gSessionManager.toggleResume();"/>
+				<menuitem _id="reload" type="checkbox" label="&reload.label;" accesskey="&reload.accesskey;" oncommand="gSessionManager.toggleReload();"/>
+				<menuitem _id="overwrite" type="checkbox" label="&overwrite.label;" accesskey="&overwrite.accesskey;" oncommand="gSessionManager.toggleOverwrite();"/>
+				<menuseparator/>
+				<menu _id="undo-menu" label="&undoClosed.label;" accesskey="&undoClosed.accesskey;" onpopupshowing="event.stopPropagation();" onpopuphiding="event.stopPropagation();">
+					<menupopup>
+						<menuitem _id="windows" label="&closedWindows;" disabled="true"/>
+						<menuseparator _id="closed-separator"/>
+						<menuitem _id="tabs" label="&closedTabs;" disabled="true"/>
+						<menuseparator _id="end-separator"/>
+						<menuitem label="&clearList.label;" accesskey="&clearList.accesskey;" oncommand="gSessionManager.clearUndoListPrompt();"/>
+					</menupopup>
+				</menu>
+			</menupopup>
+		</menu>
+	</menupopup>
+</overlay>
