@@ -12,7 +12,7 @@ installation instructions for the Windows builds of RetroZilla.
 
 For more info on RetroZilla, see 
 
-  https://sites.google.com/site/rn10950mozilla/retrozilla
+  http://retrozilla.no-ip.org
 
 To submit bugs or other feedback, see the Navigator QA menu and check out
 GitHub at https://github.com/rn10950/RetroZilla for links to known bugs,
@@ -34,7 +34,7 @@ Keep in mind that the source code in its raw form may be buggy. If you are
 looking for a more polished version of RetroZilla, the RetroZilla project 
 releases builds of RetroZilla regularly that you can download from
 
-  https://sites.google.com/site/rn10950mozilla/retrozilla
+  http://retrozilla.no-ip.org
  
 Be sure to read the RetroZilla release notes for information on known
 problems and installation issues with RetroZilla.  The release notes 
@@ -92,7 +92,7 @@ released builds may cause problems.
 Note: These instructions do not tell you how to build RetroZilla.
 For info on building RetroZilla from the mozilla.org source code, see
 
-  https://sites.google.com/site/rn10950mozilla/retrozilla/build
+  http://rzContribute.ddns.net/
 
 
 Windows Installation Instructions

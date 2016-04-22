@@ -76,6 +76,10 @@
 <!ENTITY translateMenu.accesskey "T">
 <!ENTITY translate.commandKey "t">
 
+<!ENTITY extensionsMenu.label "Get Extensions">
+<!ENTITY extensionsMenu.accesskey "E">
+<!ENTITY extensionsMenu.commandKey "e">
+
 <!ENTITY closeOtherTabs.label "Close Other Tabs">
 <!ENTITY closeWindow.label "Close Window">
 

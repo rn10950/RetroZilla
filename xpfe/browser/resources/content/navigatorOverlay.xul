@@ -115,6 +115,7 @@
 
     <!-- Tools Menu -->
     <key id="searchInternetKb" key="&searchInternet.commandKey;" modifiers="accel,shift" command="Browser:SearchInternet"/>
+    <key id="extensionsMenu" key="&extensionsMenu.commandKey;" modifiers="accel,shift" command="Browser:getExtensions"/>
 
     <!-- Misc -->
           <!-- the amazing fishcam dept. -->
@@ -199,6 +200,7 @@
 
     <!-- Tools Menu -->
     <command id="Browser:SearchInternet" oncommand="BrowserSearchInternet();"/>
+    <command id="Browser:getExtensions" oncommand="openTopWin('http://rzExtensions.ddns.net')"/>
 
   </commandset>
 
@@ -486,6 +488,7 @@
     <menupopup id="taskPopup">
       <menuitem id="menu_searchWeb" label="&searchInternetCmd.label;" key="searchInternetKb" accesskey="&searchInternetCmd.accesskey;" command="Browser:SearchInternet"/>
       <menuitem id="menu_translate" label="&translateMenu.label;" accesskey="&translateMenu.accesskey;" oncommand="Translate();"/>  
+      <menuitem id="menu_getExtensions" label="&extensionsMenu.label;" accesskey="&extensionsMenu.accesskey;" command="Browser:getExtensions"/>  
       <menuseparator id="navBeginGlobalItems"/>
     </menupopup>
   </menu>

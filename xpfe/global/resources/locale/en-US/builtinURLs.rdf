@@ -58,7 +58,7 @@
 
   <RDF:Description about='urn:clienturl:viewmenu:intlwebcontent'>
     <NC:title>International Languages and Web Content</NC:title>
-    <NC:content>https://sites.google.com/site/rn10950mozilla/retrozilla/releases/#l10n</NC:content>
+    <NC:content>http://retrozilla.no-ip.org/releases/#l10n</NC:content>
   </RDF:Description>
 
   <!-- Composer -->

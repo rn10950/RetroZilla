@@ -71,6 +71,9 @@
 <!ENTITY aboutCommPluginsCmd.label			"About Plug-ins">
 <!ENTITY aboutCommPluginsCmd.accesskey			"p">
 
+<!ENTITY contributeCmd.label			"Contribute to RetroZilla">
+<!ENTITY contributeCmd.accesskey			"o">
+
 <!ENTITY direct.label                                   "Online (Proxy: None)">
 <!ENTITY direct.accesskey                               "N">
 <!ENTITY manual.label                                   "Online (Proxy: Manual)">

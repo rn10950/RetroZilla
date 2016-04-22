@@ -294,6 +294,12 @@
       <menuseparator id="menu_HelpAboutSeparator"/>
 
       <menuitem class="about"
+                accesskey="&contributeCmd.accesskey;"
+                label="&contributeCmd.label;"
+                id="contributeCmd"
+                oncommand="openTopWin('http://rzcontribute.ddns.net')"/>
+				
+      <menuitem class="about"
                 accesskey="&aboutCommPluginsCmd.accesskey;"
                 label="&aboutCommPluginsCmd.label;"
                 id="pluginInfo"
