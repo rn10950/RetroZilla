@@ -1878,7 +1878,11 @@ NS_METHOD nsWindow::SetCursor(nsCursor aCursor)
     case eCursor_ew_resize:
       newPointer = ::WinQuerySysPointer(HWND_DESKTOP, SPTR_SIZEWE, FALSE);
       break;
-  
+
+    case eCursor_none:
+      newPointer = gPtrArray[IDC_NONE-IDC_BASE];
+      break;
+
     default:
       NS_ASSERTION(0, "Invalid cursor type");
       break;

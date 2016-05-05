@@ -1531,6 +1531,10 @@ NS_METHOD nsWindow::SetCursor(nsCursor aCursor)
 			case eCursor_ew_resize:
 				newCursor = (BCursor *)gCursorArray.SafeElementAt(1);
 				break;
+				
+			case eCursor_none:
+				// XXX: No suitable cursor, needs implementing
+				break;
 
 			default:
 				NS_ASSERTION(0, "Invalid cursor type");

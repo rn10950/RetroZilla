@@ -75,6 +75,7 @@ END
 #define IDC_COLRESIZE                   4108
 #define IDC_ROWRESIZE                   4109
 #define IDC_VERTICALTEXT                4110
+#define IDC_NONE                        4112
 
 IDC_SELECTANCHOR        CURSOR  DISCARDABLE     "..\\..\\widget\\src\\build\\res\\select.cur"
 IDC_GRAB                CURSOR  DISCARDABLE     "..\\..\\widget\\src\\build\\res\\grab.cur"
@@ -87,5 +88,6 @@ IDC_ZOOMOUT             CURSOR  DISCARDABLE     "..\\..\\widget\\src\\build\\res
 IDC_COLRESIZE           CURSOR  DISCARDABLE     "..\\..\\widget\\src\\build\\res\\col_resize.cur"
 IDC_ROWRESIZE           CURSOR  DISCARDABLE     "..\\..\\widget\\src\\build\\res\\row_resize.cur"
 IDC_VERTICALTEXT        CURSOR  DISCARDABLE     "..\\..\\widget\\src\\build\\res\\vertical_text.cur"
+IDC_NONE                CURSOR  DISCARDABLE     "..\\..\\widget\\src\\build\\res\\none.cur"
 
 #endif

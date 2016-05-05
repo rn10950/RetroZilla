@@ -95,7 +95,7 @@ function getPlatform()
   return platformNode;
 }
 
-var err = initInstall("Website Reporter", "Reporter", "1.1.0.0000000000"); 
+var err = initInstall("Website Reporter", "Reporter", "2.0.0.0000000000"); 
 logComment("initInstall: " + err);
 
 var fProgram = getFolder("Program");
@@ -104,7 +104,7 @@ var srDest = 1;
 
 if (verifyDiskSpace(fProgram, srDest))
 {
-  err = addDirectory("", "1.1.0.0000000000", "bin", fProgram, "", true);
+  err = addDirectory("", "2.0.0.0000000000", "bin", fProgram, "", true);
   logComment("addDirectory: " + err);
   
   var jarFolder = getFolder("Chrome", "reporter.jar");

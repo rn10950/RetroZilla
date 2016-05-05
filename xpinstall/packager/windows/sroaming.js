@@ -95,13 +95,13 @@ function getPlatform()
   return platformNode;
 }
 
-var err = initInstall("SRoaming v0.1", "Roaming", "1.1.0.0000000000"); 
+var err = initInstall("SRoaming v0.1", "Roaming", "2.0.0.0000000000"); 
 logComment("initInstall: " + err);
 
 var fProgram = getFolder("Program");
 logComment("fProgram: " + fProgram);
 
-err = addDirectory("", "1.1.0.0000000000", "bin", fProgram, "", true);
+err = addDirectory("", "2.0.0.0000000000", "bin", fProgram, "", true);
 logComment("addDirectory: " + err);
 
 addFile("SRoaming Chrome",

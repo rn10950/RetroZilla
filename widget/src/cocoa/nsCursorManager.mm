@@ -241,6 +241,13 @@ static BOOL isPantherOrLater()
   {
     [[self getCursor: mCurrentCursor] unset];
     [[self getCursor: aCursor] set];
+
+    if (aCursor == eCursor_none) {
+      [NSCursor hide];
+    } else if (mCurrentCursor == eCursor_none) {
+      [NSCursor unhide];
+    }
+
     mCurrentCursor = aCursor;
   }
 }

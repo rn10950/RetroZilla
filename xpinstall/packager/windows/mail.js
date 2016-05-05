@@ -128,12 +128,12 @@ function registerProgramFolderKey(winreg, fFolderPath)
 
   subkey  = "SOFTWARE\\RetroZilla\\RetroZilla";
   winreg.createKey(subkey,"");
-  err     = winreg.setValueString(subkey, "CurrentVersion", "1.1 (en)");
+  err     = winreg.setValueString(subkey, "CurrentVersion", "2.0 (en)");
 
-  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)";
+  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\2.0 (en)";
   winreg.createKey(subkey,"");
 
-  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)\\Main";
+  subkey  = "SOFTWARE\\RetroZilla\\RetroZilla\\2.0 (en)\\Main";
   winreg.createKey(subkey,"");
   err     = winreg.setValueString(subkey, "Program Folder Path", fFolderPath);
 }
@@ -256,7 +256,7 @@ function createShortcuts()
     }
     logComment("folderQuickLaunchExists: " + folderQuickLaunchExists);
 
-    subkey              = "SOFTWARE\\RetroZilla\\RetroZilla\\1.1 (en)\\Main";
+    subkey              = "SOFTWARE\\RetroZilla\\RetroZilla\\2.0 (en)\\Main";
     fFolderPathStr      = winreg.getValueString(subkey, "Program Folder Path");
     if((fFolderPathStr == "") || (fFolderPathStr == null))
     {
@@ -351,7 +351,7 @@ function createShortcuts()
       data = "\"" + fProgram + "RetroZilla.exe\" -mail";
       winreg.setValueString(subkey + "\\shell\\open\\command", "", data);
 
-      data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"1.1 (en)\" /hs mail";
+      data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"2.0 (en)\" /hs mail";
       winreg.setValueString(subkey + "\\InstallInfo", "HideIconsCommand", data);
 
       // set this value to 0 because we're not creating the mail shortcuts yet.
@@ -360,7 +360,7 @@ function createShortcuts()
       data = "\"" + fProgram + "RetroZilla.exe\" -silent -nosplash -setDefaultMail";
       winreg.setValueString(subkey + "\\InstallInfo", "ReinstallCommand", data);
 
-      data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"1.1 (en)\" /ss mail";
+      data = "\"" + fProgram + "uninstall\\retrozillaUninstall.exe\" /ua \"2.0 (en)\" /ss mail";
       winreg.setValueString(subkey + "\\InstallInfo", "ShowIconsCommand", data);
     }
   }
@@ -407,7 +407,7 @@ function updateMapi()
       // uninstaller already has a special way to deal with restoring the
       // appropriate previous Mapi32.dll.
       addFile("",
-              "1.1.0.0000000000",
+              "2.0.0.0000000000",
               "bin/mozMapi32.dll",           // file name in jar to extract 
               getFolder("Win System"),       // Where to put this file (Returned from getFolder) 
               "Mapi32.dll",                  // new name when installed
@@ -473,7 +473,7 @@ var err;
 var fProgram;
 
 srDest = 1;
-err    = initInstall("RetroZilla Mail", "Mail", "1.1.0.0000000000"); 
+err    = initInstall("RetroZilla Mail", "Mail", "2.0.0.0000000000"); 
 logComment("initInstall: " + err);
 
 fProgram = getFolder("Program");
@@ -485,7 +485,7 @@ if(verifyDiskSpace(fProgram, srDest))
 
   upgradeCleanup();
   err = addDirectory("",
-                     "1.1.0.0000000000",
+                     "2.0.0.0000000000",
                      "bin",              // dir name in jar to extract 
                      fProgram,           // Where to put this file (Returned from GetFolder) 
                      "",                 // subdir name to create relative to fProgram
