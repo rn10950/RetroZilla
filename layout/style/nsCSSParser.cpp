@@ -5210,7 +5210,8 @@ PRBool CSSParserImpl::ParseContent(nsresult& aErrorCode)
   // XXX Rewrite to make it look more like ParseCursor or ParseCounterData?
   nsCSSValue  value;
   if (ParseVariant(aErrorCode, value,
-                   VARIANT_CONTENT | VARIANT_INHERIT | VARIANT_NORMAL, 
+                   VARIANT_CONTENT | VARIANT_INHERIT | VARIANT_NORMAL |
+                     VARIANT_NONE, 
                    nsCSSProps::kContentKTable)) {
     nsCSSValueList* listHead = new nsCSSValueList();
     nsCSSValueList* list = listHead;
@@ -5229,7 +5230,8 @@ PRBool CSSParserImpl::ParseContent(nsresult& aErrorCode)
       }
       if (eCSSUnit_Inherit == value.GetUnit() ||
           eCSSUnit_Initial == value.GetUnit() ||
-          eCSSUnit_Normal == value.GetUnit()) {
+          eCSSUnit_Normal == value.GetUnit() ||
+          eCSSUnit_None == value.GetUnit()) {
         // This only matters the first time through the loop.
         return PR_FALSE;
       }

@@ -2,3 +2,11 @@
 #bug346690 {
 	cursor: none;
 }
+
+.bug378535:before { 
+    content: "Read this - ";
+}
+
+.bug378535#hometown:before { 
+    content: none;
+}
