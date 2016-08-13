@@ -2,6 +2,7 @@
 
 mozconfig
 .mozconfig
+.mozconfig.mk
 
 ### Windows ###
 # Windows image file caches
