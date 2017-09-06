@@ -23,3 +23,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+#object directories
+obj-*/

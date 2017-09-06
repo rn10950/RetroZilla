@@ -4,7 +4,7 @@
 
 # Make Options
 mk_add_options MOZ_MAKE_FLAGS="-j4"
-mk_add_options MOZ_OBJDIR=/c/projects/moz95/obj-xr95-release
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-xr95-release
 
 # Configure Options
 ac_add_options --target=i586-pc-msvc
