@@ -31,6 +31,10 @@ window.onload = function() {
 	if (aboutHomeAutofocus == true) {
 		autoFocus();
 	}
+	// set current year
+	var d = new Date();
+	var cYear = d.getFullYear();
+	document.getElementById("currentYear").innerHTML = cYear;
 };
 
 // function that runs when the "Search" button is clicked
