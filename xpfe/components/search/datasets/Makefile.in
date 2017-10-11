@@ -53,6 +53,8 @@ FILES		= \
 	google.src          \
 	jeeves.gif          \
 	jeeves.src          \
+	startpage.png       \
+	startpage.src       \
 	$(NULL)
 endif
 

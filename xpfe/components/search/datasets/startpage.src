@@ -1,0 +1,47 @@
+# Mozilla/Netscape 6+ plugin file
+# With RetroZilla modifications
+# Ixquick searchbar
+# Last updated: Apr 10, 2009
+# Status: Working
+<search
+        name="Startpage"
+        description="Startpage HTTPS Search Bar"
+        version = "1.0"
+        method="GET"
+        action="https://classic.startpage.com/do/dsearch"
+        updateCheckDays=3
+        queryEncoding="utf-8"
+        queryCharset="utf-8"
+>
+        <input name="query" user>
+        <input name="cat" value="web">
+		<input name="pl" value="ff">
+        <input name="language" value="english">
+
+        <interpret
+                browserResultType="result"
+                charset = "utf-8"
+        >
+
+        <interpret
+            browserResultType = "result"
+            bannerStart="</head>"
+            bannerEnd="</nolayer>"
+
+            resultListStart="results</font></p>"
+            resultListEnd=""
+
+            resultItemStart="<tbody>"
+            resultItemEnd="<br>"
+        >
+
+        <interpret
+            browserResultType = "result"
+            bannerStart="</head>"
+            bannerEnd="</nolayer>"
+            resultListStart="</font><center>"
+            resultListEnd="<td valign=top>"
+            resultItemStart=""
+            resultItemEnd=""
+        >
+</search>
