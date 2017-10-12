@@ -1,1 +1,3 @@
-2.0
+function currentReleaseVersion() {
+	return 2.0;
+}
