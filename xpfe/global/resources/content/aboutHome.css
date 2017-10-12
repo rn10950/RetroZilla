@@ -31,6 +31,15 @@ body, html {
 #rzFooterText {
 	text-align: center;
 }
+ /* updater styles */
+#updateNotifier {
+	display:none;
+}
+
+.showUpdate {
+	display: block !important;
+}
+
 a:link { color: blue; }
 a:hover { color: blue; }
 a:active { color: blue; }

@@ -1,3 +1,3 @@
 function currentReleaseVersion() {
-	return 2.0;
+	return 200;
 }
