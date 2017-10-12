@@ -33,7 +33,9 @@ body, html {
 }
  /* updater styles */
 #updateNotifier {
-	display:none;
+	display: none;
+	text-align: center;
+	font-weight: bold;
 }
 
 .showUpdate {

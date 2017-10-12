@@ -40,6 +40,7 @@
 
 #expand pref("general.useragent.extra.__MOZ_APP_NAME__", "__MOZ_APP_DISPLAYNAME__/__MOZ_APP_VERSION__ SeaMonkey/1.1.19 Firefox/2.0.20");
 pref("rzHome.autofocus", true);
+pref("retrozilla.version", 200);
 
 // RETROZILLA SESSION RESTORE PREFERENCES
 pref("extensions.crashrecovery.interval", 10000);

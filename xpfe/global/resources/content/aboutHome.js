@@ -4,22 +4,6 @@
 
 // about:home JS
 
-
-/* 
-
-WORK THAT NEEDS TO BE DONE HERE:
-================================
-- the current version is taken from prefs and stored in cUV (ln 28)
-- a way needs to be found to access cUV from a function
-- source code from test needs to be incorporated into here and the .html
-- a more elaborate update notification needs to be designed and properly placed in the rzHome page
-- then it needs to be hidden
-- build and test this source code
-- bitch at XUL when it tells you that you can't access outside scripts from a chrome process (hopefully not, but it's likely)
-- once this all works clean up this clusterfuck of a script
-
-*/
-
 // XPCOM preferences integration
 var prefs = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefBranch);
 
@@ -56,11 +40,11 @@ function checkForUpdate() {
 		h.appendChild(newScript);
 		// wait for script to load
 		setTimeout(function () {
-			//alert(currentReleaseVersion());
-			var currentUsedVersionn = 1;
-			if(currentUsedVersionn < currentReleaseVersion()) {
+			//alert(currentReleaseVersion()); // used for debug
+			//var currentUsedVersion = 1; // used for debug
+			if(currentUsedVersion < currentReleaseVersion()) {
 				// used version older or equal 
-				alert("using older version");
+				//alert("using older version");  // used for debug
 				document.getElementById("updateNotifier").setAttribute("class", "showUpdate");
 			}
 		}, 500);
@@ -76,7 +60,7 @@ window.onload = function() {
 	if (aboutHomeAutofocus == true) {
 		autoFocus();
 	}
-	alert(currentUsedVersion);
+	//alert(currentUsedVersion);
 	// set current year
 	var d = new Date();
 	var cYear = d.getFullYear();
