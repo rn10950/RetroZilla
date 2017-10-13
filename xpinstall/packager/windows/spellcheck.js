@@ -97,7 +97,7 @@ function getPlatform()
 
 var srDest = 1;
 
-var err = initInstall("RetroZilla Myspell Spellchecker", "Spellchecker", "2.0.0.0000000000"); 
+var err = initInstall("RetroZilla Myspell Spellchecker", "Spellchecker", "2.1.0.0000000000"); 
 logComment("initInstall: " + err);
 
 fProgram  = getFolder("Program");
@@ -108,7 +108,7 @@ if (verifyDiskSpace(fProgram, srDest))
     setPackageFolder(fProgram);
 
     addDirectory("Spellchecker",
-            "2.0.0.0000000000",
+            "2.1.0.0000000000",
             "bin",
             fProgram,
             "");

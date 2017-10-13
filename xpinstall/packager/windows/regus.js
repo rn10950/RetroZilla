@@ -112,7 +112,7 @@ var chromeName = chromeNode + ".jar";
 var localeName = "locale/" + chromeNode + "/";
 
 srDest = 1;
-err    = initInstall(prettyName, regName, "2.0.0.0000000000"); 
+err    = initInstall(prettyName, regName, "2.1.0.0000000000"); 
 logComment("initInstall: " + err);
 
 if (platformNode == 'mac')

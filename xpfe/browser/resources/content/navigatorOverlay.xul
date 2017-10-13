@@ -200,7 +200,7 @@
 
     <!-- Tools Menu -->
     <command id="Browser:SearchInternet" oncommand="BrowserSearchInternet();"/>
-    <command id="Browser:getExtensions" oncommand="openTopWin('http://rzExtensions.ddns.net')"/>
+    <command id="Browser:getExtensions" oncommand="openTopWin('https://rn10950.github.io/RetroZillaWeb/extensions.html')"/>
 
   </commandset>
 

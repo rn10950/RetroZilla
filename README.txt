@@ -1,179 +1,143 @@
-==============================================================
+==========================================================================
 
-= = = = = = = = = =   RetroZilla Read Me    = = = = = = = = = = =
+= = = = = = = = = = = = =  RetroZilla Read Me  = = = = = = = = = = = = = =
 
-==============================================================
+==========================================================================
 
-RetroZilla is subject to the terms detailed in the license
-agreement accompanying it.
+RetroZilla is subject to the terms detailed in the license agreement
+accompanying it.
 
-This Read Me file contains information about system
-requirements and installation instructions for the Windows,
-Mac OS, and Linux builds of RetroZilla.
+This Read Me file contains information about system requirements and
+installation instructions for the Windows builds of RetroZilla.
 
-For more info on RetroZilla, see www.mozilla.org. To submit bugs
-or other feedback, see the Navigator QA menu and check out
-Bugzilla at http://bugzilla.mozilla.org for links to known
-bugs, bug-writing guidelines, and more. You can also get help
-with Bugzilla by pointing your IRC client to #mozillazine
-at irc.mozilla.org.
+For more info on RetroZilla, see 
 
+  https://rn10950.github.io/RetroZillaWeb/
 
-==============================================================
-
-                      Getting RetroZilla
-
-==============================================================
-
-You can download nightly builds of RetroZilla from the
-RetroZilla.org FTP site at
-
-  ftp://ftp.mozilla.org/pub/mozilla.org/mozilla/nightly/
-
-For the very latest builds, see
-
-  ftp://ftp.mozilla.org/pub/mozilla.org/mozilla/nightly/latest-trunk
-
-Keep in mind that nightly builds, which are used by
-RetroZilla.org developers for testing, may be buggy. If you are
-looking for a more polished version of RetroZilla, RetroZilla.org
-releases Milestone builds of RetroZilla every six weeks or so
-that you can download from
-
-  http://www.mozilla.org/releases
-
-Be sure to read the RetroZilla release notes for information
-on known problems and installation issues with RetroZilla.
-The release notes can be found at the preceding URL along
-with the milestone releases themselves.
-
-Note: Please use Talkback builds whenever possible. These
-builds allow transmission of crash data back to RetroZilla
-developers, improved crash analysis, and posting of crash
-information to our crash-data newsgroup.
+To submit bugs or other feedback, see the Navigator QA menu and check out
+GitHub at https://github.com/rn10950/RetroZilla for links to known bugs,
+bug-writing guidelines, and more. 
 
 
-==============================================================
+==========================================================================
 
-                    System Requirements
+                          Getting RetroZilla
 
-==============================================================
+==========================================================================
 
-*All Platforms
+You can download the source code of RetroZilla from the RetroZilla GitHub
+at
 
-	To view and use the new streamlined "Modern" theme,
-	your display monitor should be set to display
-	thousands of colors. For users who cannot set their
-	displays to use	more than 256 colors, RetroZilla.org
-	recommends using the "Classic" theme for RetroZilla.
+  https://github.com/rn10950/RetroZilla
 
-	To select the Modern theme after you have installed
-	RetroZilla, from the Navigator browser, open the View
-	menu, and then open then open the Apply Theme submenu
-	and choose Modern.
+Keep in mind that the source code in its raw form may be buggy. If you are
+looking for a more polished version of RetroZilla, the RetroZilla project 
+releases builds of RetroZilla regularly that you can download from
 
-*Mac OS
+  https://rn10950.github.io/RetroZillaWeb/
+ 
+Be sure to read the RetroZilla release notes for information on known
+problems and installation issues with RetroZilla.  The release notes 
+can be found at the preceding URL along with the releases themselves.
 
-	-Mac OS X or later
-	-PowerPC processor (266 MHz or faster recommended)
-	-64 MB RAM
-	-36 MB of free hard disk space
+
+==========================================================================
+
+                         System Requirements
+
+==========================================================================
+
+* General
+
+   If you want to view and use the "Modern" theme, your display monitor
+   should be set to display thousands of colors. For users who cannot set
+   their displays to use more than 256 colors, the RetroZilla project
+   recommends using the "Classic" theme for RetroZilla.
+
+   To select the Modern theme after you have installed RetroZilla, from 
+   the browser, open the View menu, then open the Apply Theme submenu and
+   choose Modern.
 
 *Windows
 
-	-Windows 95, 98, Me, NT4, 2000 or XP
-	-Intel Pentium class processor (233 MHz or faster
-	 recommended)
-	-64 MB RAM
-	-26 MB free hard disk space
+   - Windows 95, 98, Me, NT4, 2000 or XP
+   - Intel Pentium class processor (233 MHz or faster recommended)
+   - 64 MB RAM
+   - 26 MB free hard disk space
 
-*Linux
+* We recommend that Windows XP, Vista, 7, 8.x and 10 users not use 
+  RetroZilla, and instead use the current version of SeaMonkey or Firefox. 
+  They are much more secure and compatible with the modern web than 
+  RetroZilla is.
 
-	-The following library versions (or compatible) are
-	 required: glibc 2.1, XFree86 3.3.x, GTK 1.2.x, Glib
-	 1.2.x, Libstdc++ 2.9.0. Red Hat Linux 6.0,
-	 Debian 2.1, and SuSE 6.2 (or later) installations
-	 should work.
-	-Red Hat 6.x users who want to install the RetroZilla
-	 RPM must have at least version 4.0.2 of rpm
-	 installed.
-	-Intel Pentium class processor (233 MHz or faster
-	 recommended)
-	-64MB RAM
-	-26MB free hard disk space
+* We recommend that Windows 2000 users use Firefox 12 or SeaMonkey 2.9.
+
+* We recommend that Windows 98 and Me users use Firefox 3.6 or SeaMonkey 
+  2.0.14 with the KernelEx platform.
 
 
-==============================================================
+==========================================================================
 
-                 Installation Instructions
+                      Installation Instructions
 
-==============================================================
+==========================================================================
 
-For Mac OS and Windows users, it is strongly recommended that
-you exit all programs before running the setup program. Also,
-you should temporarily disable virus-detection software.
+It is strongly recommended that you exit all programs before running the
+setup program. Also, you should temporarily disable virus-detection
+software.
 
-For Linux users, note that the installation instructions use
-the bash shell. If you're not using bash, adjust the commands
-accordingly.
-
-For all platforms, install into a clean (new) directory.
-Installing on top of previously released builds may cause
-problems.
+Install into a clean (new) directory. Installing on top of previously
+released builds may cause problems.
 
 Note: These instructions do not tell you how to build RetroZilla.
-For info on building the RetroZilla source, see
+For info on building RetroZilla from the mozilla.org source code, see
 
-  http://www.mozilla.org/source.html
+  https://rn10950.github.io/RetroZillaWeb/
 
 
 Windows Installation Instructions
 ---------------------------------
 
-Note: For Windows NT/2000/XP systems, you need Administrator
-privileges to install RetroZilla. If you see an "Error 5" message
-during installation, make sure you're running the installation
-with Administrator privileges.
+Note: For Windows NT/2000/XP systems, you need Administrator privileges to
+install RetroZilla. If you see an "Error 5" message during installation,
+make sure you're running the installation with Administrator privileges.
 
 
-    To install RetroZilla by downloading the RetroZilla installer,
-    follow these steps:
+   To install RetroZilla by downloading the RetroZilla installer,
+   follow these steps:
 
-	1. Click the the mozilla-win32-installer.exe link on
-	the site you're downloading RetroZilla from to download
-	the installer file to your machine.
+   1. Click the link to seamonkey-x.xx.en-US.win32.installer.exe (or
+      similar file name) on the site you're downloading RetroZilla from to
+      download the installer file to your machine.
 
-	2. Navigate to where you downloaded the file and
-	double-click the RetroZilla program icon on your machine
-	to begin the Setup program.
+   2. Navigate to where you downloaded the file and double-click the
+      installer file icon on your machine to begin the Setup program.
 
-	3. Follow the on-screen instructions in the setup
-	program. The program starts automatically the first
-	time.
+   3. Follow the on-screen instructions in the setup program. The program
+      starts automatically the first time.
 
 
-    To install RetroZilla by downloading the .zip file and
-    installing manually, follow these steps:
+   To install RetroZilla by downloading the .zip file and installing
+   manually, follow these steps:
 
-	1. Click the mozilla-win32-talkback.zip link or the
-	mozilla-win32.zip link on the site you're down-
-	loading RetroZilla from to download the .zip file to
-	your machine.
+   1. Click the link to seamonkey-x.xx.en-US.win32.zip (or similar file
+      name) on the site you're downloading RetroZilla from to download the
+      .zip file to your machine.
 
-	2. Navigate to where you downloaded the file and
-	double-click the compressed file.
+   2. Navigate to where you downloaded the file and double-click the
+      compressed file.
 
-	Note: This step assumes you already have a recent
-	version of WinZip installed, and that you know how to
-	use it. If not,	you can get WinZip and information
-	about the program at www.winzip.com.
+      Note: This step assumes you already have a recent version of WinZip
+      (or a similar zip tool) installed, and that you know how to use it.
+      If not, you can get WinZip and information about the program at
+      www.winzip.com.
 
-	3. Extract the .zip file to a directory such as
-	C:\Program Files\mozilla.org\RetroZilla.
+   3. Extract the .zip file to a directory such as
+        C:\Program Files\mozilla.org\RetroZilla.
 
-	4. To start RetroZilla, navigate to the directory you
-	extracted RetroZilla to and double-click the RetroZilla.exe
-	icon.
+   4. To start RetroZilla, navigate to the directory you extracted
+      RetroZilla to and double-click the seamonkey.exe icon.
+
 
 
 Mac OS X Installation Instructions

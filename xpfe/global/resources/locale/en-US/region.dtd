@@ -1,5 +1,5 @@
 <!-- brand.dtd -->
-<!ENTITY  vendorURL             "http://retrozilla.no-ip.org">
+<!ENTITY  vendorURL             "https://rn10950.github.io/RetroZillaWeb/">
 #expand <!ENTITY  releaseURL            "about:changelog">
 <!ENTITY  getNewThemesURL       "http://www.mozilla.org/themes/download/">
 #expand <!ENTITY  content.version       "__MOZILLA_REGION_VERSION__">
