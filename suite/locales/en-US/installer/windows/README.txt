@@ -5,7 +5,7 @@
 ==========================================================================
 
 RetroZilla is subject to the terms detailed in the license agreement
-accompanying it.
+accompanying it. (Mozilla Public License 1.1)
 
 This Read Me file contains information about system requirements and
 installation instructions for the Windows builds of RetroZilla.

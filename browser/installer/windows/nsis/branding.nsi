@@ -36,15 +36,15 @@
 
 # NSIS defines for nightly builds.
 # The release build branding.nsi is located in other-license/branding/firefox/
-!define BrandShortName        "Bon Echo"
-!define BrandFullName         "Bon Echo"
+!define BrandShortName        "RetroZilla Browser"
+!define BrandFullName         "RetroZilla Browser"
 # BrandFullNameInternal is used for some registry and file system values that
 # should not contain release that may be in the BrandFullName (e.g. Beta 1, etc.)
-!define BrandFullNameInternal "Bon Echo"
-!define CompanyName           "mozilla.org"
-!define URLInfoAbout          "http://www.mozilla.org"
-!define URLUpdateInfo         "http://www.mozilla.org/projects/firefox"
+!define BrandFullNameInternal "RetroZilla Browser"
+!define CompanyName           "RetroZilla"
+!define URLInfoAbout          "https://rn10950.github.io/RetroZillaWeb/"
+!define URLUpdateInfo         "https://rn10950.github.io/RetroZillaWeb/"
 !define SurveyURL             "https://survey.mozilla.com/1/Mozilla%20Firefox/${AppVersion}/${AB_CD}/exit.html"
 
 # Percentage of new "Standard" installs to enable talkback for
-!define RandomPercent         "75"
+!define RandomPercent         "0"

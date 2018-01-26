@@ -305,6 +305,6 @@ pref("browser.urlbar.clickSelectsAll", false);
 // 2 and other values, nothing
 pref("browser.backspace_action", 1);
 
-pref("general.autoScroll", false);
+pref("general.autoScroll", true);
 #endif
 #endif

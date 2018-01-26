@@ -3,6 +3,10 @@
 mozconfig
 .mozconfig
 .mozconfig.mk
+.mozconfig-browser
+.mozconfig-suite
+mozconfig-browser
+mozconfig-suite
 
 ### Windows ###
 # Windows image file caches
