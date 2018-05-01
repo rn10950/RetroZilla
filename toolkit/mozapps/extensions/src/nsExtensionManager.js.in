@@ -78,6 +78,9 @@ const PREF_BLOCKLIST_DETAILS_URL      = "extensions.blocklist.detailsURL";
 const PREF_BLOCKLIST_ENABLED          = "extensions.blocklist.enabled";
 const PREF_BLOCKLIST_INTERVAL         = "extensions.blocklist.interval";
 const PREF_UPDATE_NOTIFYUSER          = "extensions.update.notifyUser";
+const PREF_GENERAL_USERAGENT_LOCALE   = "general.useragent.locale";
+const PREF_PARTNER_BRANCH             = "app.partner.";
+const PREF_APP_UPDATE_CHANNEL         = "app.update.channel";
 
 const DIR_EXTENSIONS                  = "extensions";
 const DIR_CHROME                      = "chrome";
@@ -166,6 +169,8 @@ var gPref = null;
 var gRDF  = null;
 var gOS   = null;
 var gXPCOMABI             = null;
+var gABI                  = null;
+var gOSVersion            = null;
 var gOSTarget             = null;
 var gConsole              = null;
 var gInstallManifestRoot  = null;
@@ -2329,6 +2334,60 @@ var StartupCache = {
 };
 
 /**
+ * Gets the current value of the locale.  It's possible for this preference to
+ * be localized, so we have to do a little extra work here.  Similar code
+ * exists in nsHttpHandler.cpp when building the UA string.
+ */
+function getLocale() {
+  try {
+      // Get the default branch
+      var defaultPrefs = gPref.QueryInterface(Components.interfaces.nsIPrefService)
+                              .getDefaultBranch(null);
+      return defaultPrefs.getCharPref(PREF_GENERAL_USERAGENT_LOCALE);
+  } catch (e) {}
+
+  return gPref.getCharPref(PREF_GENERAL_USERAGENT_LOCALE);
+}
+
+/**
+ * Read the update channel from defaults only.  We do this to ensure that
+ * the channel is tightly coupled with the application and does not apply
+ * to other installations of the application that may use the same profile.
+ */
+function getUpdateChannel() {
+  var channel = "default";
+  var prefName;
+  var prefValue;
+
+  var defaults =
+      gPref.QueryInterface(Components.interfaces.nsIPrefService).
+      getDefaultBranch(null);
+  try {
+    channel = defaults.getCharPref(PREF_APP_UPDATE_CHANNEL);
+  } catch (e) {
+    // use default when pref not found
+  }
+
+  try {
+    var partners = gPref.getChildList(PREF_PARTNER_BRANCH, { });
+    if (partners.length) {
+      channel += "-cck";
+      partners.sort();
+
+      for each (prefName in partners) {
+        prefValue = gPref.getCharPref(prefName);
+        channel += "-" + prefValue;
+      }
+    }
+  }
+  catch (e) {
+    Components.utils.reportError(e);
+  }
+
+  return channel;
+}
+
+/**
  * Manages the Blocklist. The Blocklist is a representation of the contents of
  * blocklist.xml and allows us to remotely disable / re-enable blocklisted
  * items managed by the Extension Manager with an item's appDisabled property.
@@ -2366,6 +2425,19 @@ var Blocklist = {
 
     dsURI = dsURI.replace(/%APP_ID%/g, gApp.ID);
     dsURI = dsURI.replace(/%APP_VERSION%/g, gApp.version);
+    dsURI = dsURI.replace(/%PRODUCT%/g, gApp.name);
+    dsURI = dsURI.replace(/%VERSION%/g, gApp.version);
+    dsURI = dsURI.replace(/%BUILD_ID%/g, gApp.appBuildID);
+    dsURI = dsURI.replace(/%BUILD_TARGET%/g, gApp.OS + "_" + gABI);
+    dsURI = dsURI.replace(/%OS_VERSION%/g, gOSVersion);
+    dsURI = dsURI.replace(/%LOCALE%/g, getLocale());
+    dsURI = dsURI.replace(/%CHANNEL%/g, getUpdateChannel());
+    dsURI = dsURI.replace(/%PLATFORM_VERSION%/g, gApp.platformVersion);
+    // Distribution values are not present in 1.8 branch
+    dsURI = dsURI.replace(/%DISTRIBUTION%/g, "default");
+    dsURI = dsURI.replace(/%DISTRIBUTION_VERSION%/g, "default");
+    dsURI = dsURI.replace(/\+/g, "%2B");
+
     // Verify that the URI is valid
     try {
       var uri = newURI(dsURI);
@@ -2658,6 +2730,38 @@ function ExtensionManager() {
     // transmitted to update URLs.
     gXPCOMABI = UNKNOWN_XPCOM_ABI;
   }
+  gABI = gXPCOMABI;
+
+  var osVersion;
+  var sysInfo = Components.classes["@mozilla.org/system-info;1"]
+                          .getService(Components.interfaces.nsIPropertyBag2);
+  try {
+    osVersion = sysInfo.getProperty("name") + " " + sysInfo.getProperty("version");
+  }
+  catch (e) {
+    LOG("ExtensionManager: OS Version unknown.");
+  }
+
+  if (osVersion) {
+    try {
+      osVersion += " (" + sysInfo.getProperty("secondaryLibrary") + ")";
+    }
+    catch (e) {
+      // Not all platforms have a secondary widget library, so an error is nothing to worry about.
+    }
+    gOSVersion = encodeURIComponent(osVersion);
+  }
+
+#ifdef XP_MACOSX
+  // Mac universal build should report a different ABI than either macppc
+  // or mactel.
+  var macutils = Components.classes["@mozilla.org/xpcom/mac-utils;1"]
+                           .getService(Components.interfaces.nsIMacUtils);
+
+  if (macutils.isUniversalBinary)
+    gABI = "Universal-gcc3";
+#endif
+
   gPref = Components.classes["@mozilla.org/preferences-service;1"]
                     .getService(Components.interfaces.nsIPrefBranch2);
 
@@ -2981,6 +3085,12 @@ ExtensionManager.prototype = {
   _installGlobalItem: function(file) {
     if (!file || !file.exists())
       throw new Error("Unable to find the file specified on the command line!");
+#ifdef XP_WIN
+    // make sure the file is local on Windows
+    file.normalize();
+    if (file.path[1] != ':')
+      throw new Error("Can't install global chrome from non-local file "+file.path);
+#endif
     var installManifestFile = extractRDFFileToTempDir(file, FILE_INSTALL_MANIFEST, true);
     if (!installManifestFile.exists())
       throw new Error("The package is missing an install manifest!");
@@ -3593,15 +3703,12 @@ ExtensionManager.prototype = {
         items = PendingOperations.getOperations(OP_NEEDS_UPGRADE);
         for (i = items.length - 1; i >= 0; --i) {
           id = items[i].id;
-          var oldLocation = this.getInstallLocation(id);
           var newLocation = InstallLocations.get(items[i].locationKey);
-          if (newLocation.priority <= oldLocation.priority) {
-            // check if there is updated app compatibility info
-            var newTargetAppInfo = ds.getUpdatedTargetAppInfo(id);
-            if (newTargetAppInfo)
-              updatedTargetAppInfos.push(newTargetAppInfo);
-            this._finalizeUpgrade(id);
-          }
+          // check if there is updated app compatibility info
+          var newTargetAppInfo = ds.getUpdatedTargetAppInfo(id);
+          if (newTargetAppInfo)
+            updatedTargetAppInfos.push(newTargetAppInfo);
+          this._finalizeUpgrade(id, newLocation);
         }
         PendingOperations.clearItems(OP_NEEDS_UPGRADE);
 
@@ -4644,7 +4751,7 @@ ExtensionManager.prototype = {
           this._upgradeItem(installManifest, installData.id, installLocation, 
                             installData.type);
           if (!restartRequired) {
-            this._finalizeUpgrade(installData.id);
+            this._finalizeUpgrade(installData.id, installLocation);
             this._finalizeInstall(installData.id, stagedFile);
           }
         }
@@ -4848,11 +4955,12 @@ ExtensionManager.prototype = {
    * Removes an item's metadata in preparation for an upgrade-install.
    * @param   id
    *          The GUID of the item to uninstall.
+   * @param   installLocation
+   *          The nsIInstallLocation of the item
    */
-  _finalizeUpgrade: function(id) {
+  _finalizeUpgrade: function(id, installLocation) {
     // Retrieve the item properties *BEFORE* we clean the resource!
     var ds = this.datasource;
-    var installLocation = this.getInstallLocation(id);
 
     var stagedFile = null;
     if ("getStageFile" in installLocation)
@@ -6132,12 +6240,15 @@ RDFItemUpdater.prototype = {
     this._versionUpdateOnly = aVersionUpdateOnly;
     this._item = aItem;
   
-    var itemStatus;
+    var itemStatus = "userEnabled";
     if (emDS.getItemProperty(aItem.id, "userDisabled") == "true" ||
         emDS.getItemProperty(aItem.id, "userDisabled") == OP_NEEDS_ENABLE)
       itemStatus = "userDisabled";
-    else
-      itemStatus = "userEnabled";
+    else if (emDS.getItemProperty(aItem.id, "type") == nsIUpdateItem.TYPE_THEME) {
+      var currentSkin = gPref.getCharPref(PREF_GENERAL_SKINS_SELECTEDSKIN);
+      if (emDS.getItemProperty(aItem.id, "internalName") != currentSkin)
+        itemStatus = "userDisabled";
+    }
     
     if (emDS.getItemProperty(aItem.id, "compatible") == "false")
       itemStatus += ",incompatible";
@@ -6926,16 +7037,6 @@ ExtensionsDataSource.prototype = {
   {
     // Update the Extensions datasource
     this.setTargetApplicationInfo(id, minVersion, maxVersion, null);
-
-    var installLocation = InstallLocations.get(this.getInstallLocationKey(id));
-    if (installLocation.name != KEY_APP_PROFILE)
-      return;
-
-    var installManifestFile = installLocation.getItemFile(id, FILE_INSTALL_MANIFEST);
-    // Only update if the item exists and we can write to the location
-    if (installManifestFile.exists() && installLocation.canAccess)
-      this.setTargetApplicationInfo(id, minVersion, maxVersion,
-                                    getInstallManifest(installManifestFile));
   },
 
   /**

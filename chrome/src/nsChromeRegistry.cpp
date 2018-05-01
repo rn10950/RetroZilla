@@ -666,13 +666,33 @@ nsChromeRegistry::Canonify(nsIURL* aChromeURL)
     aChromeURL->SetPath(path);
   }
   else {
-    nsCAutoString filePath;
-    rv = aChromeURL->GetFilePath(filePath);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    if (filePath.Find(NS_LITERAL_CSTRING("..")) != -1 ||
-        filePath.FindChar(':') != -1) {
-      return NS_ERROR_DOM_BAD_URI;
+    // prevent directory traversals ("..")
+    // path is already unescaped once, but uris can get unescaped twice
+    const char* pos = path.BeginReading();
+    const char* end = path.EndReading();
+    while (pos < end) {
+      switch (*pos) {
+        case ':':
+          return NS_ERROR_DOM_BAD_URI;
+        case '.':
+          if (pos[1] == '.')
+            return NS_ERROR_DOM_BAD_URI;
+          break;
+        case '%':
+          // chrome: URIs with double-escapes are trying to trick us.
+          // watch for %2e, and %25 in case someone triple unescapes
+          if (pos[1] == '2' &&
+               ( pos[2] == 'e' || pos[2] == 'E' || 
+                 pos[2] == '5' ))
+            return NS_ERROR_DOM_BAD_URI;
+          break;
+        case '?':
+        case '#':
+          // ignore query or ref part, we're done
+          pos = end;
+          continue;
+      }
+      ++pos;
     }
   }
 
@@ -1965,7 +1985,7 @@ CheckVersionFlag(const nsSubstring& aFlag, const nsSubstring& aData,
                  const nsSubstring& aValue, nsIVersionComparator* aChecker,
                  TriState& aResult)
 {
-  if (! (aData.Length() > aFlag.Length() + 2))
+  if (aData.Length() < aFlag.Length() + 2)
     return PR_FALSE;
 
   if (!StringBeginsWith(aData, aFlag))
@@ -2005,6 +2025,9 @@ CheckVersionFlag(const nsSubstring& aFlag, const nsSubstring& aData,
   default:
     return PR_FALSE;
   }
+
+  if (testdata.Length() == 0)
+    return PR_FALSE;
 
   if (aResult != eOK) {
     if (!aChecker) {
@@ -2388,7 +2411,7 @@ nsChromeRegistry::ProcessManifestBuffer(char *buf, PRInt32 length,
       nsCOMPtr<nsIURI> chromeuri, resolveduri;
       rv  = io->NewURI(nsDependentCString(chrome), nsnull, nsnull,
                       getter_AddRefs(chromeuri));
-      rv |= io->NewURI(nsDependentCString(resolved), nsnull, nsnull,
+      rv |= io->NewURI(nsDependentCString(resolved), nsnull, manifestURI,
                        getter_AddRefs(resolveduri));
       if (NS_FAILED(rv))
         continue;

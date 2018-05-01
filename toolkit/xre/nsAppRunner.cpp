@@ -40,6 +40,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#if defined(XP_OS2) && defined(MOZ_OS2_HIGH_MEMORY)
+// os2safe.h has to be included before os2.h, needed for high mem
+#include <os2safe.h>
+#endif
 
 #define XPCOM_TRANSLATE_NSGM_ENTRY_POINT 1
 
@@ -306,6 +310,12 @@ strimatch(const char* lowerstr, const char* mixedstr)
   return PR_TRUE;
 }
 
+enum RemoteResult {
+  REMOTE_NOT_FOUND  = 0,
+  REMOTE_FOUND      = 1,
+  REMOTE_ARG_BAD    = 2
+};
+
 enum ArgResult {
   ARG_NONE  = 0,
   ARG_FOUND = 1,
@@ -328,13 +338,16 @@ static void RemoveArg(char **argv)
  * --arg (or /arg on win32/OS2).
  *
  * @param aArg the parameter to check. Must be lowercase.
+ * @param aCheckOSInt if true returns ARG_BAD if the osint argument is present
+ *        when aArg is also present.
  * @param if non-null, the -arg <data> will be stored in this pointer. This is *not*
  *        allocated, but rather a pointer to the argv data.
  */
 static ArgResult
-CheckArg(const char* aArg, const char **aParam = nsnull)
+CheckArg(const char* aArg, PRBool aCheckOSInt = PR_FALSE, const char **aParam = nsnull)
 {
   char **curarg = gArgv + 1; // skip argv[0]
+  ArgResult ar = ARG_NONE;
 
   while (*curarg) {
     char *arg = curarg[0];
@@ -351,7 +364,8 @@ CheckArg(const char* aArg, const char **aParam = nsnull)
       if (strimatch(aArg, arg)) {
         RemoveArg(curarg);
         if (!aParam) {
-          return ARG_FOUND;
+          ar = ARG_FOUND;
+          break;
         }
 
         if (*curarg) {
@@ -364,7 +378,8 @@ CheckArg(const char* aArg, const char **aParam = nsnull)
 
           *aParam = *curarg;
           RemoveArg(curarg);
-          return ARG_FOUND;
+          ar = ARG_FOUND;
+          break;
         }
         return ARG_BAD;
       }
@@ -373,7 +388,15 @@ CheckArg(const char* aArg, const char **aParam = nsnull)
     ++curarg;
   }
 
-  return ARG_NONE;
+  if (aCheckOSInt && ar == ARG_FOUND) {
+    ArgResult arOSInt = CheckArg("osint");
+    if (arOSInt == ARG_FOUND) {
+      ar = ARG_BAD;
+      PR_fprintf(PR_STDERR, "Error: argument -osint is invalid\n");
+    }
+  }
+
+  return ar;
 }
 
 #if defined(XP_WIN)
@@ -1115,14 +1138,14 @@ HandleRemoteArgument(const char* remote)
   ToLowerCase(program);
   const char *username = getenv("LOGNAME");
 
-  ar = CheckArg("p", &profile);
+  ar = CheckArg("p", PR_FALSE, &profile);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: argument -p requires a profile name\n");
     return 1;
   }
 
   const char *temp = nsnull;
-  ar = CheckArg("a", &temp);
+  ar = CheckArg("a", PR_FALSE, &temp);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: argument -a requires an application name\n");
     return 1;
@@ -1130,7 +1153,7 @@ HandleRemoteArgument(const char* remote)
     program.Assign(temp);
   }
 
-  ar = CheckArg("u", &username);
+  ar = CheckArg("u", PR_FALSE, &username);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: argument -u requires a username\n");
     return 1;
@@ -1162,7 +1185,7 @@ HandleRemoteArgument(const char* remote)
   return 0;
 }
 
-static PRBool
+static RemoteResult
 RemoteCommandLine()
 {
   nsresult rv;
@@ -1173,24 +1196,24 @@ RemoteCommandLine()
   const char *username = getenv("LOGNAME");
 
   const char *temp = nsnull;
-  ar = CheckArg("a", &temp);
+  ar = CheckArg("a", PR_TRUE, &temp);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: argument -a requires an application name\n");
-    return PR_FALSE;
+    return REMOTE_ARG_BAD;
   } else if (ar == ARG_FOUND) {
     program.Assign(temp);
   }
 
-  ar = CheckArg("u", &username);
+  ar = CheckArg("u", PR_TRUE, &username);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: argument -u requires a username\n");
-    return PR_FALSE;
+    return REMOTE_ARG_BAD;
   }
 
   XRemoteClient client;
   rv = client.Init();
   if (NS_FAILED(rv))
-    return PR_FALSE;
+    return REMOTE_NOT_FOUND;
  
   nsXPIDLCString response;
   PRBool success = PR_FALSE;
@@ -1199,9 +1222,9 @@ RemoteCommandLine()
                               getter_Copies(response), &success);
   // did the command fail?
   if (NS_FAILED(rv) || !success)
-    return PR_FALSE;
+    return REMOTE_NOT_FOUND;
 
-  return PR_TRUE;
+  return REMOTE_FOUND;
 }
 #endif // MOZ_ENABLE_XREMOTE
 
@@ -1355,31 +1378,96 @@ XRE_GetBinaryPath(const char* argv0, nsILocalFile* *aResult)
   return NS_OK;
 }
 
-// copied from nsXREDirProvider.cpp
-#ifdef XP_WIN
-static nsresult
-GetShellFolderPath(int folder, char result[MAXPATHLEN])
-{
-  LPITEMIDLIST pItemIDList = NULL;
-
-  nsresult rv;
-  if (SUCCEEDED(SHGetSpecialFolderLocation(NULL, folder, &pItemIDList)) &&
-      SUCCEEDED(SHGetPathFromIDList(pItemIDList, result))) {
-    rv = NS_OK;
-  } else {
-    rv = NS_ERROR_NOT_AVAILABLE;
-  }
-
-  CoTaskMemFree(pItemIDList);
-
-  return rv;
-}
-#endif
-
 #define NS_ERROR_LAUNCHED_CHILD_PROCESS NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_PROFILE, 200)
 
 #ifdef XP_WIN
 #include "nsWindowsRestart.cpp"
+#endif
+
+#if defined(XP_OS2) && (__GNUC__ == 3 && __GNUC_MINOR__ == 3) // broken OS/2 GCC
+// Copy the environment maintained by the C library into an ASCIIZ array
+// that can be used to pass it on to the OS/2 Dos* APIs (which otherwise
+// don't know anything about the stuff set by PR_SetEnv() or setenv()).
+char *createEnv()
+{
+  // just allocate the maximum amount (24 kB = 0x60000 bytes), to be able to
+  // copy the existing environment
+  char *env = (char *)calloc(0x6000, sizeof(char));
+  if (!env) {
+    return NULL;
+  }
+
+  // walk along the environ string array of the C library and copy
+  // everything (that fits) into the output environment array, leaving
+  // null bytes between the entries
+  char *penv = env; // movable pointer to result environment ASCIIZ array
+  int i = 0, space = 0x6000;
+  while (environ[i] && environ[i][0]) {
+    int len = strlen(environ[i]);
+    if (space - len <= 0) {
+      break;
+    }
+    strcpy(penv, environ[i]);
+    i++; // next environment variable
+    penv += len + 1; // jump to after next null byte
+    space -= len - 1; // subtract consumed length from usable space
+  }
+
+  return env;
+}
+
+// OS2LaunchChild() is there to replace _execv() which is broken in the C
+// runtime library that comes with GCC 3.3.5 on OS/2. It uses createEnv()
+// to copy the process environment and add necessary variables
+//
+// returns -1 on failure and 0 on success
+int OS2LaunchChild(const char *aExePath, int aArgc, char **aArgv)
+{
+  // find total length of aArgv
+  int len = 0;
+  for (int i = 0; i < aArgc; i++) {
+    len += strlen(aArgv[i]) + 1; // plus space in between
+  }
+  len++; // leave space for null byte at end
+  // allocate enough space for all strings and nulls,
+  // calloc helpfully initializes to null
+  char *args = (char *)calloc(len, sizeof(char));
+  if (!args) {
+    return -1;
+  }
+  char *pargs = args; // extra pointer to after the last argument
+  // build argument list in the format the DosStartSession() wants,
+  // adding spaces between the arguments
+  for (int i = 0; i < aArgc; i++, *pargs++ = ' ') {
+    strcpy(pargs, aArgv[i]);
+    pargs += strlen(aArgv[i]);
+  }
+  if (aArgc > 1) {
+    *(pargs-1) = '\0'; // replace last space
+  }
+  *pargs = '\0';
+  // make sure that the program is separated by null byte
+  pargs = strchr(args, ' ');
+  if (pargs) {
+    *pargs = '\0';
+  }
+
+  char *env = createEnv();
+
+  char error[CCHMAXPATH] = { 0 };
+  RESULTCODES crc = { 0 };
+  ULONG rc = DosExecPgm(error, sizeof(error), EXEC_ASYNC, args, env,
+                        &crc, (PSZ)aExePath);
+  free(args); // done with the arguments
+  if (env) {
+    free(env);
+  }
+  if (rc != NO_ERROR) {
+    return -1;
+  }
+
+  return 0;
+}
 #endif
 
 // If aBlankCommandLine is true, then the application will be launched with a
@@ -1416,6 +1504,10 @@ static nsresult LaunchChild(nsINativeAppSupport* aNative,
 
 #if defined(XP_WIN)
   if (!WinLaunchChild(exePath.get(), gRestartArgc, gRestartArgv, needElevation))
+    return NS_ERROR_FAILURE;
+#elif defined(XP_OS2) && (__GNUC__ == 3 && __GNUC_MINOR__ == 3)
+  // implementation of _execv() is broken with GCC 3.3.x on OS/2
+  if (OS2LaunchChild(exePath.get(), gRestartArgc, gRestartArgv) == -1)
     return NS_ERROR_FAILURE;
 #elif defined(XP_OS2)
   if (_execv(exePath.get(), gRestartArgv) == -1)
@@ -1667,9 +1759,16 @@ SelectProfile(nsIProfileLock* *aResult, nsINativeAppSupport* aNative,
   *aResult = nsnull;
   *aStartOffline = PR_FALSE;
 
+  ar = CheckArg("offline", PR_TRUE);
+  if (ar == ARG_BAD) {
+    PR_fprintf(PR_STDERR, "Error: argument -offline is invalid when argument -osint is specified\n");
+    return NS_ERROR_FAILURE;
+  }
+
   arg = PR_GetEnv("XRE_START_OFFLINE");
-  if ((arg && *arg) || CheckArg("offline"))
+  if ((arg && *arg) || ar)
     *aStartOffline = PR_TRUE;
+
 
   arg = PR_GetEnv("XRE_PROFILE_PATH");
   if (arg && *arg) {
@@ -1690,17 +1789,22 @@ SelectProfile(nsIProfileLock* *aResult, nsINativeAppSupport* aNative,
 
     // Clear out flags that we handled (or should have handled!) last startup.
     const char *dummy;
-    CheckArg("p", &dummy);
-    CheckArg("profile", &dummy);
+    CheckArg("p", PR_FALSE, &dummy);
+    CheckArg("profile", PR_FALSE, &dummy);
     CheckArg("profilemanager");
 
     return NS_LockProfilePath(lf, localDir, nsnull, aResult);
   }
 
-  if (CheckArg("migration"))
+  ar = CheckArg("migration", PR_TRUE);
+  if (ar == ARG_BAD) {
+    PR_fprintf(PR_STDERR, "Error: argument -migration is invalid when argument -osint is specified\n");
+    return NS_ERROR_FAILURE;
+  } else if (ar == ARG_FOUND) {
     gDoMigration = PR_TRUE;
+  }
 
-  ar = CheckArg("profile", &arg);
+  ar = CheckArg("profile", PR_TRUE, &arg);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: argument -profile requires a path\n");
     return NS_ERROR_FAILURE;
@@ -1725,7 +1829,7 @@ SelectProfile(nsIProfileLock* *aResult, nsINativeAppSupport* aNative,
   rv = NS_NewToolkitProfileService(getter_AddRefs(profileSvc));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  ar = CheckArg("createprofile", &arg);
+  ar = CheckArg("createprofile", PR_TRUE, &arg);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: argument -createprofile requires a profile name\n");
     return NS_ERROR_FAILURE;
@@ -1782,11 +1886,21 @@ SelectProfile(nsIProfileLock* *aResult, nsINativeAppSupport* aNative,
     }
   }
 
-  ar = CheckArg("p", &arg);
+  ar = CheckArg("p", PR_FALSE, &arg);
   if (ar == ARG_BAD) {
+    ar = CheckArg("osint");
+    if (ar == ARG_FOUND) {
+      PR_fprintf(PR_STDERR, "Error: argument -p is invalid when argument -osint is specified\n");
+      return NS_ERROR_FAILURE;
+    }
     return ShowProfileManager(profileSvc, aNative);
   }
   if (ar) {
+    ar = CheckArg("osint");
+    if (ar == ARG_FOUND) {
+      PR_fprintf(PR_STDERR, "Error: argument -p is invalid when argument -osint is specified\n");
+      return NS_ERROR_FAILURE;
+    }
     nsCOMPtr<nsIToolkitProfile> profile;
     rv = profileSvc->GetProfileByName(nsDependentCString(arg),
                                       getter_AddRefs(profile));
@@ -1811,7 +1925,11 @@ SelectProfile(nsIProfileLock* *aResult, nsINativeAppSupport* aNative,
     return ShowProfileManager(profileSvc, aNative);
   }
 
-  if (CheckArg("profilemanager")) {
+  ar = CheckArg("profilemanager", PR_TRUE);
+  if (ar == ARG_BAD) {
+    PR_fprintf(PR_STDERR, "Error: argument -profilemanager is invalid when argument -osint is specified\n");
+    return NS_ERROR_FAILURE;
+  } else if (ar == ARG_FOUND) {
     return ShowProfileManager(profileSvc, aNative);
   }
 
@@ -2086,6 +2204,7 @@ int
 XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
 {
   nsresult rv;
+  ArgResult ar;
   NS_TIMELINE_MARK("enter main");
 
 #ifdef DEBUG
@@ -2201,13 +2320,23 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
   ScopedFPHandler handler;
 #endif /* XP_OS2 */
 
-  if (CheckArg("safe-mode"))
+  ar = CheckArg("safe-mode", PR_TRUE);
+  if (ar == ARG_BAD) {
+    PR_fprintf(PR_STDERR, "Error: argument -safe-mode is invalid when argument -osint is specified\n");
+    return 1;
+  } else if (ar == ARG_FOUND) {
     gSafeMode = PR_TRUE;
+  }
 
   // Handle -no-remote command line argument. Setup the environment to
   // better accommodate other components and various restart scenarios.
-  if (CheckArg("no-remote"))
+  ar = CheckArg("no-remote", PR_TRUE);
+  if (ar == ARG_BAD) {
+    PR_fprintf(PR_STDERR, "Error: argument -a requires an application name\n");
+    return 1;
+  } else if (ar == ARG_FOUND) {
     PR_SetEnv("MOZ_NO_REMOTE=1");
+  }
 
   // Handle -help and -version command line arguments.
   // They should return quickly, so we deal with them here.
@@ -2233,7 +2362,12 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
   }
 
   // Check for -register, which registers chrome and then exits immediately.
-  if (CheckArg("register")) {
+
+  ar = CheckArg("register", PR_TRUE);
+  if (ar == ARG_BAD) {
+    PR_fprintf(PR_STDERR, "Error: argument -register is invalid when argument -osint is specified\n");
+    return 1;
+  } else if (ar == ARG_FOUND) {
     ScopedXPCOMStartup xpcom;
     rv = xpcom.Initialize();
     NS_ENSURE_SUCCESS(rv, 1);
@@ -2253,6 +2387,9 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
   // in nsAppShell::Create, but we need to get in before gtk
   // has been initialized to make sure everything is running
   // consistently.
+#if defined(MOZ_WIDGET_GTK2)
+  g_thread_init(NULL);
+#endif
   if (CheckArg("install"))
     gdk_rgb_set_install(TRUE);
 
@@ -2331,7 +2468,7 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
   // handle -remote now that xpcom is fired up
 
   const char* xremotearg;
-  ArgResult ar = CheckArg("remote", &xremotearg);
+  ar = CheckArg("remote", PR_TRUE, &xremotearg);
   if (ar == ARG_BAD) {
     PR_fprintf(PR_STDERR, "Error: -remote requires an argument\n");
     return 1;
@@ -2342,8 +2479,11 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
 
   if (!PR_GetEnv("MOZ_NO_REMOTE")) {
     // Try to remote the entire command line. If this fails, start up normally.
-    if (RemoteCommandLine())
+    RemoteResult rr = RemoteCommandLine();
+    if (rr == REMOTE_FOUND)
       return 0;
+    else if (rr == REMOTE_ARG_BAD)
+      return 1;
   }
 #endif
 
@@ -2367,50 +2507,18 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
   }
 
   // Check for and process any available updates
-  nsCOMPtr<nsIFile> updRoot = dirProvider.GetAppDir();
-  nsCOMPtr<nsILocalFile> updRootl(do_QueryInterface(updRoot));
-
-#ifdef XP_WIN
-  // Use <UserLocalDataDir>\updates\<relative path to app dir from
-  // Program Files> if app dir is under Program Files to avoid the
-  // folder virtualization mess on Windows Vista
-  char path[MAXPATHLEN];
-  rv = GetShellFolderPath(CSIDL_PROGRAM_FILES, path);
-
-  // Fallback to previous behavior since getting CSIDL_PROGRAM_FILES may fail
-  // on Win9x.
-  if (NS_SUCCEEDED(rv)) {
-    nsCOMPtr<nsILocalFile> programFilesDir;
-    rv = NS_NewNativeLocalFile(nsDependentCString(path), PR_FALSE,
-                               getter_AddRefs(programFilesDir));
-    NS_ENSURE_SUCCESS(rv, 1);
-
-    PRBool descendant;
-    rv = programFilesDir->Contains(updRootl, PR_TRUE, &descendant);
-    NS_ENSURE_SUCCESS(rv, 1);
-    if (descendant) {
-      nsCAutoString relativePath;
-      rv = updRootl->GetRelativeDescriptor(programFilesDir, relativePath);
-      NS_ENSURE_SUCCESS(rv, 1);
-
-      nsCOMPtr<nsILocalFile> userLocalDir;
-      rv = dirProvider.GetUserLocalDataDirectory(getter_AddRefs(userLocalDir));
-      NS_ENSURE_SUCCESS(rv, 1);
-
-      rv = NS_NewNativeLocalFile(EmptyCString(), PR_FALSE,
-                                 getter_AddRefs(updRootl));
-      NS_ENSURE_SUCCESS(rv, 1);
-
-      rv = updRootl->SetRelativeDescriptor(userLocalDir, relativePath);
-      NS_ENSURE_SUCCESS(rv, 1);
-    }
-  }
-#endif
+  nsCOMPtr<nsIFile> updRoot;
+  PRBool persistent;
+  rv = dirProvider.GetFile(XRE_UPDATE_ROOT_DIR, &persistent,
+                           getter_AddRefs(updRoot));
+  // XRE_UPDATE_ROOT_DIR may fail. Fallback to appDir if failed
+  if (NS_FAILED(rv))
+    updRoot = dirProvider.GetAppDir();
 
   // Check for and process any available updates
   ProcessUpdates(greDir,
                  appDir,
-                 updRootl,
+                 updRoot,
                  gRestartArgc,
                  gRestartArgv);
 #endif
@@ -2591,7 +2699,21 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
         nsCOMPtr<nsIExtensionManager> em(do_GetService("@mozilla.org/extensions/manager;1"));
         NS_ENSURE_TRUE(em, 1);
 
-        if (CheckArg("install-global-extension") || CheckArg("install-global-theme")) {
+        ar = CheckArg("install-global-extension", PR_TRUE);
+        if (ar == ARG_BAD) {
+          PR_fprintf(PR_STDERR, "Error: argument -install-global-extension is invalid when argument -osint is specified\n");
+          return 1;
+        } else if (ar == ARG_FOUND) {
+          // Do the required processing and then shut down.
+          em->HandleCommandLineArgs(cmdLine);
+          return 0;
+        }
+
+        ar = CheckArg("install-global-theme", PR_TRUE);
+        if (ar == ARG_BAD) {
+          PR_fprintf(PR_STDERR, "Error: argument -install-global-theme is invalid when argument -osint is specified\n");
+          return 1;
+        } else if (ar == ARG_FOUND) {
           // Do the required processing and then shut down.
           em->HandleCommandLineArgs(cmdLine);
           return 0;

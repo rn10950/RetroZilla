@@ -389,11 +389,11 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
 !macroend
 
 !macro GetParentDir
-   Exch $R0
-   Push $R1
-   Push $R2
-   Push $R3
-   StrLen $R3 $R0
+  Exch $R0
+  Push $R1
+  Push $R2
+  Push $R3
+  StrLen $R3 $R0
   ${DoWhile} 1 > 0
     IntOp $R1 $R1 - 1
     ${If} $R1 <= -$R3
@@ -744,6 +744,7 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
  * to this reg cleanup since the referenced key would be for an app that is no
  * longer installed on the system.
  *
+ * $R1 = stores the long path to $INSTDIR
  * $R2 = _KEY
  * $R3 = value returned from the outer loop's EnumRegKey
  * $R4 = value returned from the inner loop's EnumRegKey
@@ -767,9 +768,11 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
       Push $R5
       Push $R6
       Push $R7
+      Push $R1
       Push $R8
       Push $R9
 
+      ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR" $R1
       StrCpy $R6 0  ; set the counter for the outer loop to 0
 
       outerloop:
@@ -797,8 +800,9 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
       ${GetParentDir}
       Pop $R9
 
-      IfFileExists "$R8" 0 +2
-      StrCmp $R9 $INSTDIR 0 innerloop
+      IfFileExists "$R9" 0 +3
+      ${${_MOZFUNC_UN}GetLongPath} "$R9" $R9
+      StrCmp "$R9" "$R1" 0 innerloop
       ClearErrors
       DeleteRegKey SHCTX "$R2\$R3\$R4"
       IfErrors innerloop
@@ -815,8 +819,9 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
       ${GetParentDir}
       Pop $R9
 
-      IfFileExists "$R8" 0 +2
-      StrCmp $R9 $INSTDIR 0 outerloop
+      IfFileExists "$R9" 0 +3
+      ${${_MOZFUNC_UN}GetLongPath} "$R9" $R9
+      StrCmp "$R9" "$R1" 0 outerloop
       ClearErrors
       DeleteRegKey SHCTX "$R2\$R3"
       IfErrors outerloop
@@ -830,6 +835,7 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
 
       Pop $R9
       Pop $R8
+      Pop $R1
       Pop $R7
       Pop $R6
       Pop $R5
@@ -877,6 +883,7 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
  * Removes all registry keys from HKLM\Software\Windows\CurrentVersion\Uninstall
  * that reference this install location.
  *
+ * $R4 = stores the long path to $INSTDIR
  * $R5 = value returned from ReadRegStr
  * $R6 = string for the base reg key (e.g. Software\Microsoft\Windows\CurrentVersion\Uninstall)
  * $R7 = value returned from the EnumRegKey
@@ -896,7 +903,9 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
       Push $R7
       Push $R6
       Push $R5
+      Push $R4
 
+      ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR" $R4
       StrCpy $R6 "Software\Microsoft\Windows\CurrentVersion\Uninstall"
       StrCpy $R8 0
       StrCpy $R7 ""
@@ -904,18 +913,19 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
       loop:
       EnumRegKey $R7 HKLM $R6 $R8
       StrCmp $R7 "" end
-      IntOp $R8 $R8 + 1
+      IntOp $R8 $R8 + 1 ; Increment the counter
       ClearErrors
       ReadRegStr $R5 HKLM "$R6\$R7" "InstallLocation"
       IfErrors loop
       Push $R5
       ${GetPathFromRegStr}
       Pop $R9
-      StrCmp $R9 $INSTDIR 0 loop
+      ${${_MOZFUNC_UN}GetLongPath} "$R9" $R9
+      StrCmp "$R9" "$R4" 0 loop
       ClearErrors
       DeleteRegKey HKLM "$R6\$R7"
       IfErrors loop
-      IntOp $R8 $R8 + 1
+      IntOp $R8 $R8 - 1 ; Decrement the counter on successful deletion
       GoTo loop
 
       end:
@@ -1071,6 +1081,9 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
 /**
  * Writes a registry string using SHCTX and the supplied params and logs the
  * action to the install log and the uninstall log if _LOG_UNINSTALL equals 1.
+ *
+ * Define NO_LOG to prevent all logging when calling this from the uninstaller.
+ *
  * @param   _ROOT
  *          The registry key root as defined by NSIS (e.g. HKLM, HKCU, etc.).
  *          This will only be used for logging.
@@ -1176,6 +1189,9 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
 /**
  * Writes a registry dword using SHCTX and the supplied params and logs the
  * action to the install log and the uninstall log if _LOG_UNINSTALL equals 1.
+ *
+ * Define NO_LOG to prevent all logging when calling this from the uninstaller.
+ *
  * @param   _ROOT
  *          The registry key root as defined by NSIS (e.g. HKLM, HKCU, etc.).
  *          This will only be used for logging.
@@ -1281,6 +1297,9 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
 /**
  * Writes a registry string to HKCR using the supplied params and logs the
  * action to the install log and the uninstall log if _LOG_UNINSTALL equals 1.
+ *
+ * Define NO_LOG to prevent all logging when calling this from the uninstaller.
+ *
  * @param   _ROOT
  *          The registry key root as defined by NSIS (e.g. HKLM, HKCU, etc.).
  *          This will only be used for logging.
@@ -1399,6 +1418,9 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
  * Creates a registry key. This will log the actions to the install and
  * uninstall logs. Alternatively you can set a registry value to create the key
  * and then delete the value.
+ *
+ * Define NO_LOG to prevent all logging when calling this from the uninstaller.
+ *
  * @param   _ROOT
  *          The registry key root as defined by NSIS (e.g. HKLM, HKCU, etc.).
  * @param   _KEY
@@ -1614,6 +1636,117 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
 !macroend
 
 /**
+ * Finds an existing installation path of the application based on the
+ * application name so we can default to using this path for the install. If
+ * there is zero or more than one installation for the application then we
+ * default to the normal default path. This uses SHCTX to determine the
+ * registry hive so you must call SetShellVarContext first.
+ *
+ * IMPORTANT! $R9 will be overwritten by this macro with the return value so
+ *            protect yourself!
+ *
+ * @param   _KEY
+ *          The registry subkey (typically this will be Software\Mozilla\App Name).
+ * @return  _RESULT
+ *          false if a single install location for this app name isn't found,
+ *          path to the install directory if a single install location is found.
+ *
+ * $R5 = _KEY
+ * $R6 = value returned from EnumRegKey
+ * $R7 = value returned from ReadRegStr
+ * $R8 = counter for the loop's EnumRegKey
+ * $R9 = _RESULT
+ */
+!macro GetSingleInstallPath
+
+  !ifndef ${_MOZFUNC_UN}GetSingleInstallPath
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define ${_MOZFUNC_UN}GetSingleInstallPath "!insertmacro ${_MOZFUNC_UN}GetSingleInstallPathCall"
+
+    Function ${_MOZFUNC_UN}GetSingleInstallPath
+      Exch $R5
+      Push $R6
+      Push $R7
+      Push $R8
+
+      StrCpy $R9 "false"
+      StrCpy $R8 0  ; set the counter for the loop to 0
+
+      loop:
+      ClearErrors
+      EnumRegKey $R6 SHCTX $R5 $R8
+      IfErrors cleanup
+      StrCmp $R6 "" cleanup  ; if empty there are no more keys to enumerate
+      IntOp $R8 $R8 + 1      ; increment the loop's counter
+      ClearErrors
+      ReadRegStr $R7 SHCTX "$R5\$R6\Main" "PathToExe"
+      IfErrors loop
+      GetFullPathName $R7 "$R7"
+      IfErrors loop
+
+
+      StrCmp "$R9" "false" 0 +3
+      StrCpy $R9 "$R7"
+      GoTo Loop
+
+      StrCpy $R9 "false"
+
+      cleanup:
+      StrCmp $R9 "false" end
+      ${${_MOZFUNC_UN}GetParent} "$R9" $R9
+      StrCpy $R8 $R9 "" -1  ; Copy the last char.
+      StrCmp $R8 '\' end    ; Is it a \?
+      StrCpy $R9 "$R9\"     ; Append \ to the string
+
+      end:
+      ClearErrors
+
+      Pop $R8
+      Pop $R7
+      Pop $R6
+      Exch $R5
+      Push $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro GetSingleInstallPathCall _KEY _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_KEY}"
+  Call GetSingleInstallPath
+  Pop ${_RESULT}
+  !verbose pop
+!macroend
+
+!macro un.GetSingleInstallPathCall _KEY _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_KEY}"
+  Call un.GetSingleInstallPath
+  Pop ${_RESULT}
+  !verbose pop
+!macroend
+
+!macro un.GetSingleInstallPath
+  !ifndef un.GetSingleInstallPath
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN "un."
+
+    !insertmacro GetSingleInstallPath
+
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN
+    !verbose pop
+  !endif
+!macroend
+
+/**
  * Writes common registry values for a handler using SHCTX.
  * @param   _KEY
  *          The subkey in relation to the key root.
@@ -1673,9 +1806,13 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
       DeleteRegValue SHCTX "$R4" "EditFlags"
       WriteRegDWord SHCTX "$R4" "EditFlags" 0x00000002
 
-      StrCmp "$R9" "true" 0 +13
+      StrCmp "$R6" "" +2 0
       WriteRegStr SHCTX "$R4\DefaultIcon" "" "$R6"
+
+      StrCmp "$R5" "" +2 0
       WriteRegStr SHCTX "$R4\shell\open\command" "" "$R5"
+
+      StrCmp "$R9" "true" 0 +11
       WriteRegStr SHCTX "$R4\shell\open\ddeexec" "" "$\"%1$\",,0,0,,,,"
       WriteRegStr SHCTX "$R4\shell\open\ddeexec" "NoActivateHandler" ""
       WriteRegStr SHCTX "$R4\shell\open\ddeexec\Application" "" "${DDEApplication}"
@@ -1749,54 +1886,471 @@ Exch $R9 ; exchange the new $R9 value with the top of the stack
 !macroend
 
 /**
- * Displays a error message when a file can't be copied.
- *
- * $0 = file name inserted into the error message
- */
-!macro DisplayCopyErrMsg
+* Returns the path found within a passed in string. The path is quoted or not
+* with the exception of an unquoted non 8dot3 path without arguments that is
+* also not a DefaultIcon path, is a 8dot3 path or not, has command line
+* arguments, or is a registry DefaultIcon path (e.g. <path to binary>,# where #
+* is the icon's resuorce id). The string does not need to be a valid path or
+* exist. It is up to the caller to pass in a string of one of the forms noted
+* above and to verify existence if necessary.
+*
+* IMPORTANT! $R9 will be overwritten by this macro with the return value so
+*            protect yourself!
+*
+* Examples:
+* In:  C:\PROGRA~1\MOZILL~1\FIREFOX.EXE -url "%1" -requestPending
+* In:  C:\PROGRA~1\MOZILL~1\FIREFOX.EXE,0
+* In:  C:\PROGRA~1\MOZILL~1\FIREFOX.EXE
+* In:  "C:\PROGRA~1\MOZILL~1\FIREFOX.EXE"
+* In:  "C:\PROGRA~1\MOZILL~1\FIREFOX.EXE" -url "%1" -requestPending
+* Out: C:\PROGRA~1\MOZILL~1\FIREFOX.EXE
+*
+* In:  "C:\Program Files\Mozilla Firefox\firefox.exe" -url "%1" -requestPending
+* In:  C:\Program Files\Mozilla Firefox\firefox.exe,0
+* In:  "C:\Program Files\Mozilla Firefox\firefox.exe"
+* Out: C:\Program Files\Mozilla Firefox\firefox.exe
+*
+* @param   _STRING
+*          The string containing the path
+* @param   _RESULT
+*          The register to store the path to.
+*
+* $R6 = counter for the outer loop's EnumRegKey
+* $R7 = value returned from ReadRegStr
+* $R8 = _STRING
+* $R9 = _RESULT
+*/
+!macro GetPathFromString
 
-  !ifndef ${_MOZFUNC_UN}DisplayCopyErrMsg
+  !ifndef ${_MOZFUNC_UN}GetPathFromString
     !verbose push
     !verbose ${_MOZFUNC_VERBOSE}
-    !define ${_MOZFUNC_UN}DisplayCopyErrMsg "!insertmacro ${_MOZFUNC_UN}DisplayCopyErrMsgCall"
+    !define ${_MOZFUNC_UN}GetPathFromString "!insertmacro ${_MOZFUNC_UN}GetPathFromStringCall"
 
-    Function ${_MOZFUNC_UN}DisplayCopyErrMsg
-      Exch $0
+    Function ${_MOZFUNC_UN}GetPathFromString
+      Exch $R8
+      Push $R7
+      Push $R6
+      ClearErrors
 
-      MessageBox MB_RETRYCANCEL|MB_ICONQUESTION "$(^FileError_NoIgnore)" IDRETRY +2
-      Quit
+      StrCpy $R9 $R8
+      StrCpy $R6 0          ; Set the counter to 0.
 
-      Exch $0
+      ClearErrors
+      ; Handle quoted paths with arguments.
+      StrCpy $R7 $R9 1      ; Copy the first char.
+      StrCmp $R7 '"' +2 +1  ; Is it a "?
+      StrCmp $R7 "'" +1 +9  ; Is it a '?
+      StrCpy $R9 $R9 "" 1   ; Remove the first char.
+      IntOp $R6 $R6 + 1     ; Increment the counter.
+      StrCpy $R7 $R9 1 $R6  ; Starting from the counter copy the next char.
+      StrCmp $R7 "" end     ; Are there no more chars?
+      StrCmp $R7 '"' +2 +1  ; Is it a " char?
+      StrCmp $R7 "'" +1 -4  ; Is it a ' char?
+      StrCpy $R9 $R9 $R6    ; Copy chars up to the counter.
+      GoTo end
+
+      ; Handle DefaultIcon paths. DefaultIcon paths are not quoted and end with
+      ; a , and a number.
+      IntOp $R6 $R6 - 1     ; Decrement the counter.
+      StrCpy $R7 $R9 1 $R6  ; Copy one char from the end minus the counter.
+      StrCmp $R7 '' +4      ; Are there no more chars?
+      StrCmp $R7 ',' +1 -3  ; Is it a , char?
+      StrCpy $R9 $R9 $R6    ; Copy chars up to the end minus the counter.
+      GoTo end
+
+      ; Handle unquoted paths with arguments. An unquoted path with arguments
+      ; must be an 8dot3 path.
+      StrCpy $R6 -1          ; Set the counter to -1 so it will start at 0.
+      IntOp $R6 $R6 + 1      ; Increment the counter.
+      StrCpy $R7 $R9 1 $R6   ; Starting from the counter copy the next char.
+      StrCmp $R7 "" end      ; Are there no more chars?
+      StrCmp $R7 " " +1 -3   ; Is it a space char?
+      StrCpy $R9 $R9 $R6     ; Copy chars up to the counter.
+
+      end:
+
+      Pop $R6
+      Pop $R7
+      Exch $R8
+      Push $R9
     FunctionEnd
 
     !verbose pop
   !endif
 !macroend
 
-!macro DisplayCopyErrMsgCall _FILE
+!macro GetPathFromStringCall _STRING _RESULT
   !verbose push
   !verbose ${_MOZFUNC_VERBOSE}
-  Push "${_FILE}"
-  Call DisplayCopyErrMsg
+  Push "${_STRING}"
+  Call GetPathFromString
+  Pop ${_RESULT}
   !verbose pop
 !macroend
 
-!macro un.DisplayCopyErrMsgCall _FILE
+!macro un.GetPathFromStringCall _STRING _RESULT
   !verbose push
   !verbose ${_MOZFUNC_VERBOSE}
-  Push "${_FILE}"
-  Call un.DisplayCopyErrMsg
+  Push "${_STRING}"
+  Call un.GetPathFromString
+  Pop ${_RESULT}
   !verbose pop
 !macroend
 
-!macro un.DisplayCopyErrMsg
-  !ifndef un.DisplayCopyErrMsg
+!macro un.GetPathFromString
+  !ifndef un.GetPathFromString
     !verbose push
     !verbose ${_MOZFUNC_VERBOSE}
     !undef _MOZFUNC_UN
     !define _MOZFUNC_UN "un."
 
-    !insertmacro DisplayCopyErrMsg
+    !insertmacro GetPathFromString
+
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN
+    !verbose pop
+  !endif
+!macroend
+
+/**
+ * If present removes the VirtualStore directory for this installation. Uses the
+ * program files directory path and the current install location to determine
+ * the sub-directory in the VirtualStore directory.
+ */
+!macro CleanVirtualStore
+  !ifndef ${_MOZFUNC_UN}CleanVirtualStore
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define ${_MOZFUNC_UN}CleanVirtualStore "!insertmacro ${_MOZFUNC_UN}CleanVirtualStoreCall"
+
+    Function ${_MOZFUNC_UN}CleanVirtualStore
+      Push $R9
+      Push $R8
+      Push $R7
+
+      StrLen $R9 "$INSTDIR"
+
+      ; Get the installation's directory name including the preceding slash
+      start:
+      IntOp $R8 $R8 - 1
+      IntCmp $R8 -$R9 end end 0
+      StrCpy $R7 "$INSTDIR" 1 $R8
+      StrCmp $R7 "\" 0 start
+
+      StrCpy $R9 "$INSTDIR" "" $R8
+
+      ClearErrors
+      GetFullPathName $R8 "$PROGRAMFILES$R9"
+      IfErrors end
+      GetFullPathName $R7 "$INSTDIR"
+
+      ; Compare the installation's directory path with the path created by
+      ; concatenating the installation's directory name and the path to the
+      ; program files directory.
+      StrCmp "$R7" "$R8" 0 end
+
+      StrCpy $R8 "$PROGRAMFILES" "" 2 ; Remove the drive letter and colon
+      StrCpy $R7 "$PROFILE\AppData\Local\VirtualStore$R8$R9"
+
+      IfFileExists "$R7" 0 end
+      RmDir /r "$R7"
+
+      end:
+      ClearErrors
+
+      Pop $R7
+      Pop $R8
+      Pop $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro CleanVirtualStoreCall
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Call CleanVirtualStore
+  !verbose pop
+!macroend
+
+!macro un.CleanVirtualStoreCall
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Call un.CleanVirtualStore
+  !verbose pop
+!macroend
+
+!macro un.CleanVirtualStore
+  !ifndef un.CleanVirtualStore
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN "un."
+
+    !insertmacro CleanVirtualStore
+
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN
+    !verbose pop
+  !endif
+!macroend
+
+/**
+ * Updates the uninstall.log with new files added by software update.
+ *
+ * Requires FileJoin, LineFind, TextCompare, and TrimNewLines.
+ *
+ * IMPORTANT! The LineFind docs claim that it uses all registers except $R0-$R3.
+ *            Though it appears that this is not true all registers besides
+ *            $R0-$R3 may be overwritten so protect yourself!
+ */
+!macro UpdateUninstallLog
+
+  !ifndef ${_MOZFUNC_UN}UpdateUninstallLog
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define ${_MOZFUNC_UN}UpdateUninstallLog "!insertmacro ${_MOZFUNC_UN}UpdateUninstallLogCall"
+
+    Function ${_MOZFUNC_UN}UpdateUninstallLog
+      Push $R3
+      Push $R2
+      Push $R1
+      Push $R0
+
+      ClearErrors
+
+      GetFullPathName $R3 "$INSTDIR\uninstall"
+      IfFileExists "$R3\uninstall.update" +2 0
+      Return
+
+      ${${_MOZFUNC_UN}LineFind} "$R3\uninstall.update" "" "1:-1" "${_MOZFUNC_UN}CleanupUpdateLog"
+
+      GetTempFileName $R2 "$R3"
+      FileOpen $R1 $R2 w
+      ${${_MOZFUNC_UN}TextCompare} "$R3\uninstall.update" "$R3\uninstall.log" "SlowDiff" "${_MOZFUNC_UN}CreateUpdateDiff"
+      FileClose $R1
+
+      IfErrors +2 0
+      ${${_MOZFUNC_UN}FileJoin} "$R3\uninstall.log" "$R2" "$R3\uninstall.log"
+
+      ${DeleteFile} "$R2"
+
+      ClearErrors
+
+      Pop $R0
+      Pop $R1
+      Pop $R2
+      Pop $R3
+    FunctionEnd
+
+    ; This callback MUST use labels vs. relative line numbers.
+    Function ${_MOZFUNC_UN}CleanupUpdateLog
+      StrCpy $R2 "$R9" 12
+      StrCmp "$R2" "EXECUTE ADD " 0 skip
+      StrCpy $R9 "$R9" "" 12
+
+      Push $R6
+      Push $R5
+      Push $R4
+      StrCpy $R4 ""         ; Initialize to an empty string.
+      StrCpy $R6 -1         ; Set the counter to -1 so it will start at 0.
+
+      loop:
+      IntOp $R6 $R6 + 1     ; Increment the counter.
+      StrCpy $R5 $R9 1 $R6  ; Starting from the counter copy the next char.
+      StrCmp $R5 "" copy    ; Are there no more chars?
+      StrCmp $R5 "/" 0 +2   ; Is the char a /?
+      StrCpy $R5 "\"        ; Replace the char with a \.
+
+      StrCpy $R4 "$R4$R5"
+      GoTo loop
+
+      copy:
+      StrCpy $R9 "File: \$R4"
+      Pop $R6
+      Pop $R5
+      Pop $R4
+      GoTo end
+
+      skip:
+      StrCpy $0 "SkipWrite"
+
+      end:
+      Push $0
+    FunctionEnd
+
+    Function ${_MOZFUNC_UN}CreateUpdateDiff
+      ${${_MOZFUNC_UN}TrimNewLines} "$9" "$9"
+      StrCmp $9 "" +2 0
+      FileWrite $R1 "$9$\r$\n"
+
+      Push 0
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro UpdateUninstallLogCall
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Call UpdateUninstallLog
+  !verbose pop
+!macroend
+
+!macro un.UpdateUninstallLogCall
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Call un.UpdateUninstallLog
+  !verbose pop
+!macroend
+
+!macro un.UpdateUninstallLog
+  !ifndef un.UpdateUninstallLog
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN "un."
+
+    !insertmacro UpdateUninstallLog
+
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN
+    !verbose pop
+  !endif
+!macroend
+
+/**
+ * Returns the long path for an existing file or directory. GetLongPathNameA
+ * may not be available on Win95 if Microsoft Layer for Unicode is not
+ * installed and GetFullPathName only returns a long path for the last file or
+ * directory that doesn't end with a \ in the path that it is passed. If the
+ * path does not exist on the file system this will return an empty string. To
+ * provide a consistent result trailing back-slashes are always removed.
+ *
+ * Note: 1024 used by GetLongPathNameA is the maximum NSIS string length.
+ *
+ * @param   _IN_PATH
+ *          The string containing the path.
+ * @param   _OUT_PATH
+ *          The register to store the long path.
+ *
+ * $R4 = counter value when the previous \ was found
+ * $R5 = directory or file name found during loop
+ * $R6 = return value from GetLongPathNameA and loop counter
+ * $R7 = long path from GetLongPathNameA and single char from path for comparison
+ * $R8 = _IN_PATH
+ * $R9 = _OUT_PATH
+ */
+!macro GetLongPath
+
+  !ifndef ${_MOZFUNC_UN}GetLongPath
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define ${_MOZFUNC_UN}GetLongPath "!insertmacro ${_MOZFUNC_UN}GetLongPathCall"
+
+    Function ${_MOZFUNC_UN}GetLongPath
+      Exch $R9
+      Exch 1
+      Exch $R8
+      Push $R7
+      Push $R6
+      Push $R5
+      Push $R4
+
+      ClearErrors
+
+      StrCpy $R9 ""
+      GetFullPathName $R8 "$R8"
+      IfErrors end_GetLongPath +1 ; If the path doesn't exist return an empty string.
+
+      ; Remove trailing \'s from the path.
+      StrCpy $R6 "$R8" "" -1
+      StrCmp $R6 "\" +1 +2
+      StrCpy $R9 "$R8" -1
+
+      System::Call 'kernel32::GetLongPathNameA(t r18, t .r17, i 1024)i .r16'
+      StrCmp "$R7" "" +4 +1 ; Empty string when GetLongPathNameA is not present.
+      StrCmp $R6 0 +3 +1    ; Should never equal 0 since the path exists.
+      StrCpy $R9 "$R7"
+      GoTo end_GetLongPath
+
+      ; Do it the hard way.
+      StrCpy $R4 0     ; Stores the position in the string of the last \ found.
+      StrCpy $R6 -1    ; Set the counter to -1 so it will start at 0.
+
+      loop_GetLongPath:
+      IntOp $R6 $R6 + 1      ; Increment the counter.
+      StrCpy $R7 $R8 1 $R6   ; Starting from the counter copy the next char.
+      StrCmp $R7 "" +2       ; Are there no more chars?
+      StrCmp $R7 "\" +1 -3   ; Is it a \?
+
+      ; Copy chars starting from the previously found \ to the counter.
+      StrCpy $R5 $R8 $R6 $R4
+
+      ; If this is the first \ found we want to swap R9 with R5 so a \ will
+      ; be appended to the drive letter and colon (e.g. C: will become C:\).
+      StrCmp $R4 0 +1 +3     
+      StrCpy $R9 $R5
+      StrCpy $R5 ""
+
+      GetFullPathName $R9 "$R9\$R5"
+
+      StrCmp $R7 "" end_GetLongPath ; Are there no more chars?
+
+      ; Store the counter for the current \ and prefix it for StrCpy operations.
+      StrCpy $R4 "+$R6"
+      IntOp $R6 $R6 + 1      ; Increment the counter so we skip over the \.
+      StrCpy $R8 $R8 "" $R6  ; Copy chars starting from the counter to the end.
+      StrCpy $R6 -1          ; Reset the counter to -1 so it will start over at 0.
+      GoTo loop_GetLongPath
+
+      end_GetLongPath:
+      ClearErrors
+
+      Pop $R4
+      Pop $R5
+      Pop $R6
+      Pop $R7
+      Exch $R8
+      Exch 1
+      Exch $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro GetLongPathCall _IN_PATH _OUT_PATH
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_IN_PATH}"
+  Push "${_OUT_PATH}"
+  Call GetLongPath
+  Pop ${_OUT_PATH}
+  !verbose pop
+!macroend
+
+!macro un.GetLongPathCall _IN_PATH _OUT_PATH
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_IN_PATH}"
+  Push "${_OUT_PATH}"
+  Call un.GetLongPath
+  Pop ${_OUT_PATH}
+  !verbose pop
+!macroend
+
+!macro un.GetLongPath
+  !ifndef un.GetLongPath
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN "un."
+
+    !insertmacro GetLongPath
 
     !undef _MOZFUNC_UN
     !define _MOZFUNC_UN

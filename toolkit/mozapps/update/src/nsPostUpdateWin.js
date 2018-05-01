@@ -46,8 +46,7 @@ const URI_BRAND_PROPERTIES     = "chrome://branding/locale/brand.properties";
 
 const KEY_APPDIR          = "XCurProcD";
 const KEY_TMPDIR          = "TmpD";
-const KEY_LOCALDATA       = "DefProfLRt";
-const KEY_PROGRAMFILES    = "ProgF";
+const KEY_UPDROOT         = "UpdRootD";
 const KEY_UAPPDATA        = "UAppData";
 
 // see prio.h
@@ -187,29 +186,15 @@ InstallLogWriter.prototype = {
 
     // See the local appdata first if app dir is under Program Files.
     var file = null;
-    var updRoot = getFile(KEY_APPDIR); 
-    var fileLocator = Components.classes["@mozilla.org/file/directory_service;1"]
-                                .getService(Components.interfaces.nsIProperties);
-    // Fallback to previous behavior since getting ProgF
-    // (e.g. KEY_PROGRAMFILES) may fail on Win9x.
     try {
-      var programFilesDir = fileLocator.get(KEY_PROGRAMFILES,
-          Components.interfaces.nsILocalFile);
-      if (programFilesDir.contains(updRoot, true)) {
-        var relativePath = updRoot.QueryInterface(Components.interfaces.nsILocalFile).
-            getRelativeDescriptor(programFilesDir);
-        var userLocalDir = fileLocator.get(KEY_LOCALDATA,
-            Components.interfaces.nsILocalFile).parent;
-        updRoot.setRelativeDescriptor(userLocalDir, relativePath);
-        file = appendUpdateLogPath(updRoot);
+      file = appendUpdateLogPath(getFile(KEY_UPDROOT));
 
-        // When updating from Fx 2.0.0.1 to 2.0.0.3 (or later) on Vista,
-        // we will have to see also user app data (see bug 351949).
-        if (!file)
-          file = appendUpdateLogPath(getFile(KEY_UAPPDATA));
-      }
+      // When updating from Fx 2.0.0.1 to 2.0.0.3 (or later) on Vista,
+      // we will have to see also user app data (see bug 351949).
+      if (!file)
+        file = appendUpdateLogPath(getFile(KEY_UAPPDATA));
+    } catch (e) {
     }
-    catch (e) {}
 
     // See the app dir if not found or app dir is out of Program Files.
     if (!file)
@@ -540,12 +525,15 @@ function haveOldInstall(key, brandFullName, version) {
 
 function checkRegistry()
 {
-  // XXX todo
-  // this is firefox specific
-  // figure out what to do about tbird and sunbird, etc   
   LOG("checkRegistry");
 
   var result = false;
+  
+  // Firefox is the only toolkit app that needs to do this. 
+  // return false for other applications.
+  var app = Components.classes["@mozilla.org/xre/app-info;1"].
+            getService(Components.interfaces.nsIXULAppInfo);
+  if (app.name == "Firefox") {          
   try {
     var key = new RegKey();
     key.open(RegKey.prototype.ROOT_KEY_CLASSES_ROOT, "FirefoxHTML\\shell\\open\\command", key.ACCESS_READ);
@@ -557,6 +545,7 @@ function checkRegistry()
     LOG("failed to open command key for FirefoxHTML: " + e);
   }
   key.close();
+  }
   return result;
 }
 
@@ -605,6 +594,16 @@ nsPostUpdateWin.prototype = {
   },
 
   run: function() {
+    // When uninstall/uninstall.update exists the uninstaller has already
+    // updated the uninstall.log with the files added by software update.
+    var updateUninstallFile = getFile(KEY_APPDIR); 
+    updateUninstallFile.append("uninstall");
+    updateUninstallFile.append("uninstall.update");
+    if (updateUninstallFile.exists()) {
+      LOG("nothing to do, uninstall.log has already been updated"); 
+      return;
+    }
+
     try {
       installLogWriter = new InstallLogWriter();
       try {

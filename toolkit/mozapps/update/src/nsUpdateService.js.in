@@ -67,8 +67,7 @@ const URI_UPDATE_NS             = "http://www.mozilla.org/2005/app-update";
 
 const KEY_APPDIR          = "XCurProcD";
 #ifdef XP_WIN
-const KEY_LOCALDATA       = "DefProfLRt";
-const KEY_PROGRAMFILES    = "ProgF";
+const KEY_UPDROOT         = "UpdRootD";
 const KEY_UAPPDATA        = "UAppData";
 #endif
 
@@ -238,22 +237,13 @@ function getUpdateDir(pathArray) {
 function getDirInternal(key, pathArray, shouldCreate, update) {
   var fileLocator = Components.classes["@mozilla.org/file/directory_service;1"]
                               .getService(Components.interfaces.nsIProperties);
-  var dir = fileLocator.get(key, Components.interfaces.nsILocalFile);
+  var dir = fileLocator.get(key, Components.interfaces.nsIFile);
 #ifdef XP_WIN
   if (update) {
-    // Fallback to previous behavior since getting ProgF
-    // (e.g. KEY_PROGRAMFILES) may fail on Win9x.
     try {
-      var programFilesDir = fileLocator.get(KEY_PROGRAMFILES,
-          Components.interfaces.nsILocalFile);
-      if (programFilesDir.contains(dir, true)) {
-        var relativePath = dir.getRelativeDescriptor(programFilesDir);
-        var userLocalDir = fileLocator.get(KEY_LOCALDATA,
-            Components.interfaces.nsILocalFile).parent;
-        dir.setRelativeDescriptor(userLocalDir, relativePath);
-      }
+      dir = fileLocator.get(KEY_UPDROOT, Components.interfaces.nsIFile);
+    } catch (e) {
     }
-    catch (e) {}
   }
 #endif
   for (var i = 0; i < pathArray.length; ++i) {
@@ -283,7 +273,7 @@ function getFile(key, pathArray) {
 }
 
 /**
- * Gets the file at the speciifed hierarchy under the update root directory.
+ * Gets the file at the specified hierarchy under the update root directory.
  * @param   pathArray
  *          An array of path components to locate beneath the directory 
  *          specified by |key|. The last item in this array must be the
@@ -358,23 +348,14 @@ function getUpdatesDir(key) {
       getService(Components.interfaces.nsIProperties);
   var appDir;
   if (key)
-    appDir = fileLocator.get(key, Components.interfaces.nsILocalFile);
+    appDir = fileLocator.get(key, Components.interfaces.nsIFile);
   else {
-    appDir = fileLocator.get(KEY_APPDIR, Components.interfaces.nsILocalFile);
+    appDir = fileLocator.get(KEY_APPDIR, Components.interfaces.nsIFile);
 #ifdef XP_WIN
-    // Fallback to previous behavior since getting ProgF
-    // (e.g. KEY_PROGRAMFILES) may fail on Win9x.
     try {
-      var programFilesDir = fileLocator.get(KEY_PROGRAMFILES,
-          Components.interfaces.nsILocalFile);
-      if (programFilesDir.contains(appDir, true)) {
-        var relativePath = appDir.getRelativeDescriptor(programFilesDir);
-        var userLocalDir = fileLocator.get(KEY_LOCALDATA,
-            Components.interfaces.nsILocalFile).parent;
-        appDir.setRelativeDescriptor(userLocalDir, relativePath);
-      }
+      appDir = fileLocator.get(KEY_UPDROOT, Components.interfaces.nsIFile);
+    } catch (e) {
     }
-    catch (e) {}
 #endif
   }
   appDir.append(DIR_UPDATES);
@@ -512,8 +493,11 @@ function getPref(func, preference, defaultValue) {
  */
 function getLocale() {
   try {
-    return gPref.getComplexValue(PREF_GENERAL_USERAGENT_LOCALE,
-                                 nsIPrefLocalizedString).data;
+      // Get the default branch
+      var prefs = Components.classes["@mozilla.org/preferences-service;1"]
+          .getService(Components.interfaces.nsIPrefService);
+      var defaultPrefs = prefs.getDefaultBranch(null);
+      return defaultPrefs.getCharPref(PREF_GENERAL_USERAGENT_LOCALE);
   } catch (e) {}
 
   return gPref.getCharPref(PREF_GENERAL_USERAGENT_LOCALE);
@@ -1018,16 +1002,25 @@ function UpdateService() {
     LOG("UpdateService", "XPCOM ABI unknown: updates are not possible.");
   }
 
-  try {
-    var sysInfo = 
-      Components.classes["@mozilla.org/system-info;1"]
-                .getService(Components.interfaces.nsIPropertyBag2);
+  var osVersion;
+  var sysInfo = Components.classes["@mozilla.org/system-info;1"]
+                          .getService(Components.interfaces.nsIPropertyBag2);
 
-    gOSVersion = encodeURIComponent(sysInfo.getProperty("name") + " " +  
-                                    sysInfo.getProperty("version"));
+  try {
+    osVersion = sysInfo.getProperty("name") + " " + sysInfo.getProperty("version");
   }
   catch (e) {
     LOG("UpdateService", "OS Version unknown: updates are not possible.");
+  }
+
+  if (osVersion) {
+    try {
+      osVersion += " (" + sysInfo.getProperty("secondaryLibrary") + ")";
+    }
+    catch (e) {
+      // Not all platforms have a secondary widget library, so an error is nothing to worry about.
+    }
+    gOSVersion = encodeURIComponent(osVersion);
   }
 
 #ifdef XP_MACOSX
@@ -1199,12 +1192,10 @@ UpdateService.prototype = {
 
         LOG("UpdateService", "_postUpdateProcessing: Install Succeeded, Showing UI");
         prompter.showUpdateInstalled(update);
-
-#ifdef MOZ_PHOENIX
-        // for now, this is firefox only.  
+#ifdef MOZ_SUNBIRD
         // we need to fix both nsPostUpdateWin.js and 
-        // the uninstaller to work for thunderbird and sunbird
-        //
+        // the uninstaller to work for sunbird
+#else
         // Perform platform-specific post-update processing.
         if (POST_UPDATE_CONTRACTID in Components.classes) {
           Components.classes[POST_UPDATE_CONTRACTID].
@@ -1519,6 +1510,7 @@ UpdateService.prototype = {
   get canUpdate() {
     try {
       var appDirFile = getUpdateFile([FILE_PERMS_TEST]);
+      LOG("UpdateService", "canUpdate?  testing " + appDirFile.path);
       if (!appDirFile.exists()) {
         appDirFile.create(nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
         appDirFile.remove(false);
@@ -1526,12 +1518,45 @@ UpdateService.prototype = {
       var updateDir = getUpdatesDir();
       var upDirFile = updateDir.clone();
       upDirFile.append(FILE_PERMS_TEST);
+      LOG("UpdateService", "canUpdate?  testing " + upDirFile.path);
       if (!upDirFile.exists()) {
         upDirFile.create(nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
         upDirFile.remove(false);
       }
+#ifdef XP_WIN
+      var sysInfo = 
+        Components.classes["@mozilla.org/system-info;1"]
+                  .getService(Components.interfaces.nsIPropertyBag2);
+  
+      // On Windows, we no longer store the update under the app dir
+      // if the app dir is under C:\Program Files. 
+      //
+      // If we are on Windows, but not Vista, we need to check that
+      // we can create and remove files from the actual app directory
+      // (like C:\Program Files\Mozilla Firefox).  If we can't,
+      // because this user is not an adminstrator, for example
+      // canUpdate() should return false (like it used to).
+      // 
+      // For Vista, don't perform this check because non-admin users
+      // can update firefox (by granting the updater access via the 
+      // UAC prompt)
+      var windowsVersion = sysInfo.getProperty("version");
+      LOG("UpdateService", "canUpdate?  version = " + windowsVersion);
+      // Example windowsVersion:  Windows XP == 5.1
+      if (parseFloat(windowsVersion) < 6) {
+        var actualAppDir = getDir(KEY_APPDIR, []);
+        var actualAppDirFile = actualAppDir.clone();
+        actualAppDirFile.append(FILE_PERMS_TEST);
+        LOG("UpdateService", "canUpdate?  testing " + actualAppDirFile.path);
+        if (!actualAppDirFile.exists()) {
+          actualAppDirFile.create(nsILocalFile.NORMAL_FILE_TYPE, PERMS_FILE);
+          actualAppDirFile.remove(false);
+        }
+      }
+#endif
     }
     catch (e) {
+       LOG("UpdateService", "can't update, no privileges: " + e);
       // No write privileges to install directory
       return false;
     }
@@ -1539,17 +1564,24 @@ UpdateService.prototype = {
     // OFF - this is not just a user setting, so disable the manual
     // UI too.
     var enabled = getPref("getBoolPref", PREF_APP_UPDATE_ENABLED, true);
-    if (!enabled && gPref.prefIsLocked(PREF_APP_UPDATE_ENABLED))
+    if (!enabled && gPref.prefIsLocked(PREF_APP_UPDATE_ENABLED)) {
+      LOG("UpdateService", "can't update, disabled by pref");
       return false;
+    }
 
     // If we don't know the binary platform we're updating, we can't update.
-    if (!gABI)
+    if (!gABI) {
+      LOG("UpdateService", "can't update, unknown ABI");
       return false;
+    }
 
     // If we don't know the OS version we're updating, we can't update.
-    if (!gOSVersion)
+    if (!gOSVersion) {
+      LOG("UpdateService", "can't update, unknown OS version");
       return false;
+    }
 
+    LOG("UpdateService", "can update");
     return true;
   },
   
@@ -1860,7 +1892,9 @@ Checker.prototype = {
    * The URL of the update service XML file to connect to that contains details
    * about available updates.
    */
-  get updateURL() {
+  getUpdateURL: function(force) {
+    this._forced = force;
+
     var defaults =
         gPref.QueryInterface(Components.interfaces.nsIPrefService).
         getDefaultBranch(null);
@@ -1890,6 +1924,9 @@ Checker.prototype = {
     url = url.replace(/%CHANNEL%/g, getUpdateChannel());
     url = url.replace(/\+/g, "%2B");
 
+    if (force)
+	url += "?force=1"
+
     LOG("Checker", "update url: " + url);
     return url;
   },
@@ -1901,13 +1938,13 @@ Checker.prototype = {
     if (!listener)
       throw Components.results.NS_ERROR_NULL_POINTER;
     
-    if (!this.updateURL || (!this.enabled && !force))
+    if (!this.getUpdateURL(force) || (!this.enabled && !force))
       return;
       
     this._request = 
       Components.classes["@mozilla.org/xmlextras/xmlhttprequest;1"].
       createInstance(Components.interfaces.nsIXMLHttpRequest);
-    this._request.open("GET", this.updateURL, true);
+    this._request.open("GET", this.getUpdateURL(force), true);
     this._request.channel.notificationCallbacks = new BadCertHandler();
     this._request.overrideMimeType("text/xml");
     this._request.setRequestHeader("Cache-Control", "no-cache");
@@ -1917,7 +1954,7 @@ Checker.prototype = {
     this._request.onload      = function(event) { self.onLoad(event);     };
     this._request.onprogress  = function(event) { self.onProgress(event); };
 
-    LOG("Checker", "checkForUpdates: sending request to " + this.updateURL);
+    LOG("Checker", "checkForUpdates: sending request to " + this.getUpdateURL(force));
     this._request.send(null);
     
     this._callback = listener;
@@ -1962,7 +1999,7 @@ Checker.prototype = {
         LOG("Checker", "Invalid <update/>, ignoring...");
         continue;
       }
-      update.serviceURL = this.updateURL;
+      update.serviceURL = this.getUpdateURL(this._forced);
       update.channel = getUpdateChannel();
       updates.push(update);
     }

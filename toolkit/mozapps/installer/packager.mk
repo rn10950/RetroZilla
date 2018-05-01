@@ -48,12 +48,14 @@ ifndef MOZ_PKG_FORMAT
 ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
 MOZ_PKG_FORMAT  = DMG
 else
-ifeq (,$(filter-out OS2 WINNT, $(OS_ARCH)))
+ifeq (,$(filter-out OS2 WINNT BeOS, $(OS_ARCH)))
 MOZ_PKG_FORMAT  = ZIP
 ifeq ($(OS_ARCH),OS2)
 INSTALLER_DIR   = os2
 else
+ifeq ($(OS_ARCH), WINNT)
 INSTALLER_DIR   = windows
+endif
 endif
 else
 ifeq (,$(filter-out SunOS, $(OS_ARCH)))
@@ -125,8 +127,11 @@ _ABS_TOPSRCDIR = $(shell cd $(topsrcdir) && pwd)
 ifdef UNIVERSAL_BINARY
 STAGEPATH = universal/
 endif
+ifndef PKG_DMG_SOURCE
+PKG_DMG_SOURCE = $(STAGEPATH)$(MOZ_PKG_APPNAME)
+endif
 MAKE_PACKAGE	= $(_ABS_TOPSRCDIR)/build/package/mac_osx/pkg-dmg \
-  --source "$(STAGEPATH)$(MOZ_PKG_APPNAME)" --target "$(PACKAGE)" \
+  --source "$(PKG_DMG_SOURCE)" --target "$(PACKAGE)" \
   --volname "$(MOZ_APP_DISPLAYNAME)" $(PKG_DMG_FLAGS)
 UNMAKE_PACKAGE	= \
   set -ex; \

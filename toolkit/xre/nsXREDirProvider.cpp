@@ -68,6 +68,9 @@
 #ifndef CSIDL_LOCAL_APPDATA
 #define CSIDL_LOCAL_APPDATA             0x001C
 #endif
+#ifndef CSIDL_PROGRAM_FILES
+#define CSIDL_PROGRAM_FILES             0x0026
+#endif
 #endif
 #ifdef XP_MACOSX
 #include "nsILocalFileMac.h"
@@ -134,13 +137,6 @@ nsXREDirProvider::SetProfile(nsIFile* aDir, nsIFile* aLocalDir)
 {
   NS_ASSERTION(aDir && aLocalDir, "We don't support no-profile apps yet!");
 
-#ifdef DEBUG_bsmedberg
-  nsCAutoString path, path2;
-  aDir->GetNativePath(path);
-  aLocalDir->GetNativePath(path2);
-  printf("nsXREDirProvider::SetProfile('%s', '%s')\n", path.get(), path2.get());
-#endif
-
   nsresult rv;
   
   rv = EnsureDirectoryExists(aDir);
@@ -205,6 +201,11 @@ nsXREDirProvider::GetFile(const char* aProperty, PRBool* aPersistent,
            !strcmp(aProperty, XRE_USER_APP_DATA_DIR)) {
     rv = GetUserAppDataDirectory((nsILocalFile**)(nsIFile**) getter_AddRefs(file));
   }
+#ifdef XP_WIN
+  else if (!strcmp(aProperty, XRE_UPDATE_ROOT_DIR)) {
+    rv = GetUpdateRootDir(getter_AddRefs(file));
+  }
+#endif
   else if (!strcmp(aProperty, NS_APP_APPLICATION_REGISTRY_FILE)) {
     rv = GetUserAppDataDirectory((nsILocalFile**)(nsIFile**) getter_AddRefs(file));
     rv |= file->AppendNative(NS_LITERAL_CSTRING(APP_REGISTRY_NAME));
@@ -724,6 +725,65 @@ GetShellFolderPath(int folder, char result[MAXPATHLEN])
     pMalloc->Free(pItemIDList);
   pMalloc->Release();
   return rv;
+}
+
+nsresult
+nsXREDirProvider::GetUpdateRootDir(nsIFile* *aResult)
+{
+  nsCOMPtr<nsIFile> appDir = GetAppDir();
+  nsCAutoString appPath;
+  nsresult rv = appDir->GetNativePath(appPath);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  // AppDir may be a short path. Convert to long path to make sure
+  // the consistency of the update folder location
+  nsCString longPath;
+  longPath.SetLength(MAXPATHLEN);
+  char *buf = longPath.BeginWriting();
+
+  DWORD (WINAPI *pGetLongPathName)(LPCTSTR, LPTSTR, DWORD);
+  // GetLongPathName() is not present on WinNT 4.0
+  *(FARPROC *)&pGetLongPathName =
+   GetProcAddress(GetModuleHandle("kernel32.dll"), "GetLongPathNameA");
+ 
+  if (pGetLongPathName) {
+    DWORD len = pGetLongPathName(appPath.get(), buf, MAXPATHLEN);
+    // Failing GetLongPathName() is not fatal.
+    if (len <= 0 || len >= MAXPATHLEN)
+      longPath.Assign(appPath);
+    else
+      longPath.SetLength(len);
+  }
+  else {
+    longPath.Assign(appPath);
+  }
+
+  // Use <UserLocalDataDir>\updates\<relative path to app dir from
+  // Program Files> if app dir is under Program Files to avoid the
+  // folder virtualization mess on Windows Vista
+  char programFiles[MAXPATHLEN];
+  rv = GetShellFolderPath(CSIDL_PROGRAM_FILES, programFiles);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  PRUint32 programFilesLen = strlen(programFiles);
+  programFiles[programFilesLen++] = '\\';
+  programFiles[programFilesLen] = '\0';
+
+  if (longPath.Length() < programFilesLen)
+    return NS_ERROR_FAILURE;
+
+  if (_strnicmp(programFiles, longPath.get(), programFilesLen) != 0)
+    return NS_ERROR_FAILURE;
+
+  nsCOMPtr<nsILocalFile> updRoot;
+  rv = GetUserLocalDataDirectory(getter_AddRefs(updRoot));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = updRoot->AppendRelativeNativePath(Substring(longPath, programFilesLen));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  NS_ADDREF(*aResult = updRoot);
+  return NS_OK;
 }
 #endif
 

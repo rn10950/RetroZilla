@@ -87,10 +87,13 @@ RequestBackoff.prototype.canMakeRequest = function() {
 }
 
 /**
- * Notify this object of the last server response.  If it's an error,
+ * Notify this object of the last server response.  If it's an error, we
+ * check to see if we should trigger a backoff.
+ * @return Boolean true if this counts as an error.
  */
 RequestBackoff.prototype.noteServerResponse = function(status) {
-  if (this.isErrorStatus_(status)) {
+  var isError = this.isErrorStatus_(status);
+  if (isError) {
     var now = Date.now();
     this.errorTimes_.push(now);
 
@@ -117,6 +120,7 @@ RequestBackoff.prototype.noteServerResponse = function(status) {
     this.nextRequestTime_ = 0;
     this.backoffTriggered_ = false;
   }
+  return isError;
 }
 
 /**

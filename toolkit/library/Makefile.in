@@ -139,8 +139,11 @@ COMPONENT_LIBS += \
 	jsd \
 	$(NULL)
 
-ifdef MOZ_PLACES
+ifdef MOZ_STORAGE
 COMPONENT_LIBS += storagecomps
+endif
+
+ifdef MOZ_PLACES
 STATIC_LIBS += morkreader_s
 else
 COMPONENT_LIBS += \
@@ -348,6 +351,9 @@ endif
 
 ifneq (,$(filter gtk gtk2 qt xlib,$(MOZ_WIDGET_TOOLKIT)))
 EXTRA_DSO_LDOPTS += $(XLDFLAGS) $(XLIBS) $(MOZ_GTK_LDFLAGS) $(MOZ_XFT_LIBS) $(MOZ_GTK2_LIBS) $(XT_LIBS)
+ifeq (gtk2,$(MOZ_WIDGET_TOOLKIT))
+EXTRA_DSO_LDOPTS += -lgthread-2.0
+endif
 endif
 
 ifdef MOZ_ENABLE_XPRINT
@@ -363,7 +369,7 @@ EXTRA_DSO_LDOPTS += -lbe
 endif
 
 ifeq ($(OS_ARCH),WINNT)
-EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME,shell32 ole32 uuid version winspool Comdlg32)
+EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME,shell32 ole32 uuid version winspool comdlg32)
 ifneq (,$(MOZ_DEBUG)$(NS_TRACE_MALLOC))
 EXTRA_DSO_LDOPTS += $(call EXPAND_LIBNAME,imagehlp)
 endif
