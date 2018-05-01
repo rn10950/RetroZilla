@@ -41,7 +41,7 @@
 # Build a mozilla application.
 #
 # To checkout and build a tree,
-#    1. cvs co mozilla/client.mk
+#    1. cvs co RetroZilla/client.mk
 #    2. cd mozilla
 #    3. create your .mozconfig file with
 #       mk_add_options MOZ_CO_PROJECT=suite,browser,mail,minimo,xulrunner
@@ -67,9 +67,9 @@
 #     macbrowser (aka Camino)
 #
 # Other common MOZ_CO_MODULE options include the following:
-#   mozilla/other-licenses/libart_lgpl
-#   mozilla/other-licenses/bsdiff
-#   mozilla/tools/codesighs
+#   RetroZilla/other-licenses/libart_lgpl
+#   RetroZilla/other-licenses/bsdiff
+#   RetroZilla/tools/codesighs
 #
 # Other targets (gmake -f client.mk [targets...]),
 #    checkout
@@ -116,20 +116,20 @@ AVAILABLE_PROJECTS = \
 
 MODULES_core :=                                 \
   SeaMonkeyAll                                  \
-  mozilla/browser/config/version.txt            \
-  mozilla/mail/config/version.txt               \
-  mozilla/calendar/sunbird/config/version.txt   \
-  mozilla/ipc/ipcd                              \
-  mozilla/modules/libpr0n                       \
-  mozilla/modules/libmar                        \
-  mozilla/modules/libbz2                        \
-  mozilla/accessible                            \
-  mozilla/security/manager                      \
-  mozilla/toolkit                               \
-  mozilla/storage                               \
-  mozilla/db/sqlite3                            \
-  mozilla/db/morkreader                         \
-  mozilla/tools/test-harness                    \
+  RetroZilla/browser/config/version.txt            \
+  RetroZilla/mail/config/version.txt               \
+  RetroZilla/calendar/sunbird/config/version.txt   \
+  RetroZilla/ipc/ipcd                              \
+  RetroZilla/modules/libpr0n                       \
+  RetroZilla/modules/libmar                        \
+  RetroZilla/modules/libbz2                        \
+  RetroZilla/accessible                            \
+  RetroZilla/security/manager                      \
+  RetroZilla/toolkit                               \
+  RetroZilla/storage                               \
+  RetroZilla/db/sqlite3                            \
+  RetroZilla/db/morkreader                         \
+  RetroZilla/tools/test-harness                    \
   $(NULL)
 
 LOCALES_core :=                                 \
@@ -139,7 +139,7 @@ LOCALES_core :=                                 \
 
 MODULES_toolkit :=                              \
   $(MODULES_core)                               \
-  mozilla/chrome                                \
+  RetroZilla/chrome                                \
   $(NULL)
 
 LOCALES_toolkit :=                              \
@@ -150,7 +150,7 @@ LOCALES_toolkit :=                              \
 
 MODULES_suite :=                                \
   $(MODULES_core)                               \
-  mozilla/suite                                 \
+  RetroZilla/suite                                 \
   $(NULL)
 
 LOCALES_suite :=                                \
@@ -159,9 +159,9 @@ LOCALES_suite :=                                \
 
 MODULES_browser :=                              \
   $(MODULES_toolkit)                            \
-  mozilla/browser                               \
-  mozilla/other-licenses/branding/firefox       \
-  mozilla/other-licenses/7zstub/firefox         \
+  RetroZilla/browser                               \
+  RetroZilla/other-licenses/branding/firefox       \
+  RetroZilla/other-licenses/7zstub/firefox         \
   $(NULL)
 
 LOCALES_browser :=                              \
@@ -172,11 +172,11 @@ LOCALES_browser :=                              \
   other-licenses/branding/firefox               \
   $(NULL)
 
-BOOTSTRAP_browser := mozilla/browser/config/mozconfig
+BOOTSTRAP_browser := RetroZilla/browser/config/mozconfig
 
 MODULES_minimo :=                               \
   $(MODULES_toolkit)                            \
-  mozilla/minimo                                \
+  RetroZilla/minimo                                \
   $(NULL)
 
 LOCALES_minimo :=                               \
@@ -186,9 +186,9 @@ LOCALES_minimo :=                               \
 
 MODULES_mail :=                                 \
   $(MODULES_toolkit)                            \
-  mozilla/mail                                  \
-  mozilla/other-licenses/branding/thunderbird   \
-  mozilla/other-licenses/7zstub/thunderbird     \
+  RetroZilla/mail                                  \
+  RetroZilla/other-licenses/branding/thunderbird   \
+  RetroZilla/other-licenses/7zstub/thunderbird     \
   $(NULL)
 
 LOCALES_mail :=                                 \
@@ -199,20 +199,20 @@ LOCALES_mail :=                                 \
   extensions/spellcheck                         \
   $(NULL)
 
-BOOTSTRAP_mail := mozilla/mail/config/mozconfig
+BOOTSTRAP_mail := RetroZilla/mail/config/mozconfig
 
 MODULES_composer :=                             \
   $(MODULES_toolkit)                            \
-  mozilla/composer                              \
+  RetroZilla/composer                              \
   $(NULL)
 
 MODULES_calendar :=                             \
   $(MODULES_toolkit)                            \
-  mozilla/storage                               \
-  mozilla/db/sqlite3                            \
-  mozilla/calendar                              \
-  mozilla/other-licenses/branding/sunbird       \
-  mozilla/other-licenses/7zstub/sunbird         \
+  RetroZilla/storage                               \
+  RetroZilla/db/sqlite3                            \
+  RetroZilla/calendar                              \
+  RetroZilla/other-licenses/branding/sunbird       \
+  RetroZilla/other-licenses/7zstub/sunbird         \
   $(NULL)
 
 LOCALES_calendar :=                             \
@@ -221,35 +221,35 @@ LOCALES_calendar :=                             \
   other-licenses/branding/sunbird               \
   $(NULL)
 
-BOOTSTRAP_calendar := mozilla/calendar/sunbird/config/mozconfig
+BOOTSTRAP_calendar := RetroZilla/calendar/sunbird/config/mozconfig
 
 MODULES_xulrunner :=                            \
   $(MODULES_toolkit)                            \
-  mozilla/xulrunner                             \
+  RetroZilla/xulrunner                             \
   $(NULL)
 
 LOCALES_xulrunner :=                            \
   $(LOCALES_toolkit)                            \
   $(NULL)
 
-BOOTSTRAP_xulrunner := mozilla/xulrunner/config/mozconfig
+BOOTSTRAP_xulrunner := RetroZilla/xulrunner/config/mozconfig
 
 MODULES_macbrowser :=                           \
   $(MODULES_core)                               \
-  mozilla/camino                                \
+  RetroZilla/camino                                \
   $(NULL)
 
-BOOTSTRAP_macbrowser := mozilla/camino/config/mozconfig
+BOOTSTRAP_macbrowser := RetroZilla/camino/config/mozconfig
 
 MODULES_all :=                                  \
-  mozilla/other-licenses/bsdiff                 \
-  mozilla/other-licenses/libart_lgpl            \
-  mozilla/tools/trace-malloc                    \
-  mozilla/tools/jprof                           \
-  mozilla/tools/codesighs                       \
-  mozilla/tools/update-packaging                \
-  mozilla/other-licenses/branding               \
-  mozilla/other-licenses/7zstub                 \
+  RetroZilla/other-licenses/bsdiff                 \
+  RetroZilla/other-licenses/libart_lgpl            \
+  RetroZilla/tools/trace-malloc                    \
+  RetroZilla/tools/jprof                           \
+  RetroZilla/tools/codesighs                       \
+  RetroZilla/tools/update-packaging                \
+  RetroZilla/other-licenses/branding               \
+  RetroZilla/other-licenses/7zstub                 \
   $(NULL)
 
 #######################################################################
@@ -282,7 +282,7 @@ ifneq (, $(wildcard client.mk))
 ROOTDIR   := $(shell dirname $(CWD))
 TOPSRCDIR := $(CWD)
 else
-# Ran from mozilla/.. directory (?)
+# Ran from RetroZilla/.. directory (?)
 ROOTDIR   := $(CWD)
 TOPSRCDIR := $(CWD)/mozilla
 endif
@@ -345,16 +345,16 @@ LOCALES_CVSROOT ?= :pserver:anonymous@cvs-mirror.mozilla.org:/l10n
 
 # See build pages, http://www.mozilla.org/build/ for how to set up mozconfig.
 
-MOZCONFIG_LOADER := mozilla/build/autoconf/mozconfig2client-mk
-MOZCONFIG_FINDER := mozilla/build/autoconf/mozconfig-find 
-MOZCONFIG_MODULES := mozilla/build/unix/modules.mk mozilla/build/unix/uniq.pl
+MOZCONFIG_LOADER := RetroZilla/build/autoconf/mozconfig2client-mk
+MOZCONFIG_FINDER := RetroZilla/build/autoconf/mozconfig-find 
+MOZCONFIG_MODULES := RetroZilla/build/unix/modules.mk RetroZilla/build/unix/uniq.pl
 run_for_side_effects := \
   $(shell cd $(ROOTDIR); \
      if test "$(_IS_FIRST_CHECKOUT)"; then \
         $(CVSCO) $(MOZCONFIG_FINDER) $(MOZCONFIG_LOADER) $(MOZCONFIG_MODULES); \
      else true; \
      fi; \
-     $(MOZCONFIG_LOADER) $(TOPSRCDIR) mozilla/.mozconfig.mk > mozilla/.mozconfig.out)
+     $(MOZCONFIG_LOADER) $(TOPSRCDIR) RetroZilla/.mozconfig.mk > RetroZilla/.mozconfig.out)
 include $(TOPSRCDIR)/.mozconfig.mk
 include $(TOPSRCDIR)/build/unix/modules.mk
 
@@ -423,8 +423,8 @@ endif # MOZ_BUILD_PROJECTS
 # CVS defines for NSS
 #
 NSS_CO_MODULE =               \
-		mozilla/security/nss      \
-		mozilla/security/coreconf \
+		RetroZilla/security/nss      \
+		RetroZilla/security/coreconf \
 		$(NULL)
 
 NSS_CO_FLAGS := -P
@@ -443,7 +443,7 @@ endif
 ####################################
 # CVS defines for NSPR
 #
-NSPR_CO_MODULE = mozilla/nsprpub
+NSPR_CO_MODULE = RetroZilla/nsprpub
 NSPR_CO_FLAGS := -P
 ifdef MOZ_CO_FLAGS
   NSPR_CO_FLAGS := $(MOZ_CO_FLAGS)
@@ -460,7 +460,7 @@ endif
 ####################################
 # CVS defines for the C LDAP SDK
 #
-LDAPCSDK_CO_MODULE = mozilla/directory/c-sdk
+LDAPCSDK_CO_MODULE = RetroZilla/directory/c-sdk
 LDAPCSDK_CO_FLAGS := -P
 ifdef MOZ_CO_FLAGS
   LDAPCSDK_CO_FLAGS := $(MOZ_CO_FLAGS)
@@ -479,8 +479,8 @@ else
   STANDALONE_CO_MODULE += allmakefiles.sh client.mk aclocal.m4 configure configure.in
   STANDALONE_CO_MODULE += Makefile.in
 
-	MOZ_MODULE_LIST += $(addprefix mozilla/,$(STANDALONE_CO_MODULE))
-  NOSUBDIRS_MODULE := $(addprefix mozilla/,$(BUILD_MODULE_CVS_NS))
+	MOZ_MODULE_LIST += $(addprefix RetroZilla/,$(STANDALONE_CO_MODULE))
+  NOSUBDIRS_MODULE := $(addprefix RetroZilla/,$(BUILD_MODULE_CVS_NS))
 
 ifeq (,$(filter $(NSPRPUB_DIR), $(BUILD_MODULE_CVS))$(MOZ_CO_PROJECT))
   CVSCO_NSPR :=
@@ -498,11 +498,11 @@ endif
 #
 
 ifdef MOZ_MAPINFO
-$(warning MOZ_MAPINFO is obsolete, use MOZ_CO_MODULE=mozilla/tools/codesighs instead.)
-MOZ_MODULE_LIST += mozilla/tools/codesighs
+$(warning MOZ_MAPINFO is obsolete, use MOZ_CO_MODULE=RetroZilla/tools/codesighs instead.)
+MOZ_MODULE_LIST += RetroZilla/tools/codesighs
 endif
 ifdef MOZ_INTERNAL_LIBART_LGPL
-$(error MOZ_INTERNAL_LIBART_LGPL is obsolete, use MOZ_CO_MODULE=mozilla/other-licenses/libart_lgpl instead.)
+$(error MOZ_INTERNAL_LIBART_LGPL is obsolete, use MOZ_CO_MODULE=RetroZilla/other-licenses/libart_lgpl instead.)
 endif
 ifdef MOZ_PHOENIX
 $(warning MOZ_PHOENIX is obsolete.)
@@ -566,9 +566,9 @@ else
 override MOZ_CO_LOCALES := $(subst $(comma), ,$(MOZ_CO_LOCALES))
 
 ifeq (all,$(MOZ_CO_LOCALES))
-MOZCONFIG_MODULES += $(foreach project,$(MOZ_PROJECT_LIST),mozilla/$(project)/locales/all-locales)
+MOZCONFIG_MODULES += $(foreach project,$(MOZ_PROJECT_LIST),RetroZilla/$(project)/locales/all-locales)
 
-LOCALE_CO_DIRS := $(sort $(foreach project,$(MOZ_PROJECT_LIST),$(foreach locale,$(shell cat mozilla/$(project)/locales/all-locales),$(foreach dir,$(LOCALES_$(project)),l10n/$(locale)/$(dir)))))
+LOCALE_CO_DIRS := $(sort $(foreach project,$(MOZ_PROJECT_LIST),$(foreach locale,$(shell cat RetroZilla/$(project)/locales/all-locales),$(foreach dir,$(LOCALES_$(project)),l10n/$(locale)/$(dir)))))
 else # MOZ_CO_LOCALES != all
 LOCALE_CO_DIRS = $(sort $(foreach locale,$(MOZ_CO_LOCALES),$(foreach dir,$(LOCALE_DIRS),l10n/$(locale)/$(dir))))
 endif
@@ -620,14 +620,14 @@ checkout::
 ifdef RUN_AUTOCONF_LOCALLY
 	@echo "Removing local configures" ; \
 	cd $(ROOTDIR) && \
-	$(RM) -f mozilla/configure mozilla/nsprpub/configure \
-		mozilla/directory/c-sdk/configure
+	$(RM) -f RetroZilla/configure RetroZilla/nsprpub/configure \
+		RetroZilla/directory/c-sdk/configure
 endif
 	@echo "checkout start: "`date` | tee $(CVSCO_LOGFILE)
-	@echo '$(CVSCO) $(CVS_CO_DATE_FLAGS) mozilla/client.mk $(MOZCONFIG_MODULES)'; \
+	@echo '$(CVSCO) $(CVS_CO_DATE_FLAGS) RetroZilla/client.mk $(MOZCONFIG_MODULES)'; \
         cd $(ROOTDIR) && \
-	$(CVSCO) $(CVS_CO_DATE_FLAGS) mozilla/client.mk $(MOZCONFIG_MODULES)
-	@cd $(ROOTDIR) && $(MAKE) -f mozilla/client.mk real_checkout
+	$(CVSCO) $(CVS_CO_DATE_FLAGS) RetroZilla/client.mk $(MOZCONFIG_MODULES)
+	@cd $(ROOTDIR) && $(MAKE) -f RetroZilla/client.mk real_checkout
 
 #	Start the checkout. Split the output to the tty and a log file.
 
@@ -643,7 +643,7 @@ real_checkout:
 	$(CHECKOUT_LOCALES);
 	@echo "checkout finish: "`date` | tee -a $(CVSCO_LOGFILE)
 # update the NSS checkout timestamp
-	@if test `egrep -c '^(U|C) mozilla/security/(nss|coreconf)' $(CVSCO_LOGFILE) 2>/dev/null` != 0; then \
+	@if test `egrep -c '^(U|C) RetroZilla/security/(nss|coreconf)' $(CVSCO_LOGFILE) 2>/dev/null` != 0; then \
 		touch $(TOPSRCDIR)/security/manager/.nss.checkout; \
 	fi
 #	@: Check the log for conflicts. ;
@@ -671,13 +671,13 @@ fast-update:
 ifdef RUN_AUTOCONF_LOCALLY
 	@echo "Removing local configures" ; \
 	cd $(ROOTDIR) && \
-	$(RM) -f mozilla/configure mozilla/nsprpub/configure \
-		mozilla/directory/c-sdk/configure
+	$(RM) -f RetroZilla/configure RetroZilla/nsprpub/configure \
+		RetroZilla/directory/c-sdk/configure
 endif
 	@echo "checkout start: "`date` | tee $(CVSCO_LOGFILE)
-	@echo '$(CVSCO) mozilla/client.mk $(MOZCONFIG_MODULES)'; \
+	@echo '$(CVSCO) RetroZilla/client.mk $(MOZCONFIG_MODULES)'; \
         cd $(ROOTDIR) && \
-	$(CVSCO) mozilla/client.mk $(MOZCONFIG_MODULES)
+	$(CVSCO) RetroZilla/client.mk $(MOZCONFIG_MODULES)
 	@cd $(TOPSRCDIR) && \
 	$(MAKE) -f client.mk real_fast-update
 
@@ -697,7 +697,7 @@ real_fast-update:
 	$(FASTUPDATE_LOCALES);
 	@echo "fast_update finish: "`date` | tee -a $(CVSCO_LOGFILE)
 # update the NSS checkout timestamp
-	@if test `egrep -c '^(U|C) mozilla/security/(nss|coreconf)' $(CVSCO_LOGFILE) 2>/dev/null` != 0; then \
+	@if test `egrep -c '^(U|C) RetroZilla/security/(nss|coreconf)' $(CVSCO_LOGFILE) 2>/dev/null` != 0; then \
 		touch $(TOPSRCDIR)/security/manager/.nss.checkout; \
 	fi
 #	@: Check the log for conflicts. ;
@@ -726,24 +726,24 @@ l10n-checkout:
 	else true; \
 	fi
 	@echo "checkout start: "`date` | tee $(CVSCO_LOGFILE_L10N)
-	@echo '$(CVSCO) $(CVS_CO_DATE_FLAGS) mozilla/client.mk $(MOZCONFIG_MODULES)'; \
+	@echo '$(CVSCO) $(CVS_CO_DATE_FLAGS) RetroZilla/client.mk $(MOZCONFIG_MODULES)'; \
         cd $(ROOTDIR) && \
-	$(CVSCO) $(CVS_CO_DATE_FLAGS) mozilla/client.mk $(MOZCONFIG_MODULES)
-	@cd $(ROOTDIR) && $(MAKE) -f mozilla/client.mk real_l10n-checkout
+	$(CVSCO) $(CVS_CO_DATE_FLAGS) RetroZilla/client.mk $(MOZCONFIG_MODULES)
+	@cd $(ROOTDIR) && $(MAKE) -f RetroZilla/client.mk real_l10n-checkout
 
-EN_US_CO_DIRS := $(sort $(foreach dir,$(LOCALE_DIRS),mozilla/$(dir)/locales)) \
-  $(foreach mod,$(MOZ_PROJECT_LIST),mozilla/$(mod)/config) \
-  mozilla/client.mk        \
+EN_US_CO_DIRS := $(sort $(foreach dir,$(LOCALE_DIRS),RetroZilla/$(dir)/locales)) \
+  $(foreach mod,$(MOZ_PROJECT_LIST),RetroZilla/$(mod)/config) \
+  RetroZilla/client.mk        \
   $(MOZCONFIG_MODULES)     \
-  mozilla/configure        \
-  mozilla/configure.in     \
-  mozilla/allmakefiles.sh  \
-  mozilla/build            \
-  mozilla/config           \
+  RetroZilla/configure        \
+  RetroZilla/configure.in     \
+  RetroZilla/allmakefiles.sh  \
+  RetroZilla/build            \
+  RetroZilla/config           \
   $(NULL)
 
 EN_US_CO_FILES_NS :=          \
-  mozilla/toolkit/mozapps/installer \
+  RetroZilla/toolkit/mozapps/installer \
   $(NULL)
 
 #	Start the checkout. Split the output to the tty and a log file.
