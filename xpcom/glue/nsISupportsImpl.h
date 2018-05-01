@@ -576,6 +576,17 @@ NS_IMETHODIMP_(nsrefcnt) Class::Release(void)                                 \
   NS_IMPL_QUERY_BODY(i6)                                                      \
   NS_IMPL_QUERY_TAIL_INHERITING(Super)                                        \
 
+#define NS_IMPL_QUERY_INTERFACE_INHERITED7(Class,Super,i1,i2,i3,i4,i5,i6,i7)  \
+  NS_IMPL_QUERY_HEAD(Class)                                                   \
+  NS_IMPL_QUERY_BODY(i1)                                                      \
+  NS_IMPL_QUERY_BODY(i2)                                                      \
+  NS_IMPL_QUERY_BODY(i3)                                                      \
+  NS_IMPL_QUERY_BODY(i4)                                                      \
+  NS_IMPL_QUERY_BODY(i5)                                                      \
+  NS_IMPL_QUERY_BODY(i6)                                                      \
+  NS_IMPL_QUERY_BODY(i7)                                                      \
+  NS_IMPL_QUERY_TAIL_INHERITING(Super)                                        \
+
 /**
  * Convenience macros for implementing all nsISupports methods for
  * a simple class.
@@ -683,6 +694,11 @@ NS_IMETHODIMP_(nsrefcnt) Class::Release(void)                                 \
     NS_IMPL_QUERY_INTERFACE_INHERITED6(Class, Super, i1, i2, i3, i4, i5, i6)  \
     NS_IMPL_ADDREF_INHERITED(Class, Super)                                    \
     NS_IMPL_RELEASE_INHERITED(Class, Super)                                   \
+
+#define NS_IMPL_ISUPPORTS_INHERITED7(Class, Super, i1, i2, i3, i4, i5, i6, i7)   \
+    NS_IMPL_QUERY_INTERFACE_INHERITED7(Class, Super, i1, i2, i3, i4, i5, i6, i7) \
+    NS_IMPL_ADDREF_INHERITED(Class, Super)                                       \
+    NS_IMPL_RELEASE_INHERITED(Class, Super)                                      \
 
 ///////////////////////////////////////////////////////////////////////////////
 /**

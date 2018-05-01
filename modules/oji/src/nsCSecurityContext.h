@@ -50,6 +50,7 @@
 #include "nsISecurityContext.h"
 #include "nsIPrincipal.h"
 #include "nsCOMPtr.h"
+#include "nsString.h"
 
 struct JSContext;
 
@@ -105,13 +106,22 @@ public:
     nsCSecurityContext(nsIPrincipal* principal);
     virtual ~nsCSecurityContext(void);
 
+    ////////////////////////////////////////////////////////////////////////////
+    // Miscellaneous
+
+    const nsCString& GetFakeOrigin() const { return mFakeOrigin; }
+    void SetFakeOrigin(nsCString& fakeOrigin) { mFakeOrigin.Assign(fakeOrigin); }
+
 protected:
     JSStackFrame *m_pJStoJavaFrame;
     JSContext    *m_pJSCX;
 private:
+    nsresult GetOriginImpl(nsXPIDLCString& origin);
+
     nsCOMPtr<nsIPrincipal> m_pPrincipal;
     PRBool        m_HasUniversalJavaCapability;
     PRBool        m_HasUniversalBrowserReadCapability;
+    nsXPIDLCString mFakeOrigin;
 };
 
 #endif // nsCSecurityContext_h___

@@ -982,12 +982,12 @@ nsEditor::BeginPlaceHolderTransaction(nsIAtom *aName)
     mPlaceHolderName = aName;
     nsCOMPtr<nsISelection> selection;
     nsresult res = GetSelection(getter_AddRefs(selection));
-    if (NS_FAILED(res)) return res;
-    mSelState = new nsSelectionState();
-    if (!mSelState)
-      return NS_ERROR_OUT_OF_MEMORY;
-
-    mSelState->SaveSelection(selection);
+    if (NS_SUCCEEDED(res)) {
+      mSelState = new nsSelectionState();
+      if (mSelState) {
+        mSelState->SaveSelection(selection);
+      }
+    }
   }
   mPlaceHolderBatch++;
 

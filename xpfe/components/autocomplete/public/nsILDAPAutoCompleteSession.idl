@@ -49,6 +49,9 @@ interface nsIMutableArray;
 /**
  * Extends nsIAutoCompleteSession to have various LDAP-specific parameters.
  * and output format.
+ *
+ * Note: the formatter attribute should be set prior to starting the LDAP
+ * lookup via nsIAutoCompleteSession::OnStartLookup.
  */
 [scriptable, uuid(e7f26534-f96c-4c87-803c-30cdf0bc2973)]
 interface nsILDAPAutoCompleteSession : nsIAutoCompleteSession {
@@ -115,7 +118,8 @@ interface nsILDAPAutoCompleteSession : nsIAutoCompleteSession {
 
     /** 
      * Callback used to format an individual LDAP message into an
-     * nsIAutoCompleteItem.  
+     * nsIAutoCompleteItem. This is required to be set before calling
+     * OnStartLookup.
      */
     attribute nsILDAPAutoCompFormatter formatter;
 

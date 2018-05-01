@@ -235,7 +235,9 @@ nsFrameLoader::Destroy()
   // Let our window know that we are gone
   nsCOMPtr<nsPIDOMWindow> win_private(do_GetInterface(mDocShell));
   if (win_private) {
+    nsIDOMElement* frameElement = win_private->GetFrameElementInternal();
     win_private->SetFrameElementInternal(nsnull);
+    NS_IF_RELEASE(frameElement);
   }
   
   nsCOMPtr<nsIBaseWindow> base_win(do_QueryInterface(mDocShell));
@@ -402,7 +404,11 @@ nsFrameLoader::EnsureDocShell()
   nsCOMPtr<nsPIDOMWindow> win_private(do_GetInterface(mDocShell));
   NS_ENSURE_TRUE(win_private, NS_ERROR_UNEXPECTED);
 
+  nsIDOMElement* oldFrame = win_private->GetFrameElementInternal();
   win_private->SetFrameElementInternal(frame_element);
+  nsIDOMElement* fe = frame_element.get();
+  NS_ADDREF(fe);
+  NS_IF_RELEASE(oldFrame);
 
   nsCOMPtr<nsIBaseWindow> base_win(do_QueryInterface(mDocShell));
   NS_ENSURE_TRUE(base_win, NS_ERROR_UNEXPECTED);

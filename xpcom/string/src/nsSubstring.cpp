@@ -199,6 +199,9 @@ nsStringBuffer::Alloc(size_t size)
     STRING_STAT_INCREMENT(Alloc);
 
     NS_ASSERTION(size != 0, "zero capacity allocation not allowed");
+    NS_ASSERTION(sizeof(nsStringBuffer) + size <= size_t(PRUint32(-1)) &&
+                 sizeof(nsStringBuffer) + size > size,
+                 "mStorageSize will truncate");
 
     nsStringBuffer *hdr =
         (nsStringBuffer *) malloc(sizeof(nsStringBuffer) + size);
@@ -216,6 +219,9 @@ nsStringBuffer::Realloc(nsStringBuffer* hdr, size_t size)
     STRING_STAT_INCREMENT(Realloc);
 
     NS_ASSERTION(size != 0, "zero capacity allocation not allowed");
+    NS_ASSERTION(sizeof(nsStringBuffer) + size <= size_t(PRUint32(-1)) &&
+                 sizeof(nsStringBuffer) + size > size,
+                 "mStorageSize will truncate");
 
     // no point in trying to save ourselves if we hit this assertion
     NS_ASSERTION(!hdr->IsReadonly(), "|Realloc| attempted on readonly string");

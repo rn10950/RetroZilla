@@ -88,6 +88,8 @@ class nsTreeContentView : public nsINativeTreeView,
                                 nsIContent* aChild, PRInt32 aIndexInContainer);
     virtual void DocumentWillBeDestroyed(nsIDocument *aDocument);
 
+    static PRBool CanTrustTreeSelection(nsISupports* aValue);
+
   protected:
     // Recursive methods which deal with serializing of nested content.
     void Serialize(nsIContent* aContent, PRInt32 aParentIndex, PRInt32* aIndex, nsVoidArray& aRows);

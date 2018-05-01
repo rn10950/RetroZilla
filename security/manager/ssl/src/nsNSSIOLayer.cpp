@@ -194,7 +194,8 @@ nsNSSSocketInfo::nsNSSSocketInfo()
     mBadCertUIStatus(bcuis_not_shown),
     mHandshakeStartTime(0),
     mPort(0),
-    mCAChain(nsnull)
+    mCAChain(nsnull),
+    mIsCertIssuerBlacklisted(PR_FALSE)
 {
   mThreadData = new nsSSLSocketThreadData;
 }
@@ -2658,12 +2659,23 @@ done:
 static SECStatus
 nsNSSBadCertHandler(void *arg, PRFileDesc *sslSocket)
 {
+  // cert was revoked, don't do anything else
+  if (PR_GetError() == SEC_ERROR_REVOKED_CERTIFICATE)
+    return SECFailure;
+
   nsNSSShutDownPreventionLock locker;
   SECStatus rv = SECFailure;
   int error;
   nsNSSSocketInfo* infoObject = (nsNSSSocketInfo *)arg;
   CERTCertificate *peerCert;
   nsNSSCertificate *nssCert;
+
+  if (infoObject->IsCertIssuerBlacklisted()) {
+    error = SEC_ERROR_UNTRUSTED_CERT;
+  }
+  else {
+    error = PR_GetError();
+  }
 
   error = PR_GetError();
   peerCert = SSL_PeerCertificate(sslSocket);

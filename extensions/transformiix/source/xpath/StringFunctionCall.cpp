@@ -193,7 +193,8 @@ StringFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
             nsAutoString src;
             double start, end;
             evaluateToString((Expr*)iter.next(), aContext, src);
-            start = evaluateToNumber((Expr*)iter.next(), aContext);
+            rv = evaluateToNumber((Expr*)iter.next(), aContext, &start);
+            NS_ENSURE_SUCCESS(rv, rv);
 
             // check for NaN or +/-Inf
             if (Double::isNaN(start) ||
@@ -206,8 +207,10 @@ StringFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
 
             start = floor(start + 0.5) - 1;
             if (iter.hasNext()) {
-                end = start + evaluateToNumber((Expr*)iter.next(),
-                                               aContext);
+                rv = evaluateToNumber((Expr*)iter.next(), aContext, &end);
+                NS_ENSURE_SUCCESS(rv, rv);
+
+				end += start;
                 if (Double::isNaN(end) || end < 0) {
                     aContext->recycler()->getEmptyStringResult(aResult);
 

@@ -1637,6 +1637,8 @@ NS_IMETHODIMP nsViewManager::Composite()
 
 NS_IMETHODIMP nsViewManager::UpdateView(nsIView *aView, PRUint32 aUpdateFlags)
 {
+  NS_PRECONDITION(nsnull != aView, "null view");
+  
   // Mark the entire view as damaged
   nsView* view = NS_STATIC_CAST(nsView*, aView);
 
@@ -1998,7 +2000,9 @@ NS_IMETHODIMP nsViewManager::DispatchEvent(nsGUIEvent *aEvent, nsEventStatus *aS
               vm->mDelayedResize.SizeTo(NSCOORD_NONE, NSCOORD_NONE);
 
               // Paint later.
-              vm->UpdateView(vm->mRootView, NS_VMREFRESH_NO_SYNC);
+              if (vm->mRootView) {
+                vm->UpdateView(vm->mRootView, NS_VMREFRESH_NO_SYNC);
+              }
               didResize = PR_TRUE;
             }
           }

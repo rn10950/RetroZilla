@@ -2684,7 +2684,7 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
     jsbytecode *nextpc, *testpc;
     REOp nextop;
     RECapture *cap;
-    REProgState *curState;
+    REProgState *curState=NULL;
     const jschar *startcp;
     size_t parenIndex, k;
     size_t parenSoFar = 0;
@@ -2809,7 +2809,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
              * Occurs at (successful) end of REOP_ALT,
              */
             case REOP_JUMP:
-                --gData->stateStackTop;
+                if(gData->stateStackTop)
+                  --gData->stateStackTop;
                 pc += GET_OFFSET(pc);
                 op = (REOp) *pc++;
                 continue;
@@ -2818,7 +2819,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
              * Occurs at last (successful) end of REOP_ALT,
              */
             case REOP_ENDALT:
-                --gData->stateStackTop;
+                if(gData->stateStackTop)
+                  --gData->stateStackTop;
                 op = (REOp) *pc++;
                 continue;
 
@@ -2895,7 +2897,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
                 continue;
 
             case REOP_ASSERTTEST:
-                --gData->stateStackTop;
+                if(gData->stateStackTop)
+                  --gData->stateStackTop;
                 --curState;
                 x->cp = gData->cpbegin + curState->index;
                 gData->backTrackSP =
@@ -2907,7 +2910,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
                 break;
 
             case REOP_ASSERTNOTTEST:
-                --gData->stateStackTop;
+                if(gData->stateStackTop)
+                  --gData->stateStackTop;
                 --curState;
                 x->cp = gData->cpbegin + curState->index;
                 gData->backTrackSP =
@@ -2987,7 +2991,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
                 CHECK_BRANCH();
                 --curState;
                 do {
-                    --gData->stateStackTop;
+                    if(gData->stateStackTop)
+                        --gData->stateStackTop;
                     if (!result) {
                         /* Failed, see if we have enough children. */
                         if (curState->u.quantifier.min == 0)
@@ -3075,7 +3080,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
                                             pc, x, x->cp, 0, 0)) {
                         return NULL;
                     }
-                    --gData->stateStackTop;
+                    if(gData->stateStackTop)
+                      --gData->stateStackTop;
                     pc = pc + GET_OFFSET(pc);
                     op = (REOp) *pc++;
                 }
@@ -3083,7 +3089,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
 
             case REOP_MINIMALREPEAT:
                 CHECK_BRANCH();
-                --gData->stateStackTop;
+                if(gData->stateStackTop)
+                  --gData->stateStackTop;
                 --curState;
 
                 if (!result) {
@@ -3135,7 +3142,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
                                         parenSoFar - curState->parenSoFar)) {
                     return NULL;
                 }
-                --gData->stateStackTop;
+                if(gData->stateStackTop)
+                    --gData->stateStackTop;
                 pc = pc + GET_OFFSET(pc);
                 op = (REOp) *pc++;
                 continue;
@@ -3162,6 +3170,7 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
             pc = backTrackData->backtrack_pc;
             op = backTrackData->backtrack_op;
             gData->stateStackTop = backTrackData->saveStateStackTop;
+
             JS_ASSERT(gData->stateStackTop);
 
             memcpy(gData->stateStack, backTrackData + 1,
@@ -3270,6 +3279,21 @@ bad:
     return NULL;
 }
 
+void
+js_RegExpStatics_clear(JSContext *cx, JSRegExpStatics *res)
+{
+    res->input = NULL;
+    res->pendingInput = NULL;
+    res->multiline = JS_FALSE;
+    res->parenCount = 0;
+    res->lastMatch = res->lastParen = js_EmptySubString;
+    res->leftContext = res->rightContext = js_EmptySubString;
+    if (res->moreParens) {
+        JS_free(cx, res->moreParens);
+        res->moreParens = NULL;
+    }
+}
+
 JSBool
 js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
                  JSBool test, jsval *rval)
@@ -3375,7 +3399,7 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
     }
 
     res = &cx->regExpStatics;
-    res->input = str;
+    res->pendingInput = res->input = str;
     res->parenCount = re->parenCount;
     if (re->parenCount == 0) {
         res->lastParen = js_EmptySubString;
@@ -3478,6 +3502,8 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
     res->rightContext.length = gData.cpend - ep;
 
 out:
+    if (!ok)
+        js_RegExpStatics_clear(cx,res);
     JS_FinishArenaPool(&gData.pool);
     return ok;
 }
@@ -3580,8 +3606,11 @@ enum regexp_static_tinyid {
 JSBool
 js_InitRegExpStatics(JSContext *cx, JSRegExpStatics *res)
 {
+    JSBool in, pd;
     JS_ClearRegExpStatics(cx);
-    return js_AddRoot(cx, &res->input, "res->input");
+    in = js_AddRoot(cx, &res->input, "res->input");
+    pd = js_AddRoot(cx, &res->pendingInput, "res->input");
+    return in && pd;
 }
 
 void
@@ -3592,6 +3621,7 @@ js_FreeRegExpStatics(JSContext *cx, JSRegExpStatics *res)
         res->moreParens = NULL;
     }
     js_RemoveRoot(cx->runtime, &res->input);
+    js_RemoveRoot(cx->runtime, &res->pendingInput);
 }
 
 static JSBool
@@ -3608,8 +3638,8 @@ regexp_static_getProperty(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
     slot = JSVAL_TO_INT(id);
     switch (slot) {
       case REGEXP_STATIC_INPUT:
-        *vp = res->input ? STRING_TO_JSVAL(res->input)
-                         : JS_GetEmptyStringValue(cx);
+        *vp = res->pendingInput ? STRING_TO_JSVAL(res->pendingInput)
+                                : JS_GetEmptyStringValue(cx);
         return JS_TRUE;
       case REGEXP_STATIC_MULTILINE:
         *vp = BOOLEAN_TO_JSVAL(res->multiline);
@@ -3651,7 +3681,7 @@ regexp_static_setProperty(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
             !JS_ConvertValue(cx, *vp, JSTYPE_STRING, vp)) {
             return JS_FALSE;
         }
-        res->input = JSVAL_TO_STRING(*vp);
+        res->pendingInput = JSVAL_TO_STRING(*vp);
     } else if (JSVAL_TO_INT(id) == REGEXP_STATIC_MULTILINE) {
         if (!JSVAL_IS_BOOLEAN(*vp) &&
             !JS_ConvertValue(cx, *vp, JSTYPE_BOOLEAN, vp)) {
@@ -4018,7 +4048,7 @@ regexp_exec_sub(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
 
     /* Now that obj is unlocked, it's safe to (potentially) grab the GC lock. */
     if (argc == 0) {
-        str = cx->regExpStatics.input;
+        str = cx->regExpStatics.pendingInput;
         if (!str) {
             JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL,
                                  JSMSG_NO_INPUT,

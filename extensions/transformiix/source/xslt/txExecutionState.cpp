@@ -100,10 +100,13 @@ txExecutionState::txExecutionState(txStylesheet* aStylesheet,
       mKeyHash(aStylesheet->getKeyMap()),
       mDisableLoads(aDisableLoads)
 {
+    MOZ_COUNT_CTOR(txExecutionState);
 }
 
 txExecutionState::~txExecutionState()
 {
+    MOZ_COUNT_DTOR(txExecutionState);
+
     delete mResultHandler;
     delete mLocalVariables;
     delete mEvalContext;
@@ -203,7 +206,11 @@ txExecutionState::init(const txXPathNode& aNode,
 nsresult
 txExecutionState::end(nsresult aResult)
 {
-    popTemplateRule();
+    NS_ASSERTION(NS_FAILED(aResult) || mTemplateRuleCount == 1,
+                 "Didn't clean up template rules properly");
+    if (NS_SUCCEEDED(aResult)) {
+        popTemplateRule();
+    }
     mOutputHandler->endDocument(aResult);
     
     return NS_OK;
@@ -276,9 +283,9 @@ txExecutionState::getVariable(PRInt32 aNamespace, nsIAtom* aLName,
         txVariableMap* oldVars = mLocalVariables;
         mLocalVariables = nsnull;
         rv = var->mExpr->evaluate(getEvalContext(), &aResult);
-        NS_ENSURE_SUCCESS(rv, rv);
-
         mLocalVariables = oldVars;
+
+        NS_ENSURE_SUCCESS(rv, rv);
     }
     else {
         nsAutoPtr<txRtfHandler> rtfHandler(new txRtfHandler);
@@ -448,9 +455,12 @@ txExecutionState::pushTemplateRule(txStylesheet::ImportFrame* aFrame,
 void
 txExecutionState::popTemplateRule()
 {
+    NS_PRECONDITION(mTemplateRuleCount > 0, "No rules to pop");
     // decrement outside of RELEASE, that would decrement twice
-    --mTemplateRuleCount;
-    NS_IF_RELEASE(mTemplateRules[mTemplateRuleCount].mModeLocalName);
+    if(mTemplateRuleCount > 0) {
+    	--mTemplateRuleCount;
+    	NS_IF_RELEASE(mTemplateRules[mTemplateRuleCount].mModeLocalName);
+    }
 }
 
 txIEvalContext*
@@ -514,7 +524,9 @@ txExecutionState::getKeyNodes(const txExpandedName& aKeyName,
 txExecutionState::TemplateRule*
 txExecutionState::getCurrentTemplateRule()
 {
-    return mTemplateRules + mTemplateRuleCount - 1;
+    NS_PRECONDITION(mTemplateRuleCount > 0, "No current rule!");
+    // better to crash that underrun
+    return mTemplateRuleCount > 0 ? mTemplateRules + mTemplateRuleCount - 1 : NULL;
 }
 
 txInstruction*

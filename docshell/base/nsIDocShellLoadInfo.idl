@@ -103,3 +103,15 @@ interface nsIDocShellLoadInfo : nsISupports
      */
     attribute boolean sendReferrer;
 };
+
+[scriptable, uuid(b66d94ba-4457-41b1-9507-79c1cd873da0)]
+interface nsIDocShellLoadInfo_1_9_0_BRANCH : nsIDocShellLoadInfo
+{
+    /** If this attribute is true only ever use the owner specify by
+     *  the owner and inheritOwner attributes.
+     *  If there are security reasons for why this is unsafe, such
+     *  as trying to use a systemprincipal owner for a content docshell
+     *  the load fails.
+     */
+    attribute boolean ownerIsExplicit;
+};

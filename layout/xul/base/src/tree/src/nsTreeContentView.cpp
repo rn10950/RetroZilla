@@ -47,6 +47,8 @@
 #include "nsIDOMClassInfo.h"
 #include "nsIEventStateManager.h"
 #include "nsINodeInfo.h"
+#include "nsContentUtils.h"
+#include "nsDOMError.h"
 
 // A content model view implementation for the tree.
 
@@ -185,9 +187,22 @@ nsTreeContentView::GetSelection(nsITreeSelection** aSelection)
   return NS_OK;
 }
 
+PRBool
+nsTreeContentView::CanTrustTreeSelection(nsISupports* aValue)
+{
+  // Untrusted content is only allowed to specify known-good views
+  if (nsContentUtils::IsCallerTrustedForWrite())
+    return PR_TRUE;
+  nsCOMPtr<nsINativeTreeSelection> nativeTreeSel = do_QueryInterface(aValue);
+  return nativeTreeSel && NS_SUCCEEDED(nativeTreeSel->EnsureNative());
+}
+
 NS_IMETHODIMP
 nsTreeContentView::SetSelection(nsITreeSelection* aSelection)
 {
+  NS_ENSURE_TRUE(!aSelection || CanTrustTreeSelection(aSelection),
+                 NS_ERROR_DOM_SECURITY_ERR);
+
   mSelection = aSelection;
 
   if (mUpdateSelection) {
@@ -969,9 +984,14 @@ nsTreeContentView::ContentInserted(nsIDocument *aDocument,
   }
   else if (childTag == nsHTMLAtoms::option) {
     PRInt32 parentIndex = FindContent(aContainer);
-    PRInt32 count = InsertRow(parentIndex, aIndexInContainer, aChild);
-    if (mBoxObject)
-      mBoxObject->RowCountChanged(parentIndex + aIndexInContainer + 1, count);
+
+    if (parentIndex >= 0) {
+      PRInt32 index = 0;
+      GetIndexInSubtree(aContainer, aChild, &index);
+      PRInt32 count = InsertRow(parentIndex, index, aChild);
+      if (mBoxObject)
+        mBoxObject->RowCountChanged(parentIndex + index + 1, count);
+    }
   }
 }
 

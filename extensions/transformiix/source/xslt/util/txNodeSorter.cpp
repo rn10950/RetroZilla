@@ -190,7 +190,15 @@ txNodeSorter::sortNodeSet(txNodeSet* aNodes, txExecutionState* aEs,
 
     // Create and set up memoryblock for sort-values and indexarray
     PRUint32 len = NS_STATIC_CAST(PRUint32, aNodes->size());
-    void* mem = PR_Malloc(len * (sizeof(PRUint32) + mNKeys * sizeof(TxObject*)));
+  
+    // Don't overflow when calculating the length of the sort buffer.
+    PRUint32 itemSize = sizeof(PRUint32) + mNKeys * sizeof(TxObject*);
+    if (mNKeys > (PR_UINT32_MAX - sizeof(PRUint32)) / sizeof(TxObject*) ||
+        len >= PR_UINT32_MAX / itemSize) {
+        return NS_ERROR_OUT_OF_MEMORY;
+    }
+
+    void* mem = PR_Malloc(len * itemSize);
     NS_ENSURE_TRUE(mem, NS_ERROR_OUT_OF_MEMORY);
 
     PRUint32* indexes = NS_STATIC_CAST(PRUint32*, mem);

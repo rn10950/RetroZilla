@@ -65,6 +65,7 @@ REQUIRES	= xpcom \
 		  caps \
 		  necko \
 		  dom \
+		  widget \
 		  $(NULL)
 
 CPPSRCS		= \

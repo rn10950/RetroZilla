@@ -1143,7 +1143,7 @@ XPCWrappedNative::ReparentWrapperIfFound(XPCCallContext& ccx,
 
     // Now we can just fix up the parent and return the wrapper
 
-    if(!JS_SetParent(ccx, wrapper->GetFlatJSObject(), aNewParent))
+    if(aNewParent && !JS_SetParent(ccx, wrapper->GetFlatJSObject(), aNewParent))
     {
         NS_RELEASE(wrapper);
         return NS_ERROR_FAILURE;

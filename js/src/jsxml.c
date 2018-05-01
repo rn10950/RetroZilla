@@ -6028,7 +6028,8 @@ xml_elements(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
     nameqn = ToXMLName(cx, name, &funid);
     if (!nameqn)
         return JS_FALSE;
-    argv[0] = OBJECT_TO_JSVAL(nameqn->object);
+    if (argc)
+        argv[0] = OBJECT_TO_JSVAL(nameqn->object);
 
     list = xml_list_helper(cx, xml, rval);
     if (!list)

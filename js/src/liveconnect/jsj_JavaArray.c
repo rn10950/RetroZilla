@@ -254,6 +254,7 @@ JavaArray_lookupProperty(JSContext *cx, JSObject *obj, jsid id,
     if (access_java_array_element(cx, jEnv, obj, id, NULL, JS_FALSE)) {
         *objp = obj;
         *propp = (JSProperty*)1;
+        js_SetObjectWeakRoot(cx, obj);
     } else {
         *objp = NULL;
         *propp = NULL;

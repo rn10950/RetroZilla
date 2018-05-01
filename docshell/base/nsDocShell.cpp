@@ -56,6 +56,7 @@
 #include "nsPIDOMStorage.h"
 #include "nsIDocumentViewer.h"
 #include "nsIDocumentLoaderFactory.h"
+#include "nsIJARURI.h"
 #include "nsCURILoader.h"
 #include "nsDocShellCID.h"
 #include "nsLayoutCID.h"
@@ -639,6 +640,7 @@ nsDocShell::LoadURI(nsIURI * aURI,
     nsCOMPtr<nsIInputStream> headersStream;
     nsCOMPtr<nsISupports> owner;
     PRBool inheritOwner = PR_FALSE;
+    PRBool ownerIsExplicit = PR_FALSE;
     PRBool sendReferrer = PR_TRUE;
     nsCOMPtr<nsISHEntry> shEntry;
     nsXPIDLString target;
@@ -662,6 +664,12 @@ nsDocShell::LoadURI(nsIURI * aURI,
         aLoadInfo->GetPostDataStream(getter_AddRefs(postStream));
         aLoadInfo->GetHeadersStream(getter_AddRefs(headersStream));
         aLoadInfo->GetSendReferrer(&sendReferrer);
+
+        nsCOMPtr<nsIDocShellLoadInfo_1_9_0_BRANCH> info19 =
+            do_QueryInterface(aLoadInfo);
+        if (info19) {
+            info19->GetOwnerIsExplicit(&ownerIsExplicit);
+        }
     }
 
 #if defined(PR_LOGGING) && defined(DEBUG)
@@ -774,81 +782,98 @@ nsDocShell::LoadURI(nsIURI * aURI,
               ("nsDocShell[%p]: loading from session history", this));
 #endif
 
-        rv = LoadHistoryEntry(shEntry, loadType);
+        return LoadHistoryEntry(shEntry, loadType);
     }
-    // Perform the load...
-    else {
-        // We need an owner (a referring principal). 4 possibilities:
-        // (1) If the system principal was passed in and we're a typeContent
-        //     docshell, inherit the principal from the current document
-        //     instead.
-        // (2) In all other cases when the principal passed in is not null,
-        //     use that principal.
-        // (3) If the caller has allowed inheriting from the current
-        //     document, or if we're being called from chrome (if there's
-        //     system JS on the stack), then inheritOwner should be true and
-        //     InternalLoad will get an owner from the current document. If
-        //     none of these things are true, then
-        // (4) we pass a null owner into the channel, and an owner will be
-        //     created later from the channel's internal data.
-        nsCOMPtr<nsIScriptSecurityManager> secMan =
-            do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
-        NS_ENSURE_SUCCESS(rv, rv);
 
-        // Just to compare, not to use!
-        nsCOMPtr<nsIPrincipal> sysPrin;
-        rv = secMan->GetSystemPrincipal(getter_AddRefs(sysPrin));
-        NS_ENSURE_SUCCESS(rv, rv);
-        
-        if (owner == sysPrin && mItemType != typeChrome) {
+    // Perform the load...
+
+    // We need an owner (a referring principal).
+    //
+    // If ownerIsExplicit is not set there are 4 possibilities:
+    // (1) If the system principal was passed in and we're a typeContent
+    //     docshell, inherit the principal from the current document
+    //     instead.
+    // (2) In all other cases when the principal passed in is not null,
+    //     use that principal.
+    // (3) If the caller has allowed inheriting from the current document,
+    //     or if we're being called from system code (eg chrome JS or pure
+    //     C++) then inheritOwner should be true and InternalLoad will get
+    //     an owner from the current document. If none of these things are
+    //     true, then
+    // (4) we pass a null owner into the channel, and an owner will be
+    //     created later from the channel's internal data.
+    //
+    // If ownerIsExplicit *is* set, there are 4 possibilities
+    // (1) If the system principal was passed in and we're a typeContent
+    //     docshell, return an error.
+    // (2) In all other cases when the principal passed in is not null,
+    //     use that principal.
+    // (3) If the caller has allowed inheriting from the current document,
+    //     then inheritOwner should be true and InternalLoad will get an owner
+    //     from the current document. If none of these things are true, then
+    // (4) we pass a null owner into the channel, and an owner will be
+    //     created later from the channel's internal data.
+    //
+    // NOTE: This all only works because the only thing the owner is used  
+    //       for in InternalLoad is data:, javascript:, and about:blank
+    //       URIs.  For other URIs this would all be dead wrong!
+
+    nsCOMPtr<nsIScriptSecurityManager> secMan =
+        do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIPrincipal> sysPrin;
+    rv = secMan->GetSystemPrincipal(getter_AddRefs(sysPrin));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    if (owner && mItemType != typeChrome) {
+        nsCOMPtr<nsIPrincipal> ownerPrincipal = do_QueryInterface(owner);
+        PRBool isSystem = ownerPrincipal == sysPrin;
+
+        if (isSystem) {
+            if (ownerIsExplicit) {
+                return NS_ERROR_DOM_SECURITY_ERR;
+            }
             owner = nsnull;
             inheritOwner = PR_TRUE;
         }
-        else if (!owner && !inheritOwner) {
-            // See if there's system or chrome JS code running
-            if (NS_SUCCEEDED(rv)) {
-                nsCOMPtr<nsIPrincipal> subjectPrin;
-
-                rv = secMan->GetSubjectPrincipal(getter_AddRefs(subjectPrin));
-                // If there's no subject principal, there's no JS running, so
-                // we're in system code.
-                if (NS_SUCCEEDED(rv) &&
-                    (!subjectPrin || sysPrin == subjectPrin)) {
-                    inheritOwner = PR_TRUE;
-                }
-            }
+    }
+    if (!owner && !inheritOwner && !ownerIsExplicit) {
+        // See if there's system or chrome JS code running
+        rv = secMan->SubjectPrincipalIsSystem(&inheritOwner);
+        if (NS_FAILED(rv)) {
+            // Set it back to false
+            inheritOwner = PR_FALSE;
         }
-
-        PRUint32 flags = 0;
-
-        if (inheritOwner)
-            flags |= INTERNAL_LOAD_FLAGS_INHERIT_OWNER;
-
-        if (!sendReferrer)
-            flags |= INTERNAL_LOAD_FLAGS_DONT_SEND_REFERRER;
-            
-        if (aLoadFlags & LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP)
-            flags |= INTERNAL_LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
-
-        if (aLoadFlags & LOAD_FLAGS_FIRST_LOAD)
-            flags |= INTERNAL_LOAD_FLAGS_FIRST_LOAD;
-
-        rv = InternalLoad(aURI,
-                          referrer,
-                          owner,
-                          flags,
-                          target.get(),
-                          nsnull,         // No type hint
-                          postStream,
-                          headersStream,
-                          loadType,
-                          nsnull,         // No SHEntry
-                          aFirstParty,
-                          nsnull,         // No nsIDocShell
-                          nsnull);        // No nsIRequest
     }
 
-    return rv;
+    PRUint32 flags = 0;
+
+    if (inheritOwner)
+        flags |= INTERNAL_LOAD_FLAGS_INHERIT_OWNER;
+
+    if (!sendReferrer)
+        flags |= INTERNAL_LOAD_FLAGS_DONT_SEND_REFERRER;
+            
+    if (aLoadFlags & LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP)
+        flags |= INTERNAL_LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
+
+    if (aLoadFlags & LOAD_FLAGS_FIRST_LOAD)
+        flags |= INTERNAL_LOAD_FLAGS_FIRST_LOAD;
+
+    return InternalLoad(aURI,
+                        referrer,
+                        owner,
+                        flags,
+                        target.get(),
+                        nsnull,         // No type hint
+                        postStream,
+                        headersStream,
+                        loadType,
+                        nsnull,         // No SHEntry
+                        aFirstParty,
+                        nsnull,         // No nsIDocShell
+                        nsnull);        // No nsIRequest
 }
 
 NS_IMETHODIMP
@@ -3314,6 +3339,12 @@ nsDocShell::Reload(PRUint32 aReloadFlags)
 NS_IMETHODIMP
 nsDocShell::Stop(PRUint32 aStopFlags)
 {
+    if (mLoadType == LOAD_ERROR_PAGE && mLSHE) {
+        // Since error page loads never unset mLSHE, do so now
+        SetHistoryEntry(&mOSHE, mLSHE);
+        SetHistoryEntry(&mLSHE, nsnull);
+    }
+
     if (nsIWebNavigation::STOP_CONTENT & aStopFlags) {
         // Revoke any pending plevents related to content viewer restoration
         nsCOMPtr<nsIEventQueue> uiThreadQueue;
@@ -4495,6 +4526,25 @@ nsDocShell::SetupRefreshURIFromHeader(nsIURI * aBaseURI,
             rv = securityManager->CheckLoadURI(aBaseURI, uri,
                                                nsIScriptSecurityManager::
                                                DISALLOW_FROM_MAIL);
+
+            if (NS_SUCCEEDED(rv)) {
+                nsCOMPtr<nsIURI> innerURI = uri;
+                nsCOMPtr<nsIJARURI> jarURI(do_QueryInterface(innerURI));
+                while (jarURI) {
+                    jarURI->GetJARFile(getter_AddRefs(innerURI));
+                    jarURI = do_QueryInterface(innerURI);
+                }
+                NS_ENSURE_TRUE(innerURI, NS_ERROR_FAILURE);
+
+                PRBool isjs = PR_TRUE;
+                rv = innerURI->SchemeIs("javascript", &isjs);
+                NS_ENSURE_SUCCESS(rv, rv);
+
+                if (isjs) {
+                    return NS_ERROR_FAILURE;
+                }
+            }
+
             if (NS_SUCCEEDED(rv)) {
                 // Since we can't travel back in time yet, just pretend
                 // negative numbers do nothing at all.
@@ -4830,6 +4880,12 @@ nsDocShell::OnRedirectStateChange(nsIChannel* aOldChannel,
         if (! oldURI)
             return; // nothing to tell anybody about
         AddToGlobalHistory(oldURI, PR_TRUE, aOldChannel);
+    }
+    
+    if (!(aStateFlags & nsIChannelEventSink::REDIRECT_INTERNAL) &&
+        mLoadType & (LOAD_CMD_RELOAD | LOAD_CMD_HISTORY)) {
+        mLoadType = LOAD_NORMAL_REPLACE;
+        SetHistoryEntry(&mLSHE, nsnull);
     }
 }
 
@@ -8781,6 +8837,7 @@ NS_INTERFACE_MAP_BEGIN(nsRefreshTimer)
     NS_INTERFACE_MAP_ENTRY(nsITimerCallback)
 NS_INTERFACE_MAP_END_THREADSAFE
 
+
 ///*****************************************************************************
 // nsRefreshTimer::nsITimerCallback
 //*****************************************************************************   
@@ -8820,46 +8877,46 @@ nsRefreshTimer::Notify(nsITimer * aTimer)
          */
         loadInfo->SetReferrer(currURI);
 
+        /* Don't ever "guess" on which owner to use to avoid picking
+         * the current owner.
+         */
+        nsCOMPtr<nsIDocShellLoadInfo_1_9_0_BRANCH> info19 =
+            do_QueryInterface(loadInfo);
+        NS_ENSURE_TRUE(info19, NS_ERROR_NO_INTERFACE);
+        info19->SetOwnerIsExplicit(PR_TRUE);
+
         /* Check if this META refresh causes a redirection
-         * to another site. 
+         * to another site.
          */
         PRBool equalUri = PR_FALSE;
         nsresult rv = mURI->Equals(currURI, &equalUri);
-        if (NS_SUCCEEDED(rv) && (!equalUri) && mMetaRefresh) {
+        if (NS_SUCCEEDED(rv) && (!equalUri) && mMetaRefresh &&
+            mDelay <= REFRESH_REDIRECT_TIMER) {
 
-            /* It is a META refresh based redirection. Now check if it happened within 
-             * the threshold time we have in mind(15000 ms as defined by REFRESH_REDIRECT_TIMER).
-             * If so, pass a REPLACE flag to LoadURI().
+            /* It is a META refresh based redirection within the threshold time
+             * we have in mind (15000 ms as defined by REFRESH_REDIRECT_TIMER).
+             * Pass a REPLACE flag to LoadURI().
              */
-            if (delay <= REFRESH_REDIRECT_TIMER) {
-                loadInfo->SetLoadType(nsIDocShellLoadInfo::loadNormalReplace);
-
-                /* for redirects we mimic HTTP, which passes the
-                 *  original referrer
-                 */
-                nsCOMPtr<nsIURI> internalReferrer;
-                nsCOMPtr<nsIWebNavigation> webNav =
-                    do_QueryInterface(mDocShell);
-                if (webNav) {
-                    webNav->GetReferringURI(getter_AddRefs(internalReferrer));
-                    if (internalReferrer) {
-                        loadInfo->SetReferrer(internalReferrer);
-                    }
-                }
+            loadInfo->SetLoadType(nsIDocShellLoadInfo::loadNormalReplace);
+            
+            /* for redirects we mimic HTTP, which passes the
+             *  original referrer
+             */
+            nsCOMPtr<nsIURI> internalReferrer;
+            
+            webNav->GetReferringURI(getter_AddRefs(internalReferrer));
+            if (internalReferrer) {
+                loadInfo->SetReferrer(internalReferrer);
             }
-            else
-                loadInfo->SetLoadType(nsIDocShellLoadInfo::loadRefresh);
-            /*
-             * LoadURL(...) will cancel all refresh timers... This causes the Timer and
-             * its refreshData instance to be released...
-             */
-            mDocShell->LoadURI(mURI, loadInfo,
-                               nsIWebNavigation::LOAD_FLAGS_NONE, PR_TRUE);
-            return NS_OK;
-
         }
-        else
+        else {
             loadInfo->SetLoadType(nsIDocShellLoadInfo::loadRefresh);
+        }
+
+        /*
+         * LoadURI(...) will cancel all refresh timers... This causes the
+         * Timer and its refreshData instance to be released...
+         */
         mDocShell->LoadURI(mURI, loadInfo, nsIWebNavigation::LOAD_FLAGS_NONE, PR_TRUE);
     }
     return NS_OK;

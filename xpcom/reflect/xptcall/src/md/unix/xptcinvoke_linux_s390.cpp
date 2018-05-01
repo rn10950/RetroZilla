@@ -213,6 +213,7 @@ XPTC_InvokeByIndex(nsISupports* that, PRUint32 methodIndex,
     PRUint32 overflow = invoke_count_words (paramCount, params);
     PRUint32 result;
 
+    register PRUint32 reg_paramCount __asm ("4") = paramCount;
     __asm__ __volatile__
     (
         "lr    7,15\n\t"
@@ -240,14 +241,15 @@ XPTC_InvokeByIndex(nsISupports* that, PRUint32 methodIndex,
         "la    15,32(7)\n\t"
 
         "lr    %0,2\n\t"
-        : "=r" (result)
-        : "r" (paramCount),
-          "r" (params),
+        : "=r" (result),
+          "=r" (reg_paramCount)
+        : "r" (params),
           "r" (overflow),
           "a" (invoke_copy_to_stack),
           "a" (that),
-          "a" (method)
-        : "2", "3", "4", "5", "6", "7", "14", "cc", "memory", "%f0", "%f2"
+          "a" (method),
+          "1" (reg_paramCount)
+        : "2", "3", "5", "6", "7", "14", "cc", "memory", "%f0", "%f2"
     );
   
     return result;

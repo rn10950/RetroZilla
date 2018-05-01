@@ -350,13 +350,14 @@ public:
                                  nsHTMLReflowMetrics&     aDesiredSize,
                                  const nsHTMLReflowState& aReflowState);
 
-  // Helper function that tests if the frame tree is too deep; if it
-  // is it marks the frame as "unflowable" and zeros out the metrics
-  // and returns PR_TRUE. Otherwise, the frame is unmarked
-  // "unflowable" and the metrics are not touched and PR_FALSE is
-  // returned.
+  // Helper function that tests if the frame tree is too deep; if it is
+  // it marks the frame as "unflowable", zeroes out the metrics, sets
+  // the reflow status, and returns PR_TRUE. Otherwise, the frame is
+  // unmarked "unflowable" and the metrics and reflow status are not
+  // touched and PR_FALSE is returned.
   PRBool IsFrameTreeTooDeep(const nsHTMLReflowState& aReflowState,
-                            nsHTMLReflowMetrics& aMetrics);
+                            nsHTMLReflowMetrics& aMetrics,
+                            nsReflowStatus& aStatus);
 
   // Do the work for getting the parent style context frame so that
   // other frame's |GetParentStyleContextFrame| methods can call this

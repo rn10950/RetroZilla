@@ -597,6 +597,9 @@ extern const char *
 js_ComputeFilename(JSContext *cx, JSStackFrame *caller,
                    JSPrincipals *principals, uintN *linenop);
 
+JS_FRIEND_API(void)
+js_SetObjectWeakRoot(JSContext *cx, JSObject *obj);
+
 JS_END_EXTERN_C
 
 #endif /* jsobj_h___ */

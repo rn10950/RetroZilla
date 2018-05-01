@@ -1217,7 +1217,7 @@ nsXBLBinding::AllowScripts()
     return PR_FALSE;
   }
   
-  nsIDocument* doc = mBoundElement->GetOwnerDoc();
+  nsIDocument* doc = mBoundElement ? mBoundElement->GetOwnerDoc() : nsnull;
   if (!doc) {
     return PR_FALSE;
   }

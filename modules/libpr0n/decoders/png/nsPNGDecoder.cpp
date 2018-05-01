@@ -406,6 +406,11 @@ row_callback(png_structp png_ptr, png_bytep new_row,
    */
   nsPNGDecoder *decoder = NS_STATIC_CAST(nsPNGDecoder*, png_get_progressive_ptr(png_ptr));
 
+  PRInt32 height;
+  decoder->mFrame->GetHeight(&height);
+  if (row_num >= height)
+    return;
+
   PRUint32 bpr, abpr;
   decoder->mFrame->GetImageBytesPerRow(&bpr);
   decoder->mFrame->GetAlphaBytesPerRow(&abpr);

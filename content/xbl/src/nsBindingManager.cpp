@@ -383,6 +383,9 @@ nsBindingManager::SetBinding(nsIContent* aContent, nsXBLBinding* aBinding)
     SetWrappedJS(aContent, nsnull);
     SetContentListFor(aContent, nsnull);
     SetAnonymousNodesFor(aContent, nsnull);
+    if (oldBinding) {
+      oldBinding->SetBoundElement(nsnull);
+    }
   }
 
   return result ? NS_OK : NS_ERROR_FAILURE;

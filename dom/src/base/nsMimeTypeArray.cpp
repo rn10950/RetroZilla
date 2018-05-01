@@ -1,4 +1,5 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=2 sw=2 et tw=79: */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -197,6 +198,9 @@ nsresult nsMimeTypeArray::GetMimeTypes()
 {
   NS_PRECONDITION(!mMimeTypeArray && mMimeTypeCount==0,
                       "already initialized");
+  if (!mNavigator) {
+    return NS_ERROR_NOT_AVAILABLE;
+  }
 
   nsIDOMPluginArray* pluginArray = nsnull;
   nsresult rv = mNavigator->GetPlugins(&pluginArray);
@@ -225,14 +229,14 @@ nsresult nsMimeTypeArray::GetMimeTypes()
       PRUint32 mimeTypeIndex = 0;
       PRUint32 k;
       for (k = 0; k < pluginCount; k++) {
-        nsIDOMPlugin* plugin = nsnull;
-        if (pluginArray->Item(k, &plugin) == NS_OK) {
+        nsCOMPtr<nsIDOMPlugin> plugin;
+        if (NS_SUCCEEDED(pluginArray->Item(k, getter_AddRefs(plugin))) &&
+            plugin) {
           PRUint32 mimeTypeCount = 0;
           if (plugin->GetLength(&mimeTypeCount) == NS_OK) {
             for (PRUint32 j = 0; j < mimeTypeCount; j++)
               plugin->Item(j, &mMimeTypeArray[mimeTypeIndex++]);
           }
-          NS_RELEASE(plugin);
         }
       }
     }

@@ -64,6 +64,15 @@ NS_IMETHODIMP NS_NewUTF8ToUnicode(nsISupports* aOuter,
   return res;
 }
 
+static PRUnichar* EmitSurrogatePair(PRUint32 ucs4, PRUnichar* aDest)
+{
+  NS_ASSERTION(ucs4 > 0xFFFF, "Should be a supplementary character");
+  ucs4 -= 0x00010000;
+  *aDest++ = 0xD800 | (0x000003FF & (ucs4 >> 10));
+  *aDest++ = 0xDC00 | (0x000003FF & ucs4);
+  return aDest;
+}
+
 //----------------------------------------------------------------------
 // Class nsUTF8ToUnicode [implementation]
 
@@ -136,12 +145,28 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
 
   nsresult res = NS_OK; // conversion result
 
+  out = aDest;
+  if (mState == 0xFF) {
+    // Emit supplementary character left over from previous iteration. If the
+    // buffer size is insufficient, treat it as an illegal character.
+    if (aDestLen < 2) {
+      NS_ERROR("Output buffer insufficient to hold supplementary character");
+      mState = 0;
+      return NS_ERROR_ILLEGAL_INPUT;
+    }
+    out = EmitSurrogatePair(mUcs4, out);
+    mUcs4 = 0;
+    mState = 0;
+    mBytes = 1;
+    mFirst = PR_FALSE;
+  }
+
   // Set mFirst to PR_FALSE now so we don't have to every time through the ASCII
   // branch within the loop.
   if (mFirst && aSrcLen && (0 == (0x80 & (*aSrc))))
     mFirst = PR_FALSE;
 
-  for (in = aSrc, out = aDest; ((in < inend) && (out < outend)); ++in) {
+  for (in = aSrc; ((in < inend) && (out < outend)); ++in) {
     if (0 == mState) {
       // When mState is zero we expect either a US-ASCII character or a
       // multi-octet sequence.
@@ -227,9 +252,15 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
           }
           if (mUcs4 > 0xFFFF) {
             // mUcs4 is in the range 0x10000 - 0x10FFFF. Output a UTF-16 pair
-            mUcs4 -= 0x00010000;
-            *out++ = 0xD800 | (0x000003FF & (mUcs4 >> 10));
-            *out++ = 0xDC00 | (0x000003FF & mUcs4);
+            if (out + 2 > outend) {
+              // insufficient space left in the buffer. Keep mUcs4 for the
+              // next iteration.
+              mState = 0xFF;
+              ++in;
+              res = NS_OK_UDEC_MOREOUTPUT;
+              break;
+            }
+            out = EmitSurrogatePair(mUcs4, out);
           } else if (UNICODE_BYTE_ORDER_MARK != mUcs4 || !mFirst) {
             // Don't output the BOM only if it is the first character
             *out++ = mUcs4;

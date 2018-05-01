@@ -51,13 +51,14 @@
 #include "nsIInputStream.h"
 #include "nsISHEntry.h"
 
-class nsDocShellLoadInfo : public nsIDocShellLoadInfo
+class nsDocShellLoadInfo : public nsIDocShellLoadInfo_1_9_0_BRANCH
 {
 public:
   nsDocShellLoadInfo();
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOCSHELLLOADINFO
+  NS_DECL_NSIDOCSHELLLOADINFO_1_9_0_BRANCH
 
 protected:
   virtual ~nsDocShellLoadInfo();
@@ -66,6 +67,7 @@ protected:
   nsCOMPtr<nsIURI>                 mReferrer;
   nsCOMPtr<nsISupports>            mOwner;
   PRPackedBool                     mInheritOwner;
+  PRPackedBool                     mOwnerIsExplicit;
   PRPackedBool                     mSendReferrer;
   nsDocShellInfoLoadType           mLoadType;
   nsCOMPtr<nsISHEntry>             mSHEntry;

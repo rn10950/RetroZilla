@@ -815,7 +815,8 @@ nsJSObjWrapper::GetNewOrUsed(NPP npp, JSContext *cx, JSObject *obj)
 
     NPObject *npobj = (NPObject *)::JS_GetPrivate(cx, obj);
 
-    return _retainobject(npobj);
+    if (LookupNPP(npobj) == npp)
+      return _retainobject(npobj);
   }
 
   if (!sJSObjWrappers.ops) {
@@ -1536,13 +1537,9 @@ static NPP
 LookupNPP(NPObject *npobj)
 {
   if (npobj->_class == &nsJSObjWrapper::sJSObjWrapperNPClass) {
-    NS_ERROR("NPP requested for NPObject of class "
-             "nsJSObjWrapper::sJSObjWrapperNPClass!\n");
-
-    return nsnull;
+    nsJSObjWrapper* o = static_cast<nsJSObjWrapper*>(npobj);
+    return o->mNpp;
   }
-
-
 
   NPObjWrapperHashEntry *entry =
     NS_STATIC_CAST(NPObjWrapperHashEntry *,
@@ -1748,6 +1745,11 @@ NPObjectMember_Mark(JSContext *cx, JSObject *obj, void *arg)
   if (!JSVAL_IS_PRIMITIVE(memberPrivate->fieldValue)) {
     ::JS_MarkGCThing(cx, JSVAL_TO_OBJECT(memberPrivate->fieldValue),
                      "NPObject Member => fieldValue", arg);
+  }
+
+  if (!JSVAL_IS_PRIMITIVE(memberPrivate->methodName)) {
+    ::JS_MarkGCThing(cx, JSVAL_TO_OBJECT(memberPrivate->methodName),
+                     "NPObject Member => methodName", arg);
   }
 
   // There's no strong reference from our private data to the

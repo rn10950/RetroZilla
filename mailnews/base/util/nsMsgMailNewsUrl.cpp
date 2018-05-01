@@ -914,12 +914,13 @@ NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request,
 
       while (start && end)
       {
-          if (PL_strncasecmp(start, "X-Mozilla-Status:", 17) &&
+          if (m_outputStream &&
+              PL_strncasecmp(start, "X-Mozilla-Status:", 17) &&
               PL_strncasecmp(start, "X-Mozilla-Status2:", 18) &&
               PL_strncmp(start, "From - ", 7))
           {
               rv = m_outputStream->Write(start, end-start, &writeCount);
-              rv = m_outputStream->Write(lineEnding, lineEndingLength, &writeCount);
+              rv |= m_outputStream->Write(lineEnding, lineEndingLength, &writeCount);
           }
           start = end+linebreak_len;
           if (start >= m_dataBuffer + m_leftOver)

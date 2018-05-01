@@ -602,7 +602,15 @@ nsSecureBrowserUIImpl::OnStateChange(nsIWebProgress* aWebProgress,
   nsCOMPtr<nsIDOMWindow> windowForProgress;
   aWebProgress->GetDOMWindow(getter_AddRefs(windowForProgress));
 
-  const PRBool isToplevelProgress = (windowForProgress.get() == mWindow.get());
+  PRBool isNoContentResponse = PR_FALSE;
+  nsCOMPtr<nsIHttpChannel> httpChannel = do_QueryInterface(aRequest);
+  if (httpChannel) 
+  {        
+    PRUint32 response;
+    isNoContentResponse = NS_SUCCEEDED(httpChannel->GetResponseStatus(&response)) &&
+        (response == 204 || response == 205);
+  }
+  const PRBool isToplevelProgress = (windowForProgress.get() == mWindow.get()) && !isNoContentResponse;
   
 #ifdef PR_LOGGING
   if (windowForProgress)

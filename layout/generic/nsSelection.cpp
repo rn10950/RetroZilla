@@ -6312,6 +6312,9 @@ nsTypedSelection::Collapse(nsIDOMNode* aParentNode, PRInt32 aOffset)
     return NS_ERROR_INVALID_ARG;
   if (!mFrameSelection)
     return NS_ERROR_NOT_INITIALIZED; // Can't do selection
+  
+  nsCOMPtr<nsIDOMNode> kungfuDeathGrip = aParentNode;
+  
   mFrameSelection->InvalidateDesiredX();
   if (!IsValidSelectionPoint(mFrameSelection, aParentNode))
     return NS_ERROR_FAILURE;

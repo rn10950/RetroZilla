@@ -163,6 +163,9 @@ protected:
   PRUint32        mBaseCommandControllerId;
   PRUint32        mDocStateControllerId;
   PRUint32        mHTMLCommandControllerId;
+
+  // Make sure the docshell we use is safe
+  nsWeakPtr       mDocShell;
 };
 
 

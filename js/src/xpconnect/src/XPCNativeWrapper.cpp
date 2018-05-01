@@ -1127,9 +1127,16 @@ MirrorWrappedNativeParent(JSContext *cx, XPCWrappedNative *wrapper,
     XPCWrappedNative *parent_wrapper =
       XPCWrappedNative::GetWrappedNativeOfJSObject(cx, wn_parent);
 
-    *result = XPCNativeWrapper::GetNewOrUsed(cx, parent_wrapper, nsnull, nsnull);
-    if (!*result)
-      return JS_FALSE;
+    // parent_wrapper can be null if we're in a Components.utils.evalInSandbox
+    // scope. In that case, the best we can do is just use the
+    // non-native-wrapped sandbox global object for our parent.
+    if (parent_wrapper) {
+      *result = XPCNativeWrapper::GetNewOrUsed(cx, parent_wrapper, nsnull, nsnull);
+      if (!*result)
+        return JS_FALSE;
+    } else {
+      *result = nsnull;
+    }
   }
   return JS_TRUE;
 }

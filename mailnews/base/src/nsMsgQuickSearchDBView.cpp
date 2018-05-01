@@ -427,6 +427,8 @@ nsresult nsMsgQuickSearchDBView::SortThreads(nsMsgViewSortTypeValue sortType, ns
         continue;
       // it would be nice if GetInsertIndexHelper always found the hdr, but it doesn't.
       threadHdr->GetChildHdrAt(0, getter_AddRefs(rootHdr));
+      if (!rootHdr)
+        continue;
       threadRootIndex = GetInsertIndexHelper(rootHdr, &threadRootIds, nsMsgViewSortOrder::ascending, nsMsgViewSortType::byId);
       threadRootIds.InsertAt(threadRootIndex, rootKey);
     }

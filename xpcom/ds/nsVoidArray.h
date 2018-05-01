@@ -184,7 +184,13 @@ public:
 
   virtual PRBool SizeTo(PRInt32 aMin);
   virtual void Compact();
-  
+
+  nsAutoVoidArray& operator=(const nsVoidArray& other)
+  {
+    nsVoidArray::operator=(other);
+    return *this;
+  }
+
 protected:
   // The internal storage
   enum { kAutoBufSize = 8 };

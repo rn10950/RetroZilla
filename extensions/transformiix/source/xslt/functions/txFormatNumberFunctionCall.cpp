@@ -89,7 +89,9 @@ txFormatNumberFunctionCall::evaluate(txIEvalContext* aContext,
     nsAutoString formatStr;
     txExpandedName formatName;
 
-    value = evaluateToNumber((Expr*)iter.next(), aContext);
+    rv = evaluateToNumber((Expr*)iter.next(), aContext, &value);
+    NS_ENSURE_SUCCESS(rv, rv);
+
     evaluateToString((Expr*)iter.next(), aContext, formatStr);
     if (iter.hasNext()) {
         nsAutoString formatQName;

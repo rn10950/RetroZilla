@@ -355,13 +355,19 @@ nsHTMLFramesetFrame::Init(nsPresContext*  aPresContext,
   NS_ENSURE_SUCCESS(result, result);
   result = ourContent->GetColSpec(&mNumCols, &colSpecs);
   NS_ENSURE_SUCCESS(result, result);
+
+  // Maximum value of mNumRows and mNumCols is NS_MAX_FRAMESET_SPEC_COUNT
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(nscoord));
   mRowSizes  = new nscoord[mNumRows];
   mColSizes  = new nscoord[mNumCols];
   if (!mRowSizes || !mColSizes)
     return NS_ERROR_OUT_OF_MEMORY; 
 
+  // Ensure we can't overflow numCells
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < PR_INT32_MAX / NS_MAX_FRAMESET_SPEC_COUNT);
   PRInt32 numCells = mNumRows*mNumCols;
 
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(nsHTMLFramesetBorderFrame*));
   mVerBorders    = new nsHTMLFramesetBorderFrame*[mNumCols];  // 1 more than number of ver borders
   if (!mVerBorders)
     return NS_ERROR_OUT_OF_MEMORY;
@@ -375,7 +381,13 @@ nsHTMLFramesetFrame::Init(nsPresContext*  aPresContext,
 
   for (int horX = 0; horX < mNumRows; horX++)
     mHorBorders[horX]    = nsnull;
-     
+      
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
+               < UINT_MAX / sizeof(PRInt32) / NS_MAX_FRAMESET_SPEC_COUNT); 
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
+               < UINT_MAX / sizeof(nsFrameborder) / NS_MAX_FRAMESET_SPEC_COUNT); 
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
+               < UINT_MAX / sizeof(nsBorderColor) / NS_MAX_FRAMESET_SPEC_COUNT); 
   mChildTypes = new PRInt32[numCells]; 
   mChildFrameborder  = new nsFrameborder[numCells]; 
   mChildBorderColors  = new nsBorderColor[numCells]; 
@@ -550,6 +562,9 @@ void nsHTMLFramesetFrame::CalculateRowCol(nsPresContext*       aPresContext,
                                           const nsFramesetSpec* aSpecs, 
                                           nscoord*              aValues)
 {
+  // aNumSpecs maximum value is NS_MAX_FRAMESET_SPEC_COUNT
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(PRInt32));
+
   PRInt32  fixedTotal = 0;
   PRInt32  numFixed = 0;
   PRInt32* fixed = new PRInt32[aNumSpecs];
@@ -1045,6 +1060,11 @@ nsHTMLFramesetFrame::Reflow(nsPresContext*          aPresContext,
   nsFrameborder  frameborder       = GetFrameBorder();
 
   if (firstTime) {
+    // Check for overflow in memory allocations using mNumCols and mNumRows
+    // which have a maxium value of NS_MAX_FRAMESET_SPEC_COUNT.
+    PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(PRBool));
+    PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < UINT_MAX / sizeof(nscolor));
+
     verBordersVis = new PRBool[mNumCols];
     verBorderColors = new nscolor[mNumCols];
     for (int verX  = 0; verX < mNumCols; verX++) {
@@ -1360,7 +1380,10 @@ nsHTMLFramesetFrame::RecalculateBorderResize()
     return;
   }
 
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT < PR_INT32_MAX / NS_MAX_FRAMESET_SPEC_COUNT);
   PRInt32 numCells = mNumRows * mNumCols; // max number of cells
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT
+               < UINT_MAX / sizeof(PRInt32) / NS_MAX_FRAMESET_SPEC_COUNT);
   PRInt32* childTypes = new PRInt32[numCells];
   PRUint32 childIndex, frameOrFramesetChildIndex = 0;
 

@@ -235,7 +235,7 @@ public:
   void unregisterHttpClient();
 };
 
+PRErrorCode PSM_SSL_BlacklistDigiNotar(CERTCertificate * serverCert,
+                                       CERTCertList * serverCertChain);
+
 #endif // _NSNSSCALLBACKS_H_
-
-
-

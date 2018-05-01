@@ -79,7 +79,10 @@ NumberFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
     switch (mType) {
         case CEILING:
         {
-            double dbl = evaluateToNumber((Expr*)iter.next(), aContext);
+            double dbl;
+            nsresult rv = evaluateToNumber((Expr*)iter.next(), aContext, &dbl);
+            NS_ENSURE_SUCCESS(rv, rv);
+
             if (!Double::isNaN(dbl) && !Double::isInfinite(dbl)) {
                 if (Double::isNeg(dbl) && dbl > -1) {
                     dbl *= 0;
@@ -93,7 +96,10 @@ NumberFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         }
         case FLOOR:
         {
-            double dbl = evaluateToNumber((Expr*)iter.next(), aContext);
+            double dbl;
+            nsresult rv = evaluateToNumber((Expr*)iter.next(), aContext, &dbl);
+            NS_ENSURE_SUCCESS(rv, rv);
+
             if (!Double::isNaN(dbl) &&
                 !Double::isInfinite(dbl) &&
                 !(dbl == 0 && Double::isNeg(dbl))) {
@@ -104,7 +110,10 @@ NumberFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         }
         case ROUND:
         {
-            double dbl = evaluateToNumber((Expr*)iter.next(), aContext);
+            double dbl;
+            nsresult rv = evaluateToNumber((Expr*)iter.next(), aContext, &dbl);
+            NS_ENSURE_SUCCESS(rv, rv);
+
             if (!Double::isNaN(dbl) && !Double::isInfinite(dbl)) {
                 if (Double::isNeg(dbl) && dbl >= -0.5) {
                     dbl *= 0;
@@ -136,7 +145,8 @@ NumberFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         {
             double res;
             if (iter.hasNext()) {
-                res = evaluateToNumber((Expr*)iter.next(), aContext);
+                nsresult rv = evaluateToNumber((Expr*)iter.next(), aContext, &res);
+                NS_ENSURE_SUCCESS(rv, rv);
             }
             else {
                 nsAutoString resultStr;

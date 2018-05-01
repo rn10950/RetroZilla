@@ -49,6 +49,7 @@
 
 nsDocShellLoadInfo::nsDocShellLoadInfo()
   : mInheritOwner(PR_FALSE),
+    mOwnerIsExplicit(PR_FALSE),
     mSendReferrer(PR_TRUE),
     mLoadType(nsIDocShellLoadInfo::loadNormal)
 {
@@ -68,6 +69,7 @@ NS_IMPL_RELEASE(nsDocShellLoadInfo)
 NS_INTERFACE_MAP_BEGIN(nsDocShellLoadInfo)
    NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDocShellLoadInfo)
    NS_INTERFACE_MAP_ENTRY(nsIDocShellLoadInfo)
+   NS_INTERFACE_MAP_ENTRY(nsIDocShellLoadInfo_1_9_0_BRANCH)
 NS_INTERFACE_MAP_END     
 
 //*****************************************************************************
@@ -115,6 +117,18 @@ NS_IMETHODIMP nsDocShellLoadInfo::GetInheritOwner(PRBool* aInheritOwner)
 NS_IMETHODIMP nsDocShellLoadInfo::SetInheritOwner(PRBool aInheritOwner)
 {
    mInheritOwner = aInheritOwner;
+   return NS_OK;
+}
+
+NS_IMETHODIMP nsDocShellLoadInfo::GetOwnerIsExplicit(PRBool* aOwnerIsExplicit)
+{
+   *aOwnerIsExplicit = mOwnerIsExplicit;
+   return NS_OK;
+}
+
+NS_IMETHODIMP nsDocShellLoadInfo::SetOwnerIsExplicit(PRBool aOwnerIsExplicit)
+{
+   mOwnerIsExplicit = aOwnerIsExplicit;
    return NS_OK;
 }
 

@@ -71,7 +71,8 @@ nsPrintfCString::nsPrintfCString( size_type n, const char_type* format, ... )
     if ( n > logical_capacity )
       {
         SetCapacity(n);
-        if (Capacity() < n)
+        size_type capacity = Capacity();
+        if (capacity == size_type(-1) || capacity < n)
           return; // out of memory !!
         logical_capacity = n;
       }
