@@ -131,28 +131,47 @@ EnumSystemFilesInFolder(Handler func, PRUnichar* szSysDir, int maxDepth)
     FindClose(lFindHandle);
 }
 
+typedef BOOL 
+(WINAPI *SHGetSpecialFolderPathWFn)(
+    HWND hwndOwner,
+    LPWSTR lpszPath,
+    int nFolder,
+    BOOL fCreate);
+
 static BOOL
 EnumSystemFiles(Handler func)
 {
+    HMODULE hModule;
+    SHGetSpecialFolderPathWFn pSHGetSpecialFolderPathW;
     PRUnichar szSysDir[_MAX_PATH];
     static const int folders[] = {
-    	CSIDL_BITBUCKET,  
-	CSIDL_RECENT,
-	CSIDL_INTERNET_CACHE, 
-	CSIDL_HISTORY,
-	0
+        CSIDL_BITBUCKET,  
+        CSIDL_RECENT,
+#ifndef WINCE     
+        CSIDL_INTERNET_CACHE, 
+        CSIDL_HISTORY,
+#endif
+        0
     };
     int i = 0;
     if (_MAX_PATH > (i = GetTempPathW(_MAX_PATH, szSysDir))) {
         if (i > 0 && szSysDir[i-1] == L'\\')
-	    szSysDir[i-1] = L'\0'; // we need to lop off the trailing slash
+            szSysDir[i-1] = L'\0'; // we need to lop off the trailing slash
         EnumSystemFilesInFolder(func, szSysDir, MAX_DEPTH);
     }
-    for(i = 0; folders[i]; i++) {
-        DWORD rv = SHGetSpecialFolderPathW(NULL, szSysDir, folders[i], 0);
-        if (szSysDir[0])
-            EnumSystemFilesInFolder(func, szSysDir, MAX_DEPTH);
-        szSysDir[0] =  L'\0';
+    hModule = LoadLibrary("shell32.dll");
+    if (hModule != NULL) {
+      pSHGetSpecialFolderPathW = (SHGetSpecialFolderPathWFn)
+        GetProcAddress(hModule, "SHGetSpecialFolderPathW");
+      if (pSHGetSpecialFolderPathW) {
+        for(i = 0; folders[i]; i++) {
+            DWORD rv = pSHGetSpecialFolderPathW(NULL, szSysDir, folders[i], 0);
+            if (szSysDir[0])
+                EnumSystemFilesInFolder(func, szSysDir, MAX_DEPTH);
+            szSysDir[0] =  L'\0';
+        }
+      }
+      FreeLibrary(hModule);
     }
     return PR_TRUE;
 }
@@ -367,6 +386,40 @@ void RNG_FileForRNG(const char *filename)
 
 
 /*
+ * CryptoAPI requires Windows NT 4.0 or Windows 95 OSR2 and later.
+ * Until we drop support for Windows 95, we need to emulate some
+ * definitions and declarations in <wincrypt.h> and look up the
+ * functions in advapi32.dll at run time.
+ */
+
+#ifndef WIN64
+typedef unsigned long HCRYPTPROV;
+#endif
+
+#define CRYPT_VERIFYCONTEXT 0xF0000000
+
+#define PROV_RSA_FULL 1
+
+typedef BOOL
+(WINAPI *CryptAcquireContextAFn)(
+    HCRYPTPROV *phProv,
+    LPCSTR pszContainer,
+    LPCSTR pszProvider,
+    DWORD dwProvType,
+    DWORD dwFlags);
+
+typedef BOOL
+(WINAPI *CryptReleaseContextFn)(
+    HCRYPTPROV hProv,
+    DWORD dwFlags);
+
+typedef BOOL
+(WINAPI *CryptGenRandomFn)(
+    HCRYPTPROV hProv,
+    DWORD dwLen,
+    BYTE *pbBuffer);
+
+/*
  * Windows XP and Windows Server 2003 and later have RtlGenRandom,
  * which must be looked up by the name SystemFunction036.
  */
@@ -379,19 +432,50 @@ size_t RNG_SystemRNG(void *dest, size_t maxLen)
 {
     HMODULE hModule;
     RtlGenRandomFn pRtlGenRandom;
+    CryptAcquireContextAFn pCryptAcquireContextA;
+    CryptReleaseContextFn pCryptReleaseContext;
+    CryptGenRandomFn pCryptGenRandom;
+    HCRYPTPROV hCryptProv;
     size_t bytes = 0;
 
     usedWindowsPRNG = PR_FALSE;
     hModule = LoadLibrary("advapi32.dll");
     if (hModule == NULL) {
-	return bytes;
+	return rng_systemFromNoise(dest,maxLen);
     }
     pRtlGenRandom = (RtlGenRandomFn)
 	GetProcAddress(hModule, "SystemFunction036");
-    if (pRtlGenRandom && pRtlGenRandom(dest, maxLen)) {
-	bytes = maxLen;
-	usedWindowsPRNG = PR_TRUE;
+    if (pRtlGenRandom) {
+	if (pRtlGenRandom(dest, maxLen)) {
+	    bytes = maxLen;
+	    usedWindowsPRNG = PR_TRUE;
+	} else {
+	    bytes = rng_systemFromNoise(dest,maxLen);
+	}
+	goto done;
     }
+    pCryptAcquireContextA = (CryptAcquireContextAFn)
+	GetProcAddress(hModule, "CryptAcquireContextA");
+    pCryptReleaseContext = (CryptReleaseContextFn)
+	GetProcAddress(hModule, "CryptReleaseContext");
+    pCryptGenRandom = (CryptGenRandomFn)
+	GetProcAddress(hModule, "CryptGenRandom");
+    if (!pCryptAcquireContextA || !pCryptReleaseContext || !pCryptGenRandom) {
+	bytes = rng_systemFromNoise(dest,maxLen);
+	goto done;
+    }
+    if (pCryptAcquireContextA(&hCryptProv, NULL, NULL,
+	PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+	if (pCryptGenRandom(hCryptProv, maxLen, dest)) {
+	    bytes = maxLen;
+	    usedWindowsPRNG = PR_TRUE;
+	}
+	pCryptReleaseContext(hCryptProv, 0);
+    }
+    if (bytes == 0) {
+	bytes = rng_systemFromNoise(dest,maxLen);
+    }
+done:
     FreeLibrary(hModule);
     return bytes;
 }

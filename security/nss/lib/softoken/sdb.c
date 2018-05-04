@@ -268,8 +268,8 @@ sdb_getTempDir(sqlite3 *sqlDB)
     char *foundSeparator = NULL;
 
     /* Obtain temporary filename in sqlite's directory for temporary tables */
-    sqlrv = sqlite3_file_control(sqlDB, 0, SQLITE_FCNTL_TEMPFILENAME,
-				 (void*)&tempName);
+    sqlrv = SQLITE_NOTFOUND;/*sqlite3_file_control(sqlDB, 0, SQLITE_FCNTL_TEMPFILENAME,
+				 (void*)&tempName);*/
     if (sqlrv == SQLITE_NOTFOUND) {
 	/* SQLITE_FCNTL_TEMPFILENAME not implemented because we are using
 	 * an older SQLite. */
