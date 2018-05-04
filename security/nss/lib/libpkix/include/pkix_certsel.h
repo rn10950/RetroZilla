@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * This file defines functions associated with the PKIX_CertSelector and the
  * PKIX_ComCertSelParams types.
@@ -118,10 +85,9 @@ extern "C" {
  * DESCRIPTION:
  *
  *  This callback function determines whether the specified Cert pointed to by
- *  "cert" matches the criteria of the CertSelector pointed to by "selector",
- *  and stores the result at "pResult". If the Cert matches the CertSelector's
- *  criteria, a value of PKIX_TRUE will be stored at "pResult"; otherwise a
- *  value of PKIX_FALSE will be stored.
+ *  "cert" matches the criteria of the CertSelector pointed to by "selector".
+ *  If the Cert does not matches the CertSelector's criteria, an exception will
+ *  be thrown.
  *
  * PARAMETERS:
  *  "selector"
@@ -130,8 +96,6 @@ extern "C" {
  *  "cert"
  *      Address of Cert that is to be matched using "selector".
  *      Must be non-NULL.
- *  "pResult"
- *      Address where Boolean value will be stored. Must be non-NULL.
  *  "plContext"
  *      Platform-specific context pointer.
  * THREAD SAFETY:
@@ -148,7 +112,6 @@ typedef PKIX_Error *
 (*PKIX_CertSelector_MatchCallback)(
         PKIX_CertSelector *selector,
         PKIX_PL_Cert *cert,
-        PKIX_Boolean *pResult,
         void *plContext);
 
 /*
@@ -1794,6 +1757,66 @@ PKIX_Error *
 PKIX_ComCertSelParams_SetMatchAllSubjAltNames(
         PKIX_ComCertSelParams *params,
         PKIX_Boolean match,
+        void *plContext);
+
+/*
+ * FUNCTION: PKIX_ComCertSelParams_GetLeafCertFlag
+ * DESCRIPTION:
+ *
+ * Return "leafCert" flag of the ComCertSelParams structure. If set to true,
+ * the flag indicates that a selector should filter out all cert that are not
+ * qualified to be a leaf cert according to the specified key/ekey usages.
+ *
+ * PARAMETERS:
+ *  "params"
+ *      Address of ComCertSelParams object used to determine whether all
+ *      subject alternative names must be matched. Must be non-NULL.
+ *  "pLeafFlag"
+ *      Address of returned value.
+ *  "plContext"
+ *      Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Conditionally Thread Safe
+ *      (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns a CertSelector Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error*
+PKIX_ComCertSelParams_GetLeafCertFlag(
+        PKIX_ComCertSelParams *params,
+        PKIX_Boolean *pLeafFlag,
+        void *plContext);
+
+/*
+ * FUNCTION: PKIX_ComCertSelParams_SetLeafCertFlag
+ * DESCRIPTION:
+ *
+ * Sets a flag that if its value is true, indicates that the selector
+ * should only pick certs that qualifies to be leaf for this cert path
+ * validation.
+ *
+ * PARAMETERS:
+ *  "params"
+ *      Address of ComCertSelParams object whose match flag is to be set.
+ *      Must be non-NULL.
+ *  "leafFlag"
+ *      Boolean value used to set the leaf flag.
+ *  "plContext"
+ *      Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Not Thread Safe - assumes exclusive access to "params"
+ *  (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns a CertSelector Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error *
+PKIX_ComCertSelParams_SetLeafCertFlag(
+        PKIX_ComCertSelParams *params,
+        PKIX_Boolean leafFlag,
         void *plContext);
 
 #ifdef __cplusplus

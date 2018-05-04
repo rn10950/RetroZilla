@@ -1,42 +1,8 @@
-#! /bin/sh
+#! /bin/bash
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Netscape security libraries.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1994-2000
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
-#   Slavomir Katuscak <slavomir.katuscak@sun.com>, Sun Microsystems
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ########################################################################
 #
@@ -108,6 +74,23 @@ cert_log() ######################    write the cert_status file
     echo $* >>${CERT_LOG_FILE}
 }
 
+########################################################################
+# function wraps calls to pk12util, also: writes action and options
+# to stdout.
+# Params are the same as to pk12util.
+# Returns pk12util status
+#
+pk12u()
+{
+    echo "${CU_ACTION} --------------------------"
+
+    echo "pk12util $@"
+    ${BINDIR}/pk12util $@
+    RET=$?
+
+    return $RET
+}
+
 ################################ certu #################################
 # local shell function to call certutil, also: writes action and options to
 # stdout, sets variable RET and writes results to the html file results
@@ -115,6 +98,7 @@ cert_log() ######################    write the cert_status file
 certu()
 {
     echo "$SCRIPTNAME: ${CU_ACTION} --------------------------"
+    EXPECTED=${RETEXPECTED-0}
 
     if [ -n "${CU_SUBJECT}" ]; then
         #the subject of the cert contains blanks, and the shell 
@@ -128,9 +112,9 @@ certu()
         ${PROFTOOL} ${BINDIR}/certutil $*
         RET=$?
     fi
-    if [ "$RET" -ne 0 ]; then
+    if [ "$RET" -ne "$EXPECTED" ]; then
         CERTFAILED=$RET
-        html_failed "${CU_ACTION} ($RET) " 
+        html_failed "${CU_ACTION} ($RET=$EXPECTED) " 
         cert_log "ERROR: ${CU_ACTION} failed $RET"
     else
         html_passed "${CU_ACTION}"
@@ -157,6 +141,29 @@ crlu()
         cert_log "ERROR: ${CU_ACTION} failed $RET"
     else
         html_passed "${CU_ACTION}"
+    fi
+
+    return $RET
+}
+
+################################ ocspr ##################################
+# local shell function to call ocsresp, also: writes action and options to
+# stdout, sets variable RET and writes results to the html file results
+#########################################################################
+ocspr()
+{
+    echo "$SCRIPTNAME: ${OR_ACTION} --------------------------"
+
+    OCSPRESP="ocspresp"
+    echo "$OCSPRESP $*"
+    ${PROFTOOL} ${BINDIR}/$OCSPRESP $*
+    RET=$?
+    if [ "$RET" -ne 0 ]; then
+        OCSPFAILED=$RET
+        html_failed "${OR_ACTION} ($RET) "
+        cert_log "ERROR: ${OR_ACTION} failed $RET"
+    else
+        html_passed "${OR_ACTION}"
     fi
 
     return $RET
@@ -280,7 +287,7 @@ cert_create_cert()
 
     CU_ACTION="Import Root CA for $CERTNAME"
     certu -A -n "TestCA" -t "TC,TC,TC" -f "${R_PWFILE}" -d "${PROFILEDIR}" \
-          -i "${R_CADIR}/root.cert" 2>&1
+          -i "${R_CADIR}/TestCA.ca.cert" 2>&1
     if [ "$RET" -ne 0 ]; then
         return $RET
     fi
@@ -288,7 +295,7 @@ cert_create_cert()
     if [ -n "$NSS_ENABLE_ECC" ] ; then
 	CU_ACTION="Import EC Root CA for $CERTNAME"
 	certu -A -n "TestCA-ec" -t "TC,TC,TC" -f "${R_PWFILE}" \
-	    -d "${PROFILEDIR}" -i "${R_CADIR}/ecroot.cert" 2>&1
+	    -d "${PROFILEDIR}" -i "${R_CADIR}/TestCA-ec.ca.cert" 2>&1
 	if [ "$RET" -ne 0 ]; then
             return $RET
 	fi
@@ -393,7 +400,7 @@ cert_add_cert()
 ################################# cert_all_CA ################################
 # local shell function to build the additional Temp. Certificate Authority (CA)
 # used for the "real life" ssl test with 2 different CA's in the
-# client and in teh server's dir
+# client and in the server's dir
 ##########################################################################
 cert_all_CA()
 {
@@ -645,48 +652,48 @@ cert_smime_client()
   #
   echo "$SCRIPTNAME: Importing Certificates =============================="
   CU_ACTION="Import Bob's cert into Alice's db"
-  certu -E -t "p,p,p" -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
+  certu -E -t ",," -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
         -i ${R_BOBDIR}/Bob.cert 2>&1
 
   CU_ACTION="Import Dave's cert into Alice's DB"
-  certu -E -t "p,p,p" -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
+  certu -E -t ",," -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
         -i ${R_DAVEDIR}/Dave.cert 2>&1
 
   CU_ACTION="Import Dave's cert into Bob's DB"
-  certu -E -t "p,p,p" -d ${P_R_BOBDIR} -f ${R_PWFILE} \
+  certu -E -t ",," -d ${P_R_BOBDIR} -f ${R_PWFILE} \
         -i ${R_DAVEDIR}/Dave.cert 2>&1
 
   CU_ACTION="Import Eve's cert into Alice's DB"
-  certu -E -t "p,p,p" -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
+  certu -E -t ",," -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
         -i ${R_EVEDIR}/Eve.cert 2>&1
 
   CU_ACTION="Import Eve's cert into Bob's DB"
-  certu -E -t "p,p,p" -d ${P_R_BOBDIR} -f ${R_PWFILE} \
+  certu -E -t ",," -d ${P_R_BOBDIR} -f ${R_PWFILE} \
         -i ${R_EVEDIR}/Eve.cert 2>&1
 
   if [ -n "$NSS_ENABLE_ECC" ] ; then
       echo "$SCRIPTNAME: Importing EC Certificates =============================="
       CU_ACTION="Import Bob's EC cert into Alice's db"
-      certu -E -t "p,p,p" -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
+      certu -E -t ",," -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
           -i ${R_BOBDIR}/Bob-ec.cert 2>&1
 
       CU_ACTION="Import Dave's EC cert into Alice's DB"
-      certu -E -t "p,p,p" -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
+      certu -E -t ",," -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
           -i ${R_DAVEDIR}/Dave-ec.cert 2>&1
 
       CU_ACTION="Import Dave's EC cert into Bob's DB"
-      certu -E -t "p,p,p" -d ${P_R_BOBDIR} -f ${R_PWFILE} \
+      certu -E -t ",," -d ${P_R_BOBDIR} -f ${R_PWFILE} \
           -i ${R_DAVEDIR}/Dave-ec.cert 2>&1
 
 ## XXXX Do not import Eve's EC cert until we can make sure that
 ## the email addresses listed in the Subject Alt Name Extension 
 ## inside Eve's ECC and non-ECC certs are different.
 #     CU_ACTION="Import Eve's EC cert into Alice's DB"
-#     certu -E -t "p,p,p" -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
+#     certu -E -t ",," -d ${P_R_ALICEDIR} -f ${R_PWFILE} \
 #         -i ${R_EVEDIR}/Eve-ec.cert 2>&1
 
 #     CU_ACTION="Import Eve's EC cert into Bob's DB"
-#     certu -E -t "p,p,p" -d ${P_R_BOBDIR} -f ${R_PWFILE} \
+#     certu -E -t ",," -d ${P_R_BOBDIR} -f ${R_PWFILE} \
 #         -i ${R_EVEDIR}/Eve-ec.cert 2>&1
   fi
 
@@ -906,6 +913,11 @@ cert_ssl()
   echo "$SCRIPTNAME: Creating Server CA Issued Certificate for \\"
   echo "             ${HOSTADDR} ------------------------------------"
   cert_create_cert ${SERVERDIR} "${HOSTADDR}" 100 ${D_SERVER}
+  echo "$SCRIPTNAME: Creating Server CA Issued Certificate for \\"
+  echo "             ${HOSTADDR}-sni --------------------------------"
+  CERTSERIAL=101
+  CERTNAME="${HOST}-sni${sniCertCount}.${DOMSUF}"
+  cert_add_cert 
   CU_ACTION="Modify trust attributes of Root CA -t TC,TC,TC"
   certu -M -n "TestCA" -t "TC,TC,TC" -d ${PROFILEDIR} -f "${R_PWFILE}"
   if [ -n "$NSS_ENABLE_ECC" ] ; then
@@ -926,6 +938,12 @@ cert_ssl()
   else
       cert_log "SUCCESS: SSL passed"
   fi
+
+  echo "$SCRIPTNAME: Creating database for OCSP stapling tests  ==============="
+  echo "cp -rv ${SERVERDIR} ${STAPLINGDIR}"
+  cp -rv ${R_SERVERDIR} ${R_STAPLINGDIR}
+  pk12u -o ${R_STAPLINGDIR}/ca.p12 -n TestCA -k ${R_PWFILE} -w ${R_PWFILE} -d ${R_CADIR}
+  pk12u -i ${R_STAPLINGDIR}/ca.p12 -k ${R_PWFILE} -w ${R_PWFILE} -d ${R_STAPLINGDIR}
 }
 ############################## cert_stresscerts ################################
 # local shell function to create client certs for SSL stresstest
@@ -1024,7 +1042,7 @@ cert_eccurves()
 
     CU_ACTION="Import EC Root CA for $CERTNAME"
     certu -A -n "TestCA-ec" -t "TC,TC,TC" -f "${R_PWFILE}" \
-        -d "${PROFILEDIR}" -i "${R_CADIR}/ecroot.cert" 2>&1
+        -d "${PROFILEDIR}" -i "${R_CADIR}/TestCA-ec.ca.cert" 2>&1
 
     if [ -n "${NSS_ECC_MORE_THAN_SUITE_B}" ] ; then
       CURVE_LIST="c2pnb163v1 c2pnb163v2 c2pnb163v3 c2pnb176v1 \
@@ -1084,12 +1102,12 @@ cert_extensions_test()
 
     echo
     echo certutil -d ${CERT_EXTENSIONS_DIR} -S -n ${CERTNAME} \
-        -t "u,u,u" -o /tmp/cert -s "${CU_SUBJECT}" -x -f ${R_PWFILE} \
+        -t "u,u,u" -o ${CERT_EXTENSIONS_DIR}/tempcert -s "${CU_SUBJECT}" -x -f ${R_PWFILE} \
         -z "${R_NOISE_FILE}" -${OPT} \< ${TARG_FILE}
     echo "certutil options:"
     cat ${TARG_FILE}
     ${BINDIR}/certutil -d ${CERT_EXTENSIONS_DIR} -S -n ${CERTNAME} \
-        -t "u,u,u" -o /tmp/cert -s "${CU_SUBJECT}" -x -f ${R_PWFILE} \
+        -t "u,u,u" -o ${CERT_EXTENSIONS_DIR}/tempcert -s "${CU_SUBJECT}" -x -f ${R_PWFILE} \
         -z "${R_NOISE_FILE}" -${OPT} < ${TARG_FILE}
     RET=$?
     if [ "${RET}" -ne 0 ]; then
@@ -1391,6 +1409,86 @@ cert_test_password()
   certu -V -n PasswordCert -u S -d "${PROFILEDIR}" -f "${R_FIPSPWFILE}" 2>&1
 }
 
+###############################
+# test if we can distrust a certificate.
+#
+# we create 3 new certs:
+#   1 leaf signed by the trusted root.
+#   1 intermediate signed by the trusted root.
+#   1 leaf signed by the intermediate.
+#
+#  we mark the first leaf and the intermediate as explicitly untrusted.
+#  we then try to verify the two leaf certs for our possible usages.
+#  All verification should fail.
+# 
+cert_test_distrust()
+{
+  echo "$SCRIPTNAME: Creating Distrusted Certificate"
+  cert_create_cert ${DISTRUSTDIR} "Distrusted" 2000 ${D_DISTRUST}
+  CU_ACTION="Mark CERT as unstrusted"
+  certu -M -n "Distrusted" -t p,p,p -d ${PROFILEDIR} -f "${R_PWFILE}" 2>&1
+  echo "$SCRIPTNAME: Creating Distrusted Intermediate"
+  CERTNAME="DistrustedCA"
+  ALL_CU_SUBJECT="CN=${CERTNAME}, E=${CERTNAME}@bogus.com, O=BOGUS NSS, L=Mountain View, ST=California, C=US"
+  cert_CA ${CADIR} "${CERTNAME}" "-c TestCA" ",," ${D_CA} 2010 2>&1
+  CU_ACTION="Import Distrusted Intermediate"
+  certu -A -n "${CERTNAME}" -t "p,p,p" -f "${R_PWFILE}" -d "${PROFILEDIR}" \
+          -i "${R_CADIR}/DistrustedCA.ca.cert" 2>&1
+
+  # now create the last leaf signed by our distrusted CA
+  # since it's not signed by TestCA it requires more steps.
+  CU_ACTION="Generate Cert Request for Leaf Chained to Distrusted CA"
+  CERTNAME="LeafChainedToDistrustedCA"
+  CU_SUBJECT="CN=${CERTNAME}, E=${CERTNAME}@bogus.com, O=BOGUS NSS, L=Mountain View, ST=California, C=US"
+  certu -R -d "${PROFILEDIR}" -f "${R_PWFILE}" -z "${R_NOISE_FILE}" -o req 2>&1
+
+  CU_ACTION="Sign ${CERTNAME}'s Request"
+  cp ${CERTDIR}/req ${CADIR}
+  certu -C -c "DistrustedCA" -m 100 -v 60 -d "${P_R_CADIR}" \
+        -i req -o "${CERTNAME}.cert" -f "${R_PWFILE}" 2>&1
+
+  CU_ACTION="Import $CERTNAME's Cert  -t u,u,u"
+  certu -A -n "$CERTNAME" -t "u,u,u" -d "${PROFILEDIR}" -f "${R_PWFILE}" \
+        -i "${CERTNAME}.cert" 2>&1
+
+  RETEXPECTED=255
+  CU_ACTION="Verify ${CERTNAME} Cert for SSL Server"
+  certu -V -n ${CERTNAME} -u V -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for SSL Client"
+  certu -V -n ${CERTNAME} -u C -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for Email signer"
+  certu -V -n ${CERTNAME} -u S -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for Email recipient"
+  certu -V -n ${CERTNAME} -u R -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for OCSP responder"
+  certu -V -n ${CERTNAME} -u O -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for Object Signer"
+  certu -V -n ${CERTNAME} -u J -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+
+  CERTNAME="Distrusted"
+  CU_ACTION="Verify ${CERTNAME} Cert for SSL Server"
+  certu -V -n ${CERTNAME} -u V -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for SSL Client"
+  certu -V -n ${CERTNAME} -u C -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for Email signer"
+  certu -V -n ${CERTNAME} -u S -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for Email recipient"
+  certu -V -n ${CERTNAME} -u R -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for OCSP responder"
+  certu -V -n ${CERTNAME} -u O -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  CU_ACTION="Verify ${CERTNAME} Cert for Object Signer"
+  certu -V -n ${CERTNAME} -u J -d "${PROFILEDIR}" -f "${R_PWFILE}" 2>&1
+  RETEXPECTED=0
+}
+
+cert_test_ocspresp()
+{
+  echo "$SCRIPTNAME: OCSP response creation selftest"
+  OR_ACTION="perform selftest"
+  RETEXPECTED=0
+  ocspr ${SERVER_CADIR} "serverCA" "chain-1-serverCA" -f "${R_PWFILE}" 2>&1
+}
+
 ############################## cert_cleanup ############################
 # local shell function to finish this script (no exit since it might be
 # sourced)
@@ -1410,10 +1508,14 @@ cert_all_CA
 cert_extended_ssl 
 cert_ssl 
 cert_smime_client        
-cert_fips
+if [ -z "$NSS_TEST_DISABLE_FIPS" ]; then
+    cert_fips
+fi
 cert_eccurves
 cert_extensions
 cert_test_password
+cert_test_distrust
+cert_test_ocspresp
 
 if [ -z "$NSS_TEST_DISABLE_CRL" ] ; then
     cert_crl_ssl

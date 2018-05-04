@@ -1,42 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-
-#ifdef DEBUG
-static const char CVS_ID[] = "@(#) $RCSfile: certificate.c,v $ $Revision: 1.66 $ $Date: 2009/02/09 07:51:27 $";
-#endif /* DEBUG */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef NSSPKI_H
 #include "nsspki.h"
@@ -143,7 +107,7 @@ nssCertificate_Destroy (
 	} else {
 	    nssTrustDomain_LockCertCache(td);
 	}
-	if (PR_AtomicDecrement(&c->object.refCount) == 0) {
+	if (PR_ATOMIC_DECREMENT(&c->object.refCount) == 0) {
 	    /* --- remove cert and UNLOCK storage --- */
 	    if (cc) {
 		nssCertificateStore_RemoveCertLOCKED(cc->certStore, c);
@@ -230,6 +194,7 @@ nssCertificate_GetSubject (
     }
 }
 
+/* Returns a copy, Caller must free using nss_ZFreeIf */
 NSS_IMPLEMENT NSSUTF8 *
 nssCertificate_GetNickname (
   NSSCertificate *c,
@@ -960,6 +925,44 @@ nssCertificateList_AddReferences (
     (void)nssCertificateList_DoCallback(certList, add_ref_callback, NULL);
 }
 
+
+/*
+ * Is this trust record safe to apply to all certs of the same issuer/SN 
+ * independent of the cert matching the hash. This is only true is the trust 
+ * is unknown or distrusted. In general this feature is only useful to 
+ * explicitly distrusting certs. It is not safe to use to trust certs, so 
+ * only allow unknown and untrusted trust types.
+ */
+PRBool
+nssTrust_IsSafeToIgnoreCertHash(nssTrustLevel serverAuth, 
+		nssTrustLevel clientAuth, nssTrustLevel codeSigning, 
+		nssTrustLevel email, PRBool stepup)
+{
+    /* step up is a trust type, if it's on, we must have a hash for the cert */
+    if (stepup) {
+	return PR_FALSE;
+    }
+    if ((serverAuth != nssTrustLevel_Unknown) && 
+	(serverAuth != nssTrustLevel_NotTrusted)) {
+	return PR_FALSE;
+    }
+    if ((clientAuth != nssTrustLevel_Unknown) && 
+	(clientAuth != nssTrustLevel_NotTrusted)) {
+	return PR_FALSE;
+    }
+    if ((codeSigning != nssTrustLevel_Unknown) && 
+	(codeSigning != nssTrustLevel_NotTrusted)) {
+	return PR_FALSE;
+    }
+    if ((email != nssTrustLevel_Unknown) && 
+	(email != nssTrustLevel_NotTrusted)) {
+	return PR_FALSE;
+    }
+    /* record only has Unknown and Untrusted entries, ok to accept without a 
+     * hash */
+    return PR_TRUE;
+}
+
 NSS_IMPLEMENT NSSTrust *
 nssTrust_Create (
   nssPKIObject *object,
@@ -1009,7 +1012,19 @@ nssTrust_Create (
 	    nssPKIObject_Unlock(object);
 	    return (NSSTrust *)NULL;
 	}
-	if (PORT_Memcmp(sha1_hashin,sha1_hashcmp,SHA1_LENGTH) != 0) {
+	/* if no hash is specified, then trust applies to all certs with
+	 * this issuer/SN. NOTE: This is only true for entries that
+	 * have distrust and unknown record */
+	if (!(
+            /* we continue if there is no hash, and the trust type is
+	     * safe to accept without a hash ... or ... */
+	     ((sha1_hash.size == 0)  && 
+		nssTrust_IsSafeToIgnoreCertHash(serverAuth,clientAuth,
+		codeSigning, emailProtection,stepUp)) 
+	   ||
+            /* we have a hash of the correct size, and it matches */
+            ((sha1_hash.size == SHA1_LENGTH) && (PORT_Memcmp(sha1_hashin,
+	        sha1_hashcmp,SHA1_LENGTH) == 0))   )) {
 	    nssPKIObject_Unlock(object);
 	    return (NSSTrust *)NULL;
 	}

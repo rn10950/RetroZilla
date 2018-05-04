@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "secrng.h"
 #include "secerr.h"
@@ -40,16 +8,10 @@
 #ifdef XP_WIN
 #include <windows.h>
 #include <shlobj.h>     /* for CSIDL constants */
-
-#if defined(_WIN32_WCE)
-#include <stdlib.h>	/* Win CE puts lots of stuff here. */
-#include "prprf.h"	/* for PR_snprintf */
-#else
 #include <time.h>
 #include <io.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#endif
 #include <stdio.h>
 #include "prio.h"
 #include "prerror.h"
@@ -78,6 +40,7 @@ size_t RNG_GetNoise(void *buf, size_t maxbuf)
     DWORD   dwHigh, dwLow, dwVal;
     int     n = 0;
     int     nBytes;
+    time_t  sTime;
 
     if (maxbuf <= 0)
         return 0;
@@ -112,22 +75,11 @@ size_t RNG_GetNoise(void *buf, size_t maxbuf)
     if (maxbuf <= 0)
         return n;
 
-    {
-#if defined(_WIN32_WCE)
-    // get the number of milliseconds elapsed since Windows CE was started. 
-    FILETIME sTime;
-    SYSTEMTIME st;
-    GetSystemTime(&st);
-    SystemTimeToFileTime(&st,&sTime);
-#else
-    time_t  sTime;
     // get the time in seconds since midnight Jan 1, 1970
     time(&sTime);
-#endif
     nBytes = sizeof(sTime) > maxbuf ? maxbuf : sizeof(sTime);
     memcpy(((char *)buf) + n, &sTime, nBytes);
     n += nBytes;
-    }
 
     return n;
 }
@@ -151,6 +103,7 @@ EnumSystemFilesInFolder(Handler func, PRUnichar* szSysDir, int maxDepth)
     	return;
     // append *.* so we actually look for files.
     _snwprintf(szFileName, _MAX_PATH, L"%s\\*.*", szSysDir);
+    szFileName[_MAX_PATH - 1] = L'\0';
 
     lFindHandle = FindFirstFileW(szFileName, &fdData);
     if (lFindHandle == INVALID_HANDLE_VALUE)
@@ -164,6 +117,7 @@ EnumSystemFilesInFolder(Handler func, PRUnichar* szSysDir, int maxDepth)
 	    // pass the full pathname to the callback
 	    _snwprintf(szFileName, _MAX_PATH, L"%s\\%s", szSysDir, 
 		       fdData.cFileName);
+	    szFileName[_MAX_PATH - 1] = L'\0';
 	    if (fdData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 		if (++uFolders <= MAX_FOLDERS)
 		    EnumSystemFilesInFolder(func, szFileName, maxDepth - 1);
@@ -177,47 +131,28 @@ EnumSystemFilesInFolder(Handler func, PRUnichar* szSysDir, int maxDepth)
     FindClose(lFindHandle);
 }
 
-typedef BOOL 
-(WINAPI *SHGetSpecialFolderPathWFn)(
-    HWND hwndOwner,
-    LPWSTR lpszPath,
-    int nFolder,
-    BOOL fCreate);
-
 static BOOL
 EnumSystemFiles(Handler func)
 {
-    HMODULE hModule;
-    SHGetSpecialFolderPathWFn pSHGetSpecialFolderPathW;
     PRUnichar szSysDir[_MAX_PATH];
     static const int folders[] = {
-        CSIDL_BITBUCKET,  
-        CSIDL_RECENT,
-#ifndef WINCE     
-        CSIDL_INTERNET_CACHE, 
-        CSIDL_HISTORY,
-#endif
-        0
+    	CSIDL_BITBUCKET,  
+	CSIDL_RECENT,
+	CSIDL_INTERNET_CACHE, 
+	CSIDL_HISTORY,
+	0
     };
     int i = 0;
     if (_MAX_PATH > (i = GetTempPathW(_MAX_PATH, szSysDir))) {
         if (i > 0 && szSysDir[i-1] == L'\\')
-            szSysDir[i-1] = L'\0'; // we need to lop off the trailing slash
+	    szSysDir[i-1] = L'\0'; // we need to lop off the trailing slash
         EnumSystemFilesInFolder(func, szSysDir, MAX_DEPTH);
     }
-    hModule = LoadLibrary("shell32.dll");
-    if (hModule != NULL) {
-      pSHGetSpecialFolderPathW = (SHGetSpecialFolderPathWFn)
-        GetProcAddress(hModule, "SHGetSpecialFolderPathW");
-      if (pSHGetSpecialFolderPathW) {
-        for(i = 0; folders[i]; i++) {
-            DWORD rv = pSHGetSpecialFolderPathW(NULL, szSysDir, folders[i], 0);
-            if (szSysDir[0])
-                EnumSystemFilesInFolder(func, szSysDir, MAX_DEPTH);
-            szSysDir[0] =  L'\0';
-        }
-      }
-      FreeLibrary(hModule);
+    for(i = 0; folders[i]; i++) {
+        DWORD rv = SHGetSpecialFolderPathW(NULL, szSysDir, folders[i], 0);
+        if (szSysDir[0])
+            EnumSystemFilesInFolder(func, szSysDir, MAX_DEPTH);
+        szSysDir[0] =  L'\0';
     }
     return PR_TRUE;
 }
@@ -318,13 +253,11 @@ void RNG_SystemInfoForRNG(void)
     int             nBytes;
     MEMORYSTATUS    sMem;
     HANDLE          hVal;
-#if !defined(_WIN32_WCE)
     DWORD           dwSerialNum;
     DWORD           dwComponentLen;
     DWORD           dwSysFlags;
     char            volName[128];
     DWORD           dwSectors, dwBytes, dwFreeClusters, dwNumClusters;
-#endif
 
     nBytes = RNG_GetNoise(buffer, 20);  // get up to 20 bytes
     RNG_RandomUpdate(buffer, nBytes);
@@ -332,16 +265,13 @@ void RNG_SystemInfoForRNG(void)
     sMem.dwLength = sizeof(sMem);
     GlobalMemoryStatus(&sMem);                // assorted memory stats
     RNG_RandomUpdate(&sMem, sizeof(sMem));
-#if !defined(_WIN32_WCE)
+
     dwVal = GetLogicalDrives();
     RNG_RandomUpdate(&dwVal, sizeof(dwVal));  // bitfields in bits 0-25
-#endif
 
-#if !defined(_WIN32_WCE)
     dwVal = sizeof(buffer);
     if (GetComputerName(buffer, &dwVal))
         RNG_RandomUpdate(buffer, dwVal);
-#endif
 
     hVal = GetCurrentProcess();               // 4 or 8 byte pseudo handle (a
                                               // constant!) of current process
@@ -353,7 +283,6 @@ void RNG_SystemInfoForRNG(void)
     dwVal = GetCurrentThreadId();             // thread ID (4 bytes)
     RNG_RandomUpdate(&dwVal, sizeof(dwVal));
 
-#if !defined(_WIN32_WCE)
     volName[0] = '\0';
     buffer[0] = '\0';
     GetVolumeInformation(NULL,
@@ -378,7 +307,6 @@ void RNG_SystemInfoForRNG(void)
         RNG_RandomUpdate(&dwFreeClusters, sizeof(dwFreeClusters));
         RNG_RandomUpdate(&dwNumClusters,  sizeof(dwNumClusters));
     }
-#endif
 
     // Skip the potentially slow file scanning if the OS's PRNG worked.
     if (!usedWindowsPRNG)
@@ -398,63 +326,6 @@ static void rng_systemJitter(void)
     }
 }
 
-
-#if defined(_WIN32_WCE)
-void RNG_FileForRNG(const char *filename)
-{
-    PRFileDesc *    file;
-    int             nBytes;
-    PRFileInfo      infoBuf;
-    unsigned char   buffer[1024];
-
-    if (PR_GetFileInfo(filename, &infoBuf) != PR_SUCCESS)
-        return;
-
-    RNG_RandomUpdate((unsigned char*)&infoBuf, sizeof(infoBuf));
-
-    file = PR_Open(filename, PR_RDONLY, 0);
-    if (file != NULL) {
-        for (;;) {
-            PRInt32 bytes = PR_Read(file, buffer, sizeof buffer);
-
-            if (bytes <= 0)
-                break;
-
-            RNG_RandomUpdate(buffer, bytes);
-            totalFileBytes += bytes;
-            if (totalFileBytes > maxFileBytes)
-                break;
-        }
-
-        PR_Close(file);
-    }
-
-    nBytes = RNG_GetNoise(buffer, 20);  // get up to 20 bytes
-    RNG_RandomUpdate(buffer, nBytes);
-}
-
-/*
- * The Windows CE and Windows Mobile FIPS Security Policy, page 13,
- * (http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp825.pdf)
- * says CeGenRandom is the right function to call for creating a seed
- * for a random number generator.
- */
-size_t RNG_SystemRNG(void *dest, size_t maxLen)
-{
-    size_t bytes = 0;
-    usedWindowsPRNG = PR_FALSE;
-    if (CeGenRandom(maxLen, dest)) {
-	bytes = maxLen;
-	usedWindowsPRNG = PR_TRUE;
-    }
-    if (bytes == 0) {
-	bytes = rng_systemFromNoise(dest,maxLen);
-    }
-    return bytes;
-}
-
-
-#else /* not WinCE */
 
 void RNG_FileForRNG(const char *filename)
 {
@@ -496,40 +367,6 @@ void RNG_FileForRNG(const char *filename)
 
 
 /*
- * CryptoAPI requires Windows NT 4.0 or Windows 95 OSR2 and later.
- * Until we drop support for Windows 95, we need to emulate some
- * definitions and declarations in <wincrypt.h> and look up the
- * functions in advapi32.dll at run time.
- */
-
-#ifndef WIN64
-typedef unsigned long HCRYPTPROV;
-#endif
-
-#define CRYPT_VERIFYCONTEXT 0xF0000000
-
-#define PROV_RSA_FULL 1
-
-typedef BOOL
-(WINAPI *CryptAcquireContextAFn)(
-    HCRYPTPROV *phProv,
-    LPCSTR pszContainer,
-    LPCSTR pszProvider,
-    DWORD dwProvType,
-    DWORD dwFlags);
-
-typedef BOOL
-(WINAPI *CryptReleaseContextFn)(
-    HCRYPTPROV hProv,
-    DWORD dwFlags);
-
-typedef BOOL
-(WINAPI *CryptGenRandomFn)(
-    HCRYPTPROV hProv,
-    DWORD dwLen,
-    BYTE *pbBuffer);
-
-/*
  * Windows XP and Windows Server 2003 and later have RtlGenRandom,
  * which must be looked up by the name SystemFunction036.
  */
@@ -542,53 +379,20 @@ size_t RNG_SystemRNG(void *dest, size_t maxLen)
 {
     HMODULE hModule;
     RtlGenRandomFn pRtlGenRandom;
-    CryptAcquireContextAFn pCryptAcquireContextA;
-    CryptReleaseContextFn pCryptReleaseContext;
-    CryptGenRandomFn pCryptGenRandom;
-    HCRYPTPROV hCryptProv;
     size_t bytes = 0;
 
     usedWindowsPRNG = PR_FALSE;
     hModule = LoadLibrary("advapi32.dll");
     if (hModule == NULL) {
-	return rng_systemFromNoise(dest,maxLen);
+	return bytes;
     }
     pRtlGenRandom = (RtlGenRandomFn)
 	GetProcAddress(hModule, "SystemFunction036");
-    if (pRtlGenRandom) {
-	if (pRtlGenRandom(dest, maxLen)) {
-	    bytes = maxLen;
-	    usedWindowsPRNG = PR_TRUE;
-	} else {
-	    bytes = rng_systemFromNoise(dest,maxLen);
-	}
-	goto done;
+    if (pRtlGenRandom && pRtlGenRandom(dest, maxLen)) {
+	bytes = maxLen;
+	usedWindowsPRNG = PR_TRUE;
     }
-    pCryptAcquireContextA = (CryptAcquireContextAFn)
-	GetProcAddress(hModule, "CryptAcquireContextA");
-    pCryptReleaseContext = (CryptReleaseContextFn)
-	GetProcAddress(hModule, "CryptReleaseContext");
-    pCryptGenRandom = (CryptGenRandomFn)
-	GetProcAddress(hModule, "CryptGenRandom");
-    if (!pCryptAcquireContextA || !pCryptReleaseContext || !pCryptGenRandom) {
-	bytes = rng_systemFromNoise(dest,maxLen);
-	goto done;
-    }
-    if (pCryptAcquireContextA(&hCryptProv, NULL, NULL,
-	PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-	if (pCryptGenRandom(hCryptProv, maxLen, dest)) {
-	    bytes = maxLen;
-	    usedWindowsPRNG = PR_TRUE;
-	}
-	pCryptReleaseContext(hCryptProv, 0);
-    }
-    if (bytes == 0) {
-	bytes = rng_systemFromNoise(dest,maxLen);
-    }
-done:
     FreeLibrary(hModule);
     return bytes;
 }
-#endif  /* not WinCE */
-
 #endif  /* is XP_WIN */

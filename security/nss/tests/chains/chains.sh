@@ -1,40 +1,8 @@
 #!/bin/bash
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Network Security Services (NSS)
-#
-# The Initial Developer of the Original Code is Sun Microsystems, Inc.
-# Portions created by the Initial Developer are Copyright (C) 2008
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Slavomir Katuscak <slavomir.katuscak@sun.com>, Sun Microsystems
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ########################################################################
 #
@@ -49,6 +17,143 @@
 #   FIXME ... known problems, search for this string
 #   NOTE .... unexpected behavior
 ########################################################################
+
+########################### is_httpserv_alive ##########################
+# local shell function to exit with a fatal error if selfserver is not
+# running
+########################################################################
+is_httpserv_alive()
+{
+  if [ ! -f "${HTTPPID}" ]; then
+      echo "$SCRIPTNAME: Error - httpserv PID file ${HTTPPID} doesn't exist"
+      sleep 5
+      if [ ! -f "${HTTPPID}" ]; then
+          Exit 9 "Fatal - httpserv pid file ${HTTPPID} does not exist"
+      fi
+  fi
+  
+  if [ "${OS_ARCH}" = "WINNT" ] && \
+     [ "$OS_NAME" = "CYGWIN_NT" -o "$OS_NAME" = "MINGW32_NT" ]; then
+      PID=${SHELL_HTTPPID}
+  else
+      PID=`cat ${HTTPPID}`
+  fi
+
+  echo "kill -0 ${PID} >/dev/null 2>/dev/null" 
+  kill -0 ${PID} >/dev/null 2>/dev/null || Exit 10 "Fatal - httpserv process not detectable"
+
+  echo "httpserv with PID ${PID} found at `date`"
+}
+
+########################### wait_for_httpserv ##########################
+# local shell function to wait until httpserver is running and initialized
+########################################################################
+wait_for_httpserv()
+{
+  echo "trying to connect to httpserv at `date`"
+  echo "tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v"
+  ${BINDIR}/tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v
+  if [ $? -ne 0 ]; then
+      sleep 5
+      echo "retrying to connect to httpserv at `date`"
+      echo "tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v"
+      ${BINDIR}/tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v
+      if [ $? -ne 0 ]; then
+          html_failed "Waiting for Server"
+      fi
+  fi
+  is_httpserv_alive
+}
+
+########################### kill_httpserv ##############################
+# local shell function to kill the httpserver after the tests are done
+########################################################################
+kill_httpserv()
+{
+  if [ "${OS_ARCH}" = "WINNT" ] && \
+     [ "$OS_NAME" = "CYGWIN_NT" -o "$OS_NAME" = "MINGW32_NT" ]; then
+      PID=${SHELL_HTTPPID}
+  else
+      PID=`cat ${HTTPPID}`
+  fi
+
+  echo "trying to kill httpserv with PID ${PID} at `date`"
+
+  if [ "${OS_ARCH}" = "WINNT" -o "${OS_ARCH}" = "WIN95" -o "${OS_ARCH}" = "OS2" ]; then
+      echo "${KILL} ${PID}"
+      ${KILL} ${PID}
+  else
+      echo "${KILL} -USR1 ${PID}"
+      ${KILL} -USR1 ${PID}
+  fi
+  wait ${PID}
+
+  # On Linux httpserv needs up to 30 seconds to fully die and free
+  # the port.  Wait until the port is free. (Bug 129701)
+  if [ "${OS_ARCH}" = "Linux" ]; then
+      echo "httpserv -b -p ${NSS_AIA_PORT} 2>/dev/null;"
+      until ${BINDIR}/httpserv -b -p ${NSS_AIA_PORT} 2>/dev/null; do
+          echo "RETRY: httpserv -b -p ${NSS_AIA_PORT} 2>/dev/null;"
+          sleep 1
+      done
+  fi
+
+  echo "httpserv with PID ${PID} killed at `date`"
+
+  rm ${HTTPPID}
+  html_detect_core "kill_httpserv core detection step"
+}
+
+########################### start_httpserv #############################
+# local shell function to start the httpserver with the parameters required 
+# for this test and log information (parameters, start time)
+# also: wait until the server is up and running
+########################################################################
+start_httpserv()
+{
+  HTTP_METHOD=$1
+
+  if [ -n "$testname" ] ; then
+      echo "$SCRIPTNAME: $testname ----"
+  fi
+  echo "httpserv starting at `date`"
+  ODDIR="${HOSTDIR}/chains/OCSPD"
+  echo "httpserv -D -p ${NSS_AIA_PORT} ${SERVER_OPTIONS} \\"
+  echo "         -A OCSPRoot -C ${ODDIR}/OCSPRoot.crl -A OCSPCA1 -C ${ODDIR}/OCSPCA1.crl \\"
+  echo "         -A OCSPCA2  -C ${ODDIR}/OCSPCA2.crl  -A OCSPCA3 -C ${ODDIR}/OCSPCA3.crl \\"
+  echo "         -O ${HTTP_METHOD} -d ${ODDIR}/ServerDB/ -f ${ODDIR}/ServerDB/dbpasswd \\"
+  echo "         -i ${HTTPPID} $verbose &"
+  ${PROFTOOL} ${BINDIR}/httpserv -D -p ${NSS_AIA_PORT} ${SERVER_OPTIONS} \
+                 -A OCSPRoot -C ${ODDIR}/OCSPRoot.crl -A OCSPCA1 -C ${ODDIR}/OCSPCA1.crl \
+                 -A OCSPCA2  -C ${ODDIR}/OCSPCA2.crl  -A OCSPCA3 -C ${ODDIR}/OCSPCA3.crl \
+                 -O ${HTTP_METHOD} -d ${ODDIR}/ServerDB/ -f ${ODDIR}/ServerDB/dbpasswd \
+                 -i ${HTTPPID} $verbose &
+  RET=$?
+
+  # The PID $! returned by the MKS or Cygwin shell is not the PID of
+  # the real background process, but rather the PID of a helper
+  # process (sh.exe).  MKS's kill command has a bug: invoking kill
+  # on the helper process does not terminate the real background
+  # process.  Our workaround has been to have httpserv save its PID
+  # in the ${HTTPPID} file and "kill" that PID instead.  But this
+  # doesn't work under Cygwin; its kill command doesn't recognize
+  # the PID of the real background process, but it does work on the
+  # PID of the helper process.  So we save the value of $! in the
+  # SHELL_HTTPPID variable, and use it instead of the ${HTTPPID}
+  # file under Cygwin.  (In fact, this should work in any shell
+  # other than the MKS shell.)
+  SHELL_HTTPPID=$!
+  wait_for_httpserv
+
+  if [ "${OS_ARCH}" = "WINNT" ] && \
+     [ "$OS_NAME" = "CYGWIN_NT" -o "$OS_NAME" = "MINGW32_NT" ]; then
+      PID=${SHELL_HTTPPID}
+  else
+      PID=`cat ${HTTPPID}`
+  fi
+
+  echo "httpserv with PID ${PID} started at `date`"
+}
 
 ############################# chains_init ##############################
 # local shell function to initialize this script
@@ -71,17 +176,51 @@ chains_init()
 
     CHAINS_SCENARIOS="${QADIR}/chains/scenarios/scenarios"
 
-    CERT_SN_CNT=$(date '+%m%d%H%M%S')
+    CERT_SN_CNT=$(date '+%m%d%H%M%S' | sed "s/^0*//")
     CERT_SN_FIX=$(expr ${CERT_SN_CNT} - 1000)
 
-    PK7_NONCE=$CERT_SN_CNT;
+    PK7_NONCE=${CERT_SN_CNT}
+    SCEN_CNT=${CERT_SN_CNT}
 
     AIA_FILES="${HOSTDIR}/aiafiles"
 
     CU_DATA=${HOSTDIR}/cu_data
     CRL_DATA=${HOSTDIR}/crl_data
 
+    DEFAULT_AIA_BASE_PORT=$(expr ${PORT:-8631} + 10)
+    NSS_AIA_PORT=${NSS_AIA_PORT:-$DEFAULT_AIA_BASE_PORT}
+    DEFAULT_UNUSED_PORT=$(expr ${PORT:-8631} + 11)
+    NSS_UNUSED_PORT=${NSS_UNUSED_PORT:-$DEFAULT_UNUSED_PORT}
+    NSS_AIA_HTTP=${NSS_AIA_HTTP:-"http://${HOSTADDR}:${NSS_AIA_PORT}"}
+    NSS_AIA_PATH=${NSS_AIA_PATH:-$HOSTDIR/aiahttp}
+    NSS_AIA_OCSP=${NSS_AIA_OCSP:-$NSS_AIA_HTTP/ocsp}
+    NSS_OCSP_UNUSED=${NSS_AIA_OCSP_UNUSED:-"http://${HOSTADDR}:${NSS_UNUSED_PORT}"}
+
     html_head "Certificate Chains Tests"
+}
+
+chains_run_httpserv()
+{
+    HTTP_METHOD=$1
+
+    if [ -n "${NSS_AIA_PATH}" ]; then
+        HTTPPID=${NSS_AIA_PATH}/http_pid.$$
+        mkdir -p "${NSS_AIA_PATH}"
+        SAVEPWD=`pwd`
+        cd "${NSS_AIA_PATH}"
+        # Start_httpserv sets environment variables, which are required for
+        # correct cleanup. (Running it in a subshell doesn't work, the
+        # value of $SHELL_HTTPPID wouldn't arrive in this scope.)
+        start_httpserv ${HTTP_METHOD}
+        cd "${SAVEPWD}"
+    fi
+}
+
+chains_stop_httpserv()
+{
+    if [ -n "${NSS_AIA_PATH}" ]; then
+        kill_httpserv
+    fi
 }
 
 ############################ chains_cleanup ############################
@@ -167,7 +306,8 @@ n
 6
 7
 9
-n" > ${CU_DATA}
+n
+" > ${CU_DATA}
 
     TESTNAME="Creating Root CA ${ENTITY}"
     echo "${SCRIPTNAME}: ${TESTNAME}"
@@ -204,20 +344,25 @@ create_cert_req()
 
     CA_FLAG=
     EXT_DATA=
+    OPTIONS=
+
     if [ "${TYPE}" != "EE" ]; then
         CA_FLAG="-2"
         EXT_DATA="y
 -1
-y"
+y
+"
     fi
+
+    process_crldp
 
     echo "${EXT_DATA}" > ${CU_DATA}
 
     TESTNAME="Creating ${TYPE} certifiate request ${REQ}"
     echo "${SCRIPTNAME}: ${TESTNAME}"
-    echo "certutil -s \"CN=${ENTITY} ${TYPE}, O=${ENTITY}, C=US\" ${CTYPE_OPT} -R ${CA_FLAG} -d ${ENTITY_DB} -f ${ENTITY_DB}/dbpasswd -z ${NOISE_FILE} -o ${REQ} < ${CU_DATA}"
+    echo "certutil -s \"CN=${ENTITY} ${TYPE}, O=${ENTITY}, C=US\" ${CTYPE_OPT} -R ${CA_FLAG} -d ${ENTITY_DB} -f ${ENTITY_DB}/dbpasswd -z ${NOISE_FILE} -o ${REQ} ${OPTIONS} < ${CU_DATA}"
     print_cu_data
-    ${BINDIR}/certutil -s "CN=${ENTITY} ${TYPE}, O=${ENTITY}, C=US" ${CTYPE_OPT} -R ${CA_FLAG} -d ${ENTITY_DB} -f ${ENTITY_DB}/dbpasswd -z ${NOISE_FILE} -o ${REQ} < ${CU_DATA} 
+    ${BINDIR}/certutil -s "CN=${ENTITY} ${TYPE}, O=${ENTITY}, C=US" ${CTYPE_OPT} -R ${CA_FLAG} -d ${ENTITY_DB} -f ${ENTITY_DB}/dbpasswd -z ${NOISE_FILE} -o ${REQ} ${OPTIONS} < ${CU_DATA} 
     html_msg $? 0 "${SCENARIO}${TESTNAME}"
 }
 
@@ -389,14 +534,81 @@ process_ocsp()
 {
     if [ -n "${OCSP}" ]; then
         OPTIONS="${OPTIONS} --extAIA"
+ 
+	if [ "${OCSP}" = "offline" ]; then
+	    MY_OCSP_URL=${NSS_OCSP_UNUSED}
+	else
+	    MY_OCSP_URL=${NSS_AIA_OCSP}
+	fi
 
         DATA="${DATA}2
 7
-${NSS_AIA_OCSP}:${OCSP}
+${MY_OCSP_URL}
 0
 n
-n"
+n
+"
     fi
+}
+
+process_crldp()
+{
+    if [ -n "${CRLDP}" ]; then
+        OPTIONS="${OPTIONS} -4"
+
+        EXT_DATA="${EXT_DATA}1
+"
+
+        for ITEM in ${CRLDP}; do
+            CRL_PUBLIC="${HOST}-$$-${ITEM}-${SCEN_CNT}.crl"
+
+            EXT_DATA="${EXT_DATA}7
+${NSS_AIA_HTTP}/${CRL_PUBLIC}
+"
+        done
+
+        EXT_DATA="${EXT_DATA}-1
+-1
+-1
+n
+n
+"
+    fi
+}
+
+process_ku_ns_eku()
+{
+    if [ -n "${EXT_KU}" ]; then
+        OPTIONS="${OPTIONS} --keyUsage ${EXT_KU}"
+    fi
+    if [ -n "${EXT_NS}" ]; then
+        EXT_NS_KEY=$(echo ${EXT_NS} | cut -d: -f1)
+        EXT_NS_CODE=$(echo ${EXT_NS} | cut -d: -f2)
+
+        OPTIONS="${OPTIONS} --nsCertType ${EXT_NS_KEY}"
+        DATA="${DATA}${EXT_NS_CODE}
+-1
+n
+"
+    fi
+    if [ -n "${EXT_EKU}" ]; then
+        OPTIONS="${OPTIONS} --extKeyUsage ${EXT_EKU}"
+    fi
+}
+
+copy_crl()
+
+{
+    if [ -z "${NSS_AIA_PATH}" ]; then
+        return;
+    fi
+
+    CRL_LOCAL="${COPYCRL}.crl"
+    CRL_PUBLIC="${HOST}-$$-${COPYCRL}-${SCEN_CNT}.crl"
+
+    cp ${CRL_LOCAL} ${NSS_AIA_PATH}/${CRL_PUBLIC} 2> /dev/null
+    chmod a+r ${NSS_AIA_PATH}/${CRL_PUBLIC}
+    echo ${NSS_AIA_PATH}/${CRL_PUBLIC} >> ${AIA_FILES}
 }
 
 ########################## process_extension ###########################
@@ -413,6 +625,7 @@ process_extensions()
     process_inhibit
     process_aia
     process_ocsp
+    process_ku_ns_eku
 }
 
 ############################## sign_cert ###############################
@@ -483,7 +696,7 @@ import_key()
     KEY_NAME=$1.p12
     DB=$2
 
-    KEY_FILE=${QADIR}/libpkix/certs/${KEY_NAME}
+    KEY_FILE=../OCSPD/${KEY_NAME}
 
     TESTNAME="Importing p12 key ${KEY_NAME} to ${DB} database"
     echo "${SCRIPTNAME}: ${TESTNAME}"
@@ -492,6 +705,17 @@ import_key()
     html_msg $? 0 "${SCENARIO}${TESTNAME}"
 }
 
+export_key()
+{
+    KEY_NAME=$1.p12
+    DB=$2
+
+    TESTNAME="Exporting $1 as ${KEY_NAME} from ${DB} database"
+    echo "${SCRIPTNAME}: ${TESTNAME}"
+    echo "${BINDIR}/pk12util -d ${DB} -o ${KEY_NAME} -n $1 -k ${DB}/dbpasswd -W nssnss"
+    ${BINDIR}/pk12util -d ${DB} -o ${KEY_NAME} -n $1 -k ${DB}/dbpasswd -W nssnss
+    html_msg $? 0 "${SCENARIO}${TESTNAME}"
+}
 
 ############################# import_cert ##############################
 # local shell function to import certificate into database
@@ -509,6 +733,10 @@ import_cert()
         CERT_ISSUER=
         CERT=${CERT_NICK}.cert
         CERT_FILE="${QADIR}/libpkix/certs/${CERT}"
+    elif [ "${CERT_ISSUER}" = "d" ]; then
+        CERT_ISSUER=
+        CERT=${CERT_NICK}.der
+        CERT_FILE="../OCSPD/${CERT}"
     else
         CERT=${CERT_NICK}${CERT_ISSUER}.der
         CERT_FILE=${CERT}
@@ -555,6 +783,8 @@ create_crl()
     CRL=${ISSUER}.crl
 
     DATE=$(date -u '+%Y%m%d%H%M%SZ')
+    DATE_LAST="${DATE}"
+
     UPDATE=$(expr $(date -u '+%Y') + 1)$(date -u '+%m%d%H%M%SZ')
 
     echo "update=${DATE}" > ${CRL_DATA}
@@ -579,8 +809,13 @@ revoke_cert()
 
     set_cert_sn
 
-    sleep 1
     DATE=$(date -u '+%Y%m%d%H%M%SZ')
+    while [ "${DATE}" = "${DATE_LAST}" ]; do
+        sleep 1
+        DATE=$(date -u '+%Y%m%d%H%M%SZ')
+    done
+    DATE_LAST="${DATE}"
+
     echo "update=${DATE}" > ${CRL_DATA}
     echo "addcert ${CERT_SN} ${DATE}" >> ${CRL_DATA}
 
@@ -602,6 +837,7 @@ revoke_cert()
 # FETCH - fetch flag (used with AIA extension)
 # POLICY - list of policies
 # TRUST - trust anchor
+# TRUST_AND_DB - Examine both trust anchors and the cert db for trust
 # VERIFY - list of certificates to use as vfychain parameters
 # EXP_RESULT - expected result
 # REV_OPTS - revocation options
@@ -612,12 +848,15 @@ revoke_cert()
 ########################################################################
 verify_cert()
 {
+    ENGINE=$1
+
     DB_OPT=
     FETCH_OPT=
     POLICY_OPT=
     TRUST_OPT=
     VFY_CERTS=
     VFY_LIST=
+    TRUST_AND_DB_OPT=
 
     if [ -n "${DB}" ]; then
         DB_OPT="-d ${DB}"
@@ -629,6 +868,10 @@ verify_cert()
             echo "${SCRIPTNAME} Skipping test using AIA fetching, NSS_AIA_HTTP not defined"
             return
         fi
+    fi
+
+    if [ -n "${TRUST_AND_DB}" ]; then
+        TRUST_AND_DB_OPT="-T"
     fi
 
     for ITEM in ${POLICY}; do
@@ -656,6 +899,10 @@ verify_cert()
             CERT="${QADIR}/libpkix/certs/${CERT_NICK}.cert"
             VFY_CERTS="${VFY_CERTS} ${CERT}"
             VFY_LIST="${VFY_LIST} ${CERT_NICK}.cert"
+        elif [ "${CERT_ISSUER}" = "d" ]; then
+            CERT="../OCSPD/${CERT_NICK}.der"
+            VFY_CERTS="${VFY_CERTS} ${CERT}"
+            VFY_LIST="${VFY_LIST} ${CERT_NICK}.cert"
         else
             CERT=${CERT_NICK}${CERT_ISSUER}.der
             VFY_CERTS="${VFY_CERTS} ${CERT}"
@@ -663,22 +910,29 @@ verify_cert()
         fi
     done
 
-    TESTNAME="Verifying certificate(s) ${VFY_LIST} with flags ${REV_OPTS} ${DB_OPT} ${FETCH_OPT} ${POLICY_OPT} ${TRUST_OPT}"
+    VFY_OPTS_TNAME="${DB_OPT} ${ENGINE} ${TRUST_AND_DB_OPT} ${REV_OPTS} ${FETCH_OPT} ${USAGE_OPT} ${POLICY_OPT} ${TRUST_OPT}"
+    VFY_OPTS_ALL="${DB_OPT} ${ENGINE} -vv ${TRUST_AND_DB_OPT} ${REV_OPTS} ${FETCH_OPT} ${USAGE_OPT} ${POLICY_OPT} ${VFY_CERTS} ${TRUST_OPT}"
+
+    TESTNAME="Verifying certificate(s) ${VFY_LIST} with flags ${VFY_OPTS_TNAME}"
     echo "${SCRIPTNAME}: ${TESTNAME}"
-    echo "vfychain ${DB_OPT} -pp -vv ${REV_OPTS} ${FETCH_OPT} ${POLICY_OPT} ${VFY_CERTS} ${TRUST_OPT}"
+    echo "vfychain ${VFY_OPTS_ALL}"
 
     if [ -z "${MEMLEAK_DBG}" ]; then
-        VFY_OUT=$(${BINDIR}/vfychain ${DB_OPT} -pp -vv ${REV_OPTS} ${FETCH_OPT} ${POLICY_OPT} ${VFY_CERTS} ${TRUST_OPT})
+        VFY_OUT=$(${BINDIR}/vfychain ${VFY_OPTS_ALL} 2>&1)
         RESULT=$?
         echo "${VFY_OUT}"
     else 
-        VFY_OUT=$(${RUN_COMMAND_DBG} ${BINDIR}/vfychain ${REV_OPTS} ${DB_OPT} -pp -vv ${FETCH_OPT} ${POLICY_OPT} ${VFY_CERTS} ${TRUST_OPT} 2>> ${LOGFILE})
+        VFY_OUT=$(${RUN_COMMAND_DBG} ${BINDIR}/vfychain ${VFY_OPTS_ALL} 2>> ${LOGFILE})
         RESULT=$?
         echo "${VFY_OUT}"
     fi
 
     echo "${VFY_OUT}" | grep "ERROR -5990: I/O operation timed out" > /dev/null
-    if [ $? -eq 0 ]; then
+    E5990=$?
+    echo "${VFY_OUT}" | grep "ERROR -8030: Server returned bad HTTP response" > /dev/null
+    E8030=$?
+
+    if [ $E5990 -eq 0 -o $E8030 -eq 0 ]; then
         echo "Result of this test is not valid due to network time out."
         html_unknown "${SCENARIO}${TESTNAME}"
         return
@@ -693,6 +947,36 @@ verify_cert()
     else
         html_failed "${SCENARIO}${TESTNAME}"
     fi
+}
+
+check_ocsp()
+{
+    OCSP_CERT=$1
+
+    CERT_NICK=`echo ${OCSP_CERT} | cut -d: -f1`
+    CERT_ISSUER=`echo ${OCSP_CERT} | cut -d: -f2`
+
+    if [ "${CERT_ISSUER}" = "x" ]; then
+        CERT_ISSUER=
+        CERT=${CERT_NICK}.cert
+        CERT_FILE="${QADIR}/libpkix/certs/${CERT}"
+    elif [ "${CERT_ISSUER}" = "d" ]; then
+        CERT_ISSUER=
+        CERT=${CERT_NICK}.der
+        CERT_FILE="../OCSPD/${CERT}"
+    else
+        CERT=${CERT_NICK}${CERT_ISSUER}.der
+        CERT_FILE=${CERT}
+    fi
+
+    # sample line:
+    #   URI: "http://ocsp.server:2601"
+    OCSP_HOST=$(${BINDIR}/pp -w -t certificate -i ${CERT_FILE} | grep URI | sed "s/.*:\/\///" | sed "s/:.*//")
+    OCSP_PORT=$(${BINDIR}/pp -w -t certificate -i ${CERT_FILE} | grep URI | sed "s/^.*:.*:\/\/.*:\([0-9]*\).*$/\1/")
+
+    echo "tstclnt -h ${OCSP_HOST} -p ${OCSP_PORT} -q -t 20"
+    tstclnt -h ${OCSP_HOST} -p ${OCSP_PORT} -q -t 20
+    return $?
 }
 
 ############################ parse_result ##############################
@@ -745,9 +1029,15 @@ parse_config()
             MAPPING=
             INHIBIT=
             AIA=
+            CRLDP=
             OCSP=
             DB=
             EMAILS=
+            EXT_KU=
+            EXT_NS=
+            EXT_EKU=
+            SERIAL=
+	    EXPORT_KEY=
             ;;
         "type")
             TYPE="${VALUE}"
@@ -765,6 +1055,9 @@ parse_config()
             MAPPING=
             INHIBIT=
             AIA=
+            EXT_KU=
+            EXT_NS=
+            EXT_EKU=
             ;;
         "ctype") 
             CTYPE="${VALUE}"
@@ -780,6 +1073,9 @@ parse_config()
             ;;
         "aia")
             AIA="${AIA} ${VALUE}"
+            ;;
+        "crldp")
+            CRLDP="${CRLDP} ${VALUE}"
             ;;
         "ocsp")
             OCSP="${VALUE}"
@@ -807,13 +1103,22 @@ parse_config()
         "serial")
             SERIAL="${VALUE}"
             ;;
+	"export_key")
+	    EXPORT_KEY=1
+	    ;;
+        "copycrl")
+            COPYCRL="${VALUE}"
+            copy_crl "${COPYCRL}"
+            ;;
         "verify")
             VERIFY="${VALUE}"
             TRUST=
+            TRUST_AND_DB=
             POLICY=
             FETCH=
             EXP_RESULT=
             REV_OPTS=
+            USAGE_OPT=
             ;;
         "cert")
             VERIFY="${VERIFY} ${VALUE}"
@@ -827,6 +1132,9 @@ parse_config()
             ;;
         "trust")
             TRUST="${TRUST} ${VALUE}"
+            ;;
+        "trust_and_db")
+            TRUST_AND_DB=1
             ;;
         "fetch")
             FETCH=1
@@ -858,12 +1166,36 @@ parse_config()
                 LOGNAME="libpkix-${VALUE}"
                 LOGFILE="${LOGDIR}/${LOGNAME}"
             fi
+
+            SCEN_CNT=$(expr ${SCEN_CNT} + 1)
             ;;
         "sleep")
             sleep ${VALUE}
             ;;
         "break")
             break
+            ;;
+        "check_ocsp")
+            TESTNAME="Test that OCSP server is reachable"
+            check_ocsp ${VALUE}
+            if [ $? -ne 0 ]; then
+                html_failed "$TESTNAME"
+                break;
+            else
+                html_passed "$TESTNAME"
+            fi
+            ;;
+        "ku")
+            EXT_KU="${VALUE}"
+            ;;
+        "ns")
+            EXT_NS="${VALUE}"
+            ;;
+        "eku")
+            EXT_EKU="${VALUE}"
+            ;;
+        "usage")
+            USAGE_OPT="-u ${VALUE}"
             ;;
         "")
             if [ -n "${ENTITY}" ]; then
@@ -874,11 +1206,18 @@ parse_config()
                 if [ "${TYPE}" = "Bridge" ]; then
                     create_pkcs7 "${ENTITY}"
                 fi
+		if [ -n "${EXPORT_KEY}" ]; then
+		    export_key "${ENTITY}" "${DB}"
+		fi
                 ENTITY=
             fi
 
             if [ -n "${VERIFY}" ]; then
-                verify_cert
+                verify_cert "-pp"
+		if [ -n "${VERIFY_CLASSIC_ENGINE_TOO}" ]; then
+		    verify_cert ""
+		    verify_cert "-p"
+		fi
                 VERIFY=
             fi
 
@@ -902,6 +1241,33 @@ parse_config()
     fi
 }
 
+process_scenario()
+{
+    SCENARIO_FILE=$1
+
+    > ${AIA_FILES}
+
+    parse_config < "${QADIR}/chains/scenarios/${SCENARIO_FILE}"
+
+    while read AIA_FILE
+    do
+	rm ${AIA_FILE} 2> /dev/null
+    done < ${AIA_FILES}
+    rm ${AIA_FILES}
+}
+
+# process ocspd.cfg separately
+chains_ocspd()
+{
+    process_scenario "ocspd.cfg"
+}
+
+# process ocsp.cfg separately
+chains_method()
+{
+    process_scenario "method.cfg"
+}
+
 ############################# chains_main ##############################
 # local shell function to process all testing scenarios
 ########################################################################
@@ -909,21 +1275,32 @@ chains_main()
 {
     while read LINE 
     do
-        > ${AIA_FILES}
+        [ `echo ${LINE} | cut -b 1` != "#" ] || continue
 
-        parse_config < "${QADIR}/chains/scenarios/${LINE}"
+	[ ${LINE} != 'ocspd.cfg' ] || continue
+	[ ${LINE} != 'method.cfg' ] || continue
 
-        while read AIA_FILE
-        do
-            rm ${AIA_FILE} 2> /dev/null
-        done < ${AIA_FILES}
-        rm ${AIA_FILES}
+	process_scenario ${LINE}
     done < "${CHAINS_SCENARIOS}"
 }
 
 ################################ main ##################################
 
 chains_init
+VERIFY_CLASSIC_ENGINE_TOO=
+chains_ocspd
+VERIFY_CLASSIC_ENGINE_TOO=1
+chains_run_httpserv get
+chains_method
+chains_stop_httpserv
+chains_run_httpserv post
+chains_method
+chains_stop_httpserv
+VERIFY_CLASSIC_ENGINE_TOO=
+chains_run_httpserv random
 chains_main
+chains_stop_httpserv
+chains_run_httpserv get-unknown
+chains_main
+chains_stop_httpserv
 chains_cleanup
-

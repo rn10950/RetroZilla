@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * This file manages Netscape specific PKCS #11 objects (CRLs, Trust objects,
  * etc).
@@ -65,7 +33,7 @@
 extern const NSSError NSS_ERROR_NOT_FOUND;
 
 CK_TRUST
-pk11_GetTrustField(PK11SlotInfo *slot, PRArenaPool *arena, 
+pk11_GetTrustField(PK11SlotInfo *slot, PLArenaPool *arena,
                    CK_OBJECT_HANDLE id, CK_ATTRIBUTE_TYPE type)
 {
   CK_TRUST rv = 0;
@@ -87,7 +55,7 @@ pk11_GetTrustField(PK11SlotInfo *slot, PRArenaPool *arena,
 PRBool
 pk11_HandleTrustObject(PK11SlotInfo *slot, CERTCertificate *cert, CERTCertTrust *trust)
 {
-  PRArenaPool *arena;
+  PLArenaPool *arena;
 
   CK_ATTRIBUTE tobjTemplate[] = {
     { CKA_CLASS, NULL, 0 },
@@ -116,7 +84,7 @@ pk11_HandleTrustObject(PK11SlotInfo *slot, CERTCertificate *cert, CERTCertTrust 
   if( NULL == arena ) return PR_FALSE;
 
   /* Unfortunately, it seems that PK11_GetAttributes doesn't deal
-   * well with nonexistant attributes.  I guess we have to check 
+   * well with nonexistent attributes.  I guess we have to check 
    * the trust info fields one at a time.
    */
 
@@ -138,31 +106,31 @@ pk11_HandleTrustObject(PK11SlotInfo *slot, CERTCertificate *cert, CERTCertTrust 
   /* First implementation: keep it simple for testing.  We can study what other
    * mappings would be appropriate and add them later.. fgmr 20000724 */
 
-  if ( serverAuth ==  CKT_NETSCAPE_TRUSTED ) {
-    trust->sslFlags |= CERTDB_VALID_PEER | CERTDB_TRUSTED;
+  if ( serverAuth ==  CKT_NSS_TRUSTED ) {
+    trust->sslFlags |= CERTDB_TERMINAL_RECORD | CERTDB_TRUSTED;
   }
 
-  if ( serverAuth == CKT_NETSCAPE_TRUSTED_DELEGATOR ) {
+  if ( serverAuth == CKT_NSS_TRUSTED_DELEGATOR ) {
     trust->sslFlags |= CERTDB_VALID_CA | CERTDB_TRUSTED_CA | 
 							CERTDB_NS_TRUSTED_CA;
   }
-  if ( clientAuth == CKT_NETSCAPE_TRUSTED_DELEGATOR ) {
+  if ( clientAuth == CKT_NSS_TRUSTED_DELEGATOR ) {
     trust->sslFlags |=  CERTDB_TRUSTED_CLIENT_CA ;
   }
 
-  if ( emailProtection == CKT_NETSCAPE_TRUSTED ) {
-    trust->emailFlags |= CERTDB_VALID_PEER | CERTDB_TRUSTED;
+  if ( emailProtection == CKT_NSS_TRUSTED ) {
+    trust->emailFlags |= CERTDB_TERMINAL_RECORD | CERTDB_TRUSTED;
   }
 
-  if ( emailProtection == CKT_NETSCAPE_TRUSTED_DELEGATOR ) {
+  if ( emailProtection == CKT_NSS_TRUSTED_DELEGATOR ) {
     trust->emailFlags |= CERTDB_VALID_CA | CERTDB_TRUSTED_CA | CERTDB_NS_TRUSTED_CA;
   }
 
-  if( codeSigning == CKT_NETSCAPE_TRUSTED ) {
-    trust->objectSigningFlags |= CERTDB_VALID_PEER | CERTDB_TRUSTED;
+  if( codeSigning == CKT_NSS_TRUSTED ) {
+    trust->objectSigningFlags |= CERTDB_TERMINAL_RECORD | CERTDB_TRUSTED;
   }
 
-  if( codeSigning == CKT_NETSCAPE_TRUSTED_DELEGATOR ) {
+  if( codeSigning == CKT_NSS_TRUSTED_DELEGATOR ) {
     trust->objectSigningFlags |= CERTDB_VALID_CA | CERTDB_TRUSTED_CA | CERTDB_NS_TRUSTED_CA;
   }
 
@@ -527,6 +495,7 @@ PK11_PutCrl(PK11SlotInfo *slot, SECItem *crl, SECItem *name,
 	nssCryptokiObject_Destroy(object);
     } else {
 	rvH = CK_INVALID_HANDLE;
+        PORT_SetError(SEC_ERROR_CRL_IMPORT_FAILED);
     }
     return rvH;
 }
@@ -750,7 +719,7 @@ CERTSignedCrl * crl_storeCRL (PK11SlotInfo *slot,char *url,
 /* import the CRL into the token */
 
 CERTSignedCrl* PK11_ImportCRL(PK11SlotInfo * slot, SECItem *derCRL, char *url,
-    int type, void *wincx, PRInt32 importOptions, PRArenaPool* arena,
+    int type, void *wincx, PRInt32 importOptions, PLArenaPool* arena,
     PRInt32 decodeoptions)
 {
     CERTSignedCrl *newCrl, *crl;

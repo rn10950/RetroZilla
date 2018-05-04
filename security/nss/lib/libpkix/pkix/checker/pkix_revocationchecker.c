@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_revocationchecker.c
  *
@@ -250,9 +217,18 @@ PKIX_RevocationChecker_CreateAndAddMethod(
     pkix_RevocationMethod *method = NULL;
     pkix_LocalRevocationCheckFn *localRevChecker = NULL;
     pkix_ExternalRevocationCheckFn *externRevChecker = NULL;
+    PKIX_UInt32 miFlags;
     
     PKIX_ENTER(REVOCATIONCHECKER, "PKIX_RevocationChecker_CreateAndAddMethod");
     PKIX_NULLCHECK_ONE(revChecker);
+
+    /* If the caller has said "Either one is sufficient, then don't let the 
+     * absence of any one method's info lead to an overall failure.
+     */
+    miFlags = isLeafMethod ? revChecker->leafMethodListFlags 
+	                   : revChecker->chainMethodListFlags;
+    if (miFlags & PKIX_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE)
+	flags &= ~PKIX_REV_M_FAIL_ON_MISSING_FRESH_INFO;
 
     switch (methodType) {
     case PKIX_RevocationMethod_CRL:
@@ -372,13 +348,10 @@ PKIX_RevocationChecker_Check(
             PKIX_UInt32 methodFlags = 0;
 
             PKIX_DECREF(method);
-            pkixErrorResult = PKIX_List_GetItem(revList, methodNum,
-                                                (PKIX_PL_Object**)&method,
-                                                plContext);
-            if (pkixErrorResult) {
-                /* Return error. Should not shappen in normal conditions. */
-                goto cleanup;
-            }
+            PKIX_CHECK(
+                PKIX_List_GetItem(revList, methodNum,
+                                  (PKIX_PL_Object**)&method, plContext),
+                PKIX_LISTGETITEMFAILED);
             methodFlags = method->flags;
             if (!(methodFlags & PKIX_REV_M_TEST_USING_THIS_METHOD)) {
                 /* Will not check with this method. Skipping... */
@@ -387,14 +360,14 @@ PKIX_RevocationChecker_Check(
             if (!onlyUseRemoteMethods &&
                 methodStatus[methodNum] == PKIX_RevStatus_NoInfo) {
                 PKIX_RevocationStatus revStatus = PKIX_RevStatus_NoInfo;
-
-                pkixErrorResult =
+                PKIX_CHECK_NO_GOTO(
                     (*method->localRevChecker)(cert, issuer, date,
                                                method, procParams,
                                                methodFlags, 
                                                chainVerificationState,
                                                &revStatus,
-                                               pReasonCode, plContext);
+                                               pReasonCode, plContext),
+                    PKIX_REVCHECKERCHECKFAILED);
                 methodStatus[methodNum] = revStatus;
                 if (revStatus == PKIX_RevStatus_Revoked) {
                     /* if error was generated use it as final error. */
@@ -414,12 +387,13 @@ PKIX_RevocationChecker_Check(
                 methodStatus[methodNum] == PKIX_RevStatus_NoInfo) {
                 if (!(methodFlags & PKIX_REV_M_FORBID_NETWORK_FETCHING)) {
                     PKIX_RevocationStatus revStatus = PKIX_RevStatus_NoInfo;
-                    pkixErrorResult =
+                    PKIX_CHECK_NO_GOTO(
                         (*method->externalRevChecker)(cert, issuer, date,
                                                       method,
                                                       procParams, methodFlags,
                                                       &revStatus, pReasonCode,
-                                                      &nbioContext, plContext);
+                                                      &nbioContext, plContext),
+                        PKIX_REVCHECKERCHECKFAILED);
                     methodStatus[methodNum] = revStatus;
                     if (revStatus == PKIX_RevStatus_Revoked) {
                         /* if error was generated use it as final error. */

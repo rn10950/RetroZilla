@@ -1,42 +1,9 @@
 /*
  * Enumeration of all SSL-specific error codes.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslerr.h,v 1.6 2008/03/06 20:16:22 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef __SSL_ERR_H_
 #define __SSL_ERR_H_
 
@@ -57,11 +24,13 @@ SSL_ERROR_NO_CYPHER_OVERLAP 		= (SSL_ERROR_BASE +  2),
  */
 SSL_ERROR_NO_CERTIFICATE /*_ALERT */	= (SSL_ERROR_BASE +  3),
 SSL_ERROR_BAD_CERTIFICATE            	= (SSL_ERROR_BASE +  4),
+SSL_ERROR_UNUSED_5			= (SSL_ERROR_BASE +  5),
 					/* error 5 is obsolete */
 SSL_ERROR_BAD_CLIENT 			= (SSL_ERROR_BASE +  6),
 SSL_ERROR_BAD_SERVER 			= (SSL_ERROR_BASE +  7),
 SSL_ERROR_UNSUPPORTED_CERTIFICATE_TYPE	= (SSL_ERROR_BASE +  8),
 SSL_ERROR_UNSUPPORTED_VERSION 		= (SSL_ERROR_BASE +  9),
+SSL_ERROR_UNUSED_10			= (SSL_ERROR_BASE + 10),
 					/* error 10 is obsolete */
 SSL_ERROR_WRONG_CERTIFICATE		= (SSL_ERROR_BASE + 11),
 SSL_ERROR_BAD_CERT_DOMAIN 		= (SSL_ERROR_BASE + 12),
@@ -149,7 +118,7 @@ SSL_ERROR_SERVER_KEY_EXCHANGE_FAILURE	= (SSL_ERROR_BASE + 68),
 SSL_ERROR_CLIENT_KEY_EXCHANGE_FAILURE	= (SSL_ERROR_BASE + 69),
 
 SSL_ERROR_ENCRYPTION_FAILURE		= (SSL_ERROR_BASE + 70),
-SSL_ERROR_DECRYPTION_FAILURE		= (SSL_ERROR_BASE + 71),
+SSL_ERROR_DECRYPTION_FAILURE		= (SSL_ERROR_BASE + 71), /* don't use */
 SSL_ERROR_SOCKET_WRITE_FAILURE		= (SSL_ERROR_BASE + 72),
 
 SSL_ERROR_MD5_DIGEST_FAILURE		= (SSL_ERROR_BASE + 73),
@@ -168,6 +137,7 @@ SSL_ERROR_NO_COMPRESSION_OVERLAP	= (SSL_ERROR_BASE + 85),
 SSL_ERROR_HANDSHAKE_NOT_COMPLETED	= (SSL_ERROR_BASE + 86),
 SSL_ERROR_BAD_HANDSHAKE_HASH_VALUE	= (SSL_ERROR_BASE + 87),
 SSL_ERROR_CERT_KEA_MISMATCH		= (SSL_ERROR_BASE + 88),
+/* SSL_ERROR_NO_TRUSTED_SSL_CLIENT_CA became obsolete in NSS 3.14. */
 SSL_ERROR_NO_TRUSTED_SSL_CLIENT_CA	= (SSL_ERROR_BASE + 89),
 SSL_ERROR_SESSION_NOT_FOUND		= (SSL_ERROR_BASE + 90),
 
@@ -194,6 +164,34 @@ SSL_ERROR_BAD_CERT_HASH_VALUE_ALERT		= (SSL_ERROR_BASE + 108),
 
 SSL_ERROR_RX_UNEXPECTED_NEW_SESSION_TICKET = (SSL_ERROR_BASE + 109),
 SSL_ERROR_RX_MALFORMED_NEW_SESSION_TICKET  = (SSL_ERROR_BASE + 110),
+
+SSL_ERROR_DECOMPRESSION_FAILURE		= (SSL_ERROR_BASE + 111),
+SSL_ERROR_RENEGOTIATION_NOT_ALLOWED     = (SSL_ERROR_BASE + 112),
+SSL_ERROR_UNSAFE_NEGOTIATION            = (SSL_ERROR_BASE + 113),
+
+SSL_ERROR_RX_UNEXPECTED_UNCOMPRESSED_RECORD	= (SSL_ERROR_BASE + 114),
+
+SSL_ERROR_WEAK_SERVER_EPHEMERAL_DH_KEY  = (SSL_ERROR_BASE + 115),
+
+SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID	= (SSL_ERROR_BASE + 116),
+
+SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SSL2 = (SSL_ERROR_BASE + 117),
+SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SERVERS = (SSL_ERROR_BASE + 118),
+SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_CLIENTS = (SSL_ERROR_BASE + 119),
+
+SSL_ERROR_INVALID_VERSION_RANGE		= (SSL_ERROR_BASE + 120),
+SSL_ERROR_CIPHER_DISALLOWED_FOR_VERSION	= (SSL_ERROR_BASE + 121),
+
+SSL_ERROR_RX_MALFORMED_HELLO_VERIFY_REQUEST = (SSL_ERROR_BASE + 122),
+SSL_ERROR_RX_UNEXPECTED_HELLO_VERIFY_REQUEST = (SSL_ERROR_BASE + 123),
+
+SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_VERSION = (SSL_ERROR_BASE + 124),
+
+SSL_ERROR_RX_UNEXPECTED_CERT_STATUS     = (SSL_ERROR_BASE + 125),
+
+SSL_ERROR_UNSUPPORTED_HASH_ALGORITHM = (SSL_ERROR_BASE + 126),
+SSL_ERROR_DIGEST_FAILURE = (SSL_ERROR_BASE + 127),
+SSL_ERROR_INCORRECT_SIGNATURE_ALGORITHM = (SSL_ERROR_BASE + 128),
 
 SSL_ERROR_END_OF_LIST	/* let the c compiler determine the value of this. */
 } SSLErrorCodes;

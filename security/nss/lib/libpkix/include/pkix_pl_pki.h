@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * This file defines several platform independent functions to
  * manipulate certificates and CRLs in a portable manner.
@@ -1394,6 +1361,34 @@ PKIX_PL_Cert_VerifyKeyUsage(
         void *plContext);
 
 /*
+ * FUNCTION: PKIX_PL_Cert_VerifyCertAndKeyType
+ * DESCRIPTION:
+ *
+ * Verifies cert and key types against certificate usage that is
+ * a part of plContext(pkix_pl_nsscontext) structure. Throws an error
+ * if cert or key types does not match.
+ *
+ * PARAMETERS:
+ *  "cert"
+ *      Address of Cert whose keyUsage bits are to be verified.
+ *      Must be non-NULL.
+ *  "isLeafCert"
+ *      What type of a cert has been verified.
+ *  "plContext" - Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Thread Safe (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns a Cert Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error *
+PKIX_PL_Cert_VerifyCertAndKeyType(
+        PKIX_PL_Cert *cert,
+        PKIX_Boolean isChainCert,
+        void *plContext);
+
+/*
  * FUNCTION: PKIX_PL_Cert_CheckValidity
  * DESCRIPTION:
  *
@@ -1493,6 +1488,32 @@ PKIX_PL_Cert_VerifySignature(
         PKIX_PL_PublicKey *pubKey,
         void *plContext);
 
+/* A set of flags to indicate how explicitly configured trust anchors should be
+ * handled by PKIX_PL_Cert_IsCertTrusted
+ */
+typedef enum PKIX_PL_TrustAnchorModeEnum {
+        /* Indicates trust anchors should be ignored; only the underlying
+         * platform's trust settings should be used.
+         */
+        PKIX_PL_TrustAnchorMode_Ignore,
+
+        /* Indicates that explicitly configured trust anchors may be considered
+         * trustworthy, if present.
+         * Note: If the underlying platform supports marking a certificate as
+         *       explicitly untrustworthy, explicitly configured trust anchors
+         *       MAY be ignored/rejected.
+         */
+        PKIX_PL_TrustAnchorMode_Additive,
+
+        /* Indicates that ONLY trust anchors should be considered as
+         * trustworthy.
+         * Note: If the underlying platform supports marking a certificate as
+         *       explicitly untrustworthy, explicitly configured trust anchors
+         *       MAY be ignored/rejected.
+         */
+        PKIX_PL_TrustAnchorMode_Exclusive,
+} PKIX_PL_TrustAnchorMode;
+
 /*
  * FUNCTION: PKIX_PL_Cert_IsCertTrusted
  * DESCRIPTION:
@@ -1507,12 +1528,16 @@ PKIX_PL_Cert_VerifySignature(
  *  If the Certificate is not intrinsically trustworthy, it still might end up a
  *  component in a successful chain.
  *
+ *  If the Certificate is intrinsically untrustworthy, this function will return
+ *  an error. 
+ *
  * PARAMETERS
  *  "cert"
  *      Address of Cert whose trustworthiness is to be determined. Must be
  *      non-NULL.
- *  "trustOnlyUserAnchors"
- *      States that we can only trust explicitly defined user trust anchors.
+ *  "trustAnchorMode"
+ *      A PKIX_PL_TrustAnchorMode that indicates how explicitly defined user
+ *      trust anchors should be handled.
  *  "pTrusted"
  *      Address where the Boolean value will be stored. Must be non-NULL.
  *  "plContext"
@@ -1527,7 +1552,44 @@ PKIX_PL_Cert_VerifySignature(
 PKIX_Error *
 PKIX_PL_Cert_IsCertTrusted(
         PKIX_PL_Cert *cert,
-        PKIX_Boolean trustOnlyUserAnchors,
+        PKIX_PL_TrustAnchorMode trustAnchorMode,
+        PKIX_Boolean *pTrusted,
+        void *plContext);
+
+/*
+ * FUNCTION: PKIX_PL_Cert_IsLeafCertTrusted
+ * DESCRIPTION:
+ *
+ *  Checks the Leaf Cert specified by "cert" to determine, in a manner that 
+ *  depends on the underlying platform, whether it is trusted, and stores the 
+ *  result in "pTrusted". If a certificate is trusted it means that this
+ *  End Entify certificate has been marked as trusted for the requested usage,
+ *  policy, validity, and other tests.
+ *
+ *  If the Certificate is not intrinsically trustworthy, we can still try to 
+ *  build a successful chain.
+ *
+ *  If the Certificate is intrinsically untrustworthy, this function will return
+ *  an error. 
+ *
+ * PARAMETERS
+ *  "cert"
+ *      Address of Cert whose trustworthiness is to be determined. Must be
+ *      non-NULL.
+ *  "pTrusted"
+ *      Address where the Boolean value will be stored. Must be non-NULL.
+ *  "plContext"
+ *      Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Thread Safe (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns a CERT Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error *
+PKIX_PL_Cert_IsLeafCertTrusted(
+        PKIX_PL_Cert *cert,
         PKIX_Boolean *pTrusted,
         void *plContext);
 
@@ -1719,6 +1781,36 @@ PKIX_PL_Cert_GetSubjectInfoAccess(
         PKIX_PL_Cert *cert,
         PKIX_List **pSiaList, /* of PKIX_PL_InfoAccess */
         void *plContext);
+
+
+
+/*
+ * FUNCTION: PKIX_PL_Cert_GetCrlDp
+ * DESCRIPTION:
+ *
+ *  Retrieves the value(s) of the CRL Distribution Point Extension and
+ *  returns it in a list at address pointed by "pDpList".
+ *
+ * PARAMETERS:
+ *  "cert"
+ *      Address of Cert whose Subject Information Access is fetched.
+ *      Must be non-NULL.
+ *  "pDpList"
+ *      Address where CRL DP will be stored and returned.
+ *      Must be non-NULL.
+ *  "plContext"
+ *      Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Thread Safe (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns a Cert Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error *
+PKIX_PL_Cert_GetCrlDp(PKIX_PL_Cert *cert,
+                      PKIX_List **pDpList,
+                      void *plContext);
 
 
 /*
@@ -2092,6 +2184,58 @@ PKIX_PL_CRL_VerifySignature(
         PKIX_PL_CRL *crl,
         PKIX_PL_PublicKey *pubKey,
         void *plContext);
+
+/*
+ * FUNCTION: PKIX_PL_CRL_ReleaseDerCrl
+ * DESCRIPTION:
+ *
+ * Relinguish the ownership for the crl der. The operation will succeed if
+ * a crl owns the der. If the crl was created from existing crl and does not
+ * own the der, then the function will return null.
+ *
+ * PARAMETERS:
+ *  "crl"
+ *      Address of CRL whose signature is to be verified. Must be non-NULL.
+ *  "derCrl"
+ *      Pointer to a SECItem that has der crl.
+ *  "plContext"
+ *      Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Thread Safe (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns a CRL Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error *
+PKIX_PL_CRL_ReleaseDerCrl(PKIX_PL_CRL *crl,
+                         SECItem **derCrl,
+                         void *plContext);
+/*
+ * FUNCTION: PKIX_PL_CRL_AdoptDerCrl
+ * DESCRIPTION:
+ *
+ * Adopt memory of the der. The secItem that contains der will be
+ * freed with destruction of parent pkix crl structure.
+ *
+ * * PARAMETERS:
+ *  "crl"
+ *      Address of CRL whose signature is to be verified. Must be non-NULL.
+ *  "derCrl"
+ *      Pointer to a SECItem that has der crl.
+ *  "plContext"
+ *      Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Thread Safe (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns a CRL Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error *
+PKIX_PL_CRL_AdoptDerCrl(PKIX_PL_CRL *crl,
+                        SECItem *derCrl,
+                        void *plContext);
 
 /*
  * FUNCTION: PKIX_PL_CRLEntry_GetCRLEntryReasonCode

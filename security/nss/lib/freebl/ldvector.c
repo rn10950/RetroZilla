@@ -1,43 +1,9 @@
 /*
  * ldvector.c - platform dependent DSO containing freebl implementation.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: ldvector.c,v 1.21 2009/02/12 22:48:43 rrelyea%redhat.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef FREEBL_NO_DEPEND
 extern int FREEBL_InitStubs(void);
@@ -45,6 +11,7 @@ extern int FREEBL_InitStubs(void);
 
 #include "loader.h"
 #include "alghmac.h"
+#include "hmacct.h"
 
 
 static const struct FREEBLVectorStr vector = 
@@ -251,19 +218,71 @@ static const struct FREEBLVectorStr vector =
     SEED_Encrypt,
     SEED_Decrypt,
 
-    /* End of Version 3.011. */
-
     BL_Init,
     BL_SetForkState,
-
-    /* End of Version 3.012. */
 
     PRNGTEST_Instantiate,
     PRNGTEST_Reseed,
     PRNGTEST_Generate,
-    PRNGTEST_Uninstantiate
 
-    /* End of Version 3.013. */
+    PRNGTEST_Uninstantiate,
+
+    /* End of Version 3.011. */
+
+    RSA_PopulatePrivateKey,
+
+    DSA_NewRandom,
+
+    JPAKE_Sign,
+    JPAKE_Verify,
+    JPAKE_Round2,
+    JPAKE_Final,
+
+    /* End of Version 3.012 */
+
+    TLS_P_hash,
+    SHA224_NewContext,
+    SHA224_DestroyContext,
+    SHA224_Begin,
+    SHA224_Update,
+    SHA224_End,
+    SHA224_HashBuf,
+    SHA224_Hash,
+    SHA224_TraceState,
+    SHA224_FlattenSize,
+    SHA224_Flatten,
+    SHA224_Resurrect,
+    SHA224_Clone,
+    BLAPI_SHVerifyFile,
+
+    /* End of Version 3.013 */
+
+    PQG_ParamGenV2,
+    PRNGTEST_RunHealthTests,
+
+    /* End of Version 3.014 */
+
+    HMAC_ConstantTime,
+    SSLv3_MAC_ConstantTime,
+
+    /* End of Version 3.015 */
+
+    RSA_SignRaw,
+    RSA_CheckSignRaw,
+    RSA_CheckSignRecoverRaw,
+    RSA_EncryptRaw,
+    RSA_DecryptRaw,
+    RSA_EncryptOAEP,
+    RSA_DecryptOAEP,
+    RSA_EncryptBlock,
+    RSA_DecryptBlock,
+    RSA_SignPSS,
+    RSA_CheckSignPSS,
+    RSA_Sign,
+    RSA_CheckSign,
+    RSA_CheckSignRecover
+
+    /* End of Version 3.016 */
 };
 
 const FREEBLVector * 

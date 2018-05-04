@@ -1,44 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * CMS signerInfo methods.
- *
- * $Id: cmssiginfo.c,v 1.31 2006/06/23 17:01:38 rrelyea%redhat.com Exp $
  */
 
 #include "cmslocal.h"
@@ -166,7 +131,8 @@ NSS_CMSSignerInfo_Destroy(NSSCMSSignerInfo *si)
  *
  */
 SECStatus
-NSS_CMSSignerInfo_Sign(NSSCMSSignerInfo *signerinfo, SECItem *digest, SECItem *contentType)
+NSS_CMSSignerInfo_Sign(NSSCMSSignerInfo *signerinfo, SECItem *digest, 
+                       SECItem *contentType)
 {
     CERTCertificate *cert;
     SECKEYPrivateKey *privkey = NULL;
@@ -174,7 +140,7 @@ NSS_CMSSignerInfo_Sign(NSSCMSSignerInfo *signerinfo, SECItem *digest, SECItem *c
     SECOidTag pubkAlgTag;
     SECItem signature = { 0 };
     SECStatus rv;
-    PLArenaPool *poolp, *tmppoolp;
+    PLArenaPool *poolp, *tmppoolp = NULL;
     SECAlgorithmID *algID, freeAlgID;
     CERTSubjectPublicKeyInfo *spki;
 
@@ -186,7 +152,8 @@ NSS_CMSSignerInfo_Sign(NSSCMSSignerInfo *signerinfo, SECItem *digest, SECItem *c
     case NSSCMSSignerID_IssuerSN:
         cert = signerinfo->cert;
 
-        if ((privkey = PK11_FindKeyByAnyCert(cert, signerinfo->cmsg->pwfn_arg)) == NULL)
+        privkey = PK11_FindKeyByAnyCert(cert, signerinfo->cmsg->pwfn_arg);
+        if (privkey == NULL)
 	    goto loser;
         algID = &cert->subjectPublicKeyInfo.algorithm;
         break;
@@ -212,11 +179,6 @@ NSS_CMSSignerInfo_Sign(NSSCMSSignerInfo *signerinfo, SECItem *digest, SECItem *c
     if (signerinfo->signerIdentifier.identifierType == NSSCMSSignerID_SubjectKeyID) {
       SECOID_DestroyAlgorithmID(&freeAlgID, PR_FALSE);
     }
-
-    /* Fortezza MISSI have weird signature formats.  
-     * Map them to standard DSA formats 
-     */
-    pubkAlgTag = PK11_FortezzaMapSig(pubkAlgTag);
 
     if (signerinfo->authAttr != NULL) {
 	SECOidTag signAlgTag;
@@ -272,6 +234,7 @@ NSS_CMSSignerInfo_Sign(NSSCMSSignerInfo *signerinfo, SECItem *digest, SECItem *c
 	rv = SEC_SignData(&signature, encoded_attrs.data, encoded_attrs.len, 
 	                  privkey, signAlgTag);
 	PORT_FreeArena(tmppoolp, PR_FALSE); /* awkward memory management :-( */
+	tmppoolp = 0;
     } else {
 	rv = SGN_Digest(privkey, digestalgtag, &signature, digest);
     }
@@ -298,6 +261,8 @@ loser:
 	SECITEM_FreeItem (&signature, PR_FALSE);
     if (privkey)
 	SECKEY_DestroyPrivateKey(privkey);
+    if (tmppoolp)
+	PORT_FreeArena(tmppoolp, PR_FALSE);
     return SECFailure;
 }
 
@@ -306,7 +271,7 @@ NSS_CMSSignerInfo_VerifyCertificate(NSSCMSSignerInfo *signerinfo, CERTCertDBHand
 			    SECCertUsage certusage)
 {
     CERTCertificate *cert;
-    int64 stime;
+    PRTime stime;
 
     if ((cert = NSS_CMSSignerInfo_GetSigningCertificate(signerinfo, certdb)) == NULL) {
 	signerinfo->verificationStatus = NSSCMSVS_SigningCertNotFound;
@@ -380,13 +345,6 @@ NSS_CMSSignerInfo_Verify(NSSCMSSignerInfo *signerinfo,
 	vs = NSSCMSVS_SignatureAlgorithmUnknown;
 	goto loser;
     }
-
-#ifndef NSS_ECC_MORE_THAN_SUITE_B
-    if (pubkAlgTag == SEC_OID_ANSIX962_EC_PUBLIC_KEY) {
-	vs = NSSCMSVS_SignatureAlgorithmUnknown;
-	goto loser;
-    }
-#endif
 
     if (!NSS_CMSArray_IsEmpty((void **)signerinfo->authAttr)) {
 	if (contentType) {
@@ -530,7 +488,28 @@ NSS_CMSSignerInfo_GetVerificationStatus(NSSCMSSignerInfo *signerinfo)
 SECOidData *
 NSS_CMSSignerInfo_GetDigestAlg(NSSCMSSignerInfo *signerinfo)
 {
-    return SECOID_FindOID (&(signerinfo->digestAlg.algorithm));
+    SECOidData *algdata;
+    SECOidTag   algtag;
+
+    algdata = SECOID_FindOID (&(signerinfo->digestAlg.algorithm));
+    if (algdata == NULL) {
+	return algdata;
+    }
+    /* Windows may have given us a signer algorithm oid instead of a digest 
+     * algorithm oid. This call will map to a signer oid to a digest one, 
+     * otherwise it leaves the oid alone and let the chips fall as they may
+     * if it's not a digest oid.
+     */
+    algtag = NSS_CMSUtil_MapSignAlgs(algdata->offset);
+    if (algtag != algdata->offset) {
+	/* if the tags don't match, then we must have received a signer 
+	 * algorithID. Now we need to get the oid data for the digest
+	 * oid, which the rest of the code is expecting */
+	algdata = SECOID_FindOIDByTag(algtag);
+    }
+
+    return algdata;
+
 }
 
 SECOidTag
@@ -543,7 +522,7 @@ NSS_CMSSignerInfo_GetDigestAlgTag(NSSCMSSignerInfo *signerinfo)
         return SEC_OID_UNKNOWN;
     }
 
-    algdata = SECOID_FindOID (&(signerinfo->digestAlg.algorithm));
+    algdata = NSS_CMSSignerInfo_GetDigestAlg(signerinfo);
     if (algdata != NULL)
 	return algdata->offset;
     else
@@ -779,8 +758,7 @@ NSS_CMSSignerInfo_AddSMIMECaps(NSSCMSSignerInfo *signerinfo)
 	goto loser;
 
     /* create new signing time attribute */
-    if (NSS_SMIMEUtil_CreateSMIMECapabilities(poolp, smimecaps,
-			    PK11_FortezzaHasKEA(signerinfo->cert)) != SECSuccess)
+    if (NSS_SMIMEUtil_CreateSMIMECapabilities(poolp, smimecaps) != SECSuccess)
 	goto loser;
 
     if ((attr = NSS_CMSAttribute_Create(poolp, SEC_OID_PKCS9_SMIME_CAPABILITIES, smimecaps, PR_TRUE)) == NULL)
@@ -843,7 +821,7 @@ loser:
 
 /* 
  * NSS_CMSSignerInfo_AddMSSMIMEEncKeyPrefs - add a SMIMEEncryptionKeyPreferences attribute to the
- * authenticated (i.e. signed) attributes of "signerinfo", using the OID prefered by Microsoft.
+ * authenticated (i.e. signed) attributes of "signerinfo", using the OID preferred by Microsoft.
  *
  * This is expected to be included in outgoing signed messages for email (S/MIME),
  * if compatibility with Microsoft mail clients is wanted.

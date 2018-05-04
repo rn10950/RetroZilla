@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_pl_ldapcertstore.c
  *
@@ -83,7 +50,7 @@ pkix_pl_LdapCertStore_DecodeCrossCertPair(
         LDAPCertPair certPair = {{ siBuffer, NULL, 0 }, { siBuffer, NULL, 0 }};
         SECStatus rv = SECFailure;
 
-        PRArenaPool *tempArena = NULL;
+        PLArenaPool *tempArena = NULL;
 
         PKIX_ENTER(CERTSTORE, "pkix_pl_LdapCertStore_DecodeCrossCertPair");
         PKIX_NULLCHECK_TWO(derCCPItem, certList);
@@ -272,15 +239,17 @@ pkix_pl_LdapCertStore_BuildCrlList(
         PKIX_UInt32 numResponses = 0;
         PKIX_UInt32 respIx = 0;
         LdapAttrMask attrBits = 0;
+        CERTSignedCrl *nssCrl = NULL;
         PKIX_PL_LdapResponse *response = NULL;
         PKIX_List *crlList = NULL;
+        PKIX_PL_CRL *crl = NULL;
         LDAPMessage *message = NULL;
         LDAPSearchResponseEntry *sre = NULL;
         LDAPSearchResponseAttr **sreAttrArray = NULL;
         LDAPSearchResponseAttr *sreAttr = NULL;
         SECItem *attrType = NULL;
         SECItem **attrVal = NULL;
-
+        SECItem *derCrlCopy = NULL;
         SECItem *derCrlItem = NULL;
 
         PKIX_ENTER(CERTSTORE, "pkix_pl_LdapCertStore_BuildCrlList");
@@ -323,10 +292,34 @@ pkix_pl_LdapCertStore_BuildCrlList(
                         derCrlItem = *attrVal++;
                         while (derCrlItem != 0) {
                             /* create a PKIX_PL_Crl from derCrl */
-                            PKIX_CHECK_ONLY_FATAL(
-                                pkix_pl_CRL_CreateToList(derCrlItem, crlList,
-                                                         plContext),
-                                PKIX_CRLCREATETOLISTFAILED);
+                            derCrlCopy = SECITEM_DupItem(derCrlItem);
+                            if (!derCrlCopy) {
+                                PKIX_ERROR(PKIX_ALLOCERROR);
+                            }
+                            /* crl will be based on derCrlCopy, but wont
+                             * own the der. */
+                            nssCrl =
+                                CERT_DecodeDERCrlWithFlags(NULL, derCrlCopy,
+                                                       SEC_CRL_TYPE,
+                                                       CRL_DECODE_DONT_COPY_DER |
+                                                       CRL_DECODE_SKIP_ENTRIES);
+                            if (!nssCrl) {
+                                SECITEM_FreeItem(derCrlCopy, PKIX_TRUE);
+                                continue;
+                            }
+                            /* pkix crl own the der. */
+                            PKIX_CHECK(
+                                pkix_pl_CRL_CreateWithSignedCRL(nssCrl, 
+                                       derCrlCopy, NULL, &crl, plContext),
+                                PKIX_CRLCREATEWITHSIGNEDCRLFAILED);
+                            /* Left control over memory pointed by derCrlCopy and
+                             * nssCrl to pkix crl. */
+                            derCrlCopy = NULL;
+                            nssCrl = NULL;
+                            PKIX_CHECK(PKIX_List_AppendItem
+                                       (crlList, (PKIX_PL_Object *) crl, plContext),
+                                       PKIX_LISTAPPENDITEMFAILED);
+                            PKIX_DECREF(crl);
                             derCrlItem = *attrVal++;
                         }
                         /* Clean up after PKIX_CHECK_ONLY_FATAL */
@@ -338,12 +331,16 @@ pkix_pl_LdapCertStore_BuildCrlList(
         }
 
         *pCrls = crlList;
-
+        crlList = NULL;
 cleanup:
-        if (PKIX_ERROR_RECEIVED) {
-                PKIX_DECREF(crlList);
+        if (derCrlCopy) {
+            SECITEM_FreeItem(derCrlCopy, PKIX_TRUE);
         }
-
+        if (nssCrl) {
+            SEC_DestroyCrl(nssCrl);
+        }
+        PKIX_DECREF(crl);
+        PKIX_DECREF(crlList);
         PKIX_DECREF(response);
 
         PKIX_RETURN(CERTSTORE);
@@ -411,7 +408,7 @@ pkix_pl_LdapCertStore_DestroyAVAList(
  *
  * PARAMETERS:
  *  "arena"
- *      The address of the PRArenaPool used in creating the filter. Must be
+ *      The address of the PLArenaPool used in creating the filter. Must be
  *       non-NULL.
  *  "name"
  *      The address of the X500Name whose components define the desired
@@ -429,7 +426,7 @@ pkix_pl_LdapCertStore_DestroyAVAList(
  */
 static PKIX_Error *
 pkix_pl_LdapCertStore_MakeNameAVAList(
-        PRArenaPool *arena,
+        PLArenaPool *arena,
         PKIX_PL_X500Name *subjectName, 
         LDAPNameComponent ***pList,
         void *plContext)
@@ -568,11 +565,12 @@ PKIX_Error *
 pkix_pl_LdapCertStore_GetCert(
         PKIX_CertStore *store,
         PKIX_CertSelector *selector,
+        PKIX_VerifyNode *verifyNode,
         void **pNBIOContext,
         PKIX_List **pCertList,
         void *plContext)
 {
-        PRArenaPool *requestArena = NULL;
+        PLArenaPool *requestArena = NULL;
         LDAPRequestParams requestParams;
         void *pollDesc = NULL;
         PKIX_Int32 minPathLen = 0;
@@ -737,6 +735,7 @@ PKIX_Error *
 pkix_pl_LdapCertStore_GetCertContinue(
         PKIX_CertStore *store,
         PKIX_CertSelector *selector,
+        PKIX_VerifyNode *verifyNode,
         void **pNBIOContext,
         PKIX_List **pCertList,
         void *plContext)
@@ -807,7 +806,7 @@ pkix_pl_LdapCertStore_GetCRL(
 {
         LDAPRequestParams requestParams;
         void *pollDesc = NULL;
-        PRArenaPool *requestArena = NULL;
+        PLArenaPool *requestArena = NULL;
         PKIX_UInt32 numNames = 0;
         PKIX_UInt32 thisName = 0;
         PKIX_PL_CRL *candidate = NULL;
@@ -829,6 +828,19 @@ pkix_pl_LdapCertStore_GetCRL(
         requestParams.timeLimit = 0;
         requestParams.attributes = LDAPATTR_CERTREVLIST | LDAPATTR_AUTHREVLIST;
         /* Prepare elements for request filter */
+
+        /* XXX Place CRLDP code here. Handle the case when */
+        /* RFC 5280. Paragraph: 4.2.1.13: */
+        /* If the distributionPoint field contains a directoryName, the entry */
+        /* for that directoryName contains the current CRL for the associated */
+        /* reasons and the CRL is issued by the associated cRLIssuer.  The CRL */
+        /* may be stored in either the certificateRevocationList or */
+        /* authorityRevocationList attribute.  The CRL is to be obtained by the */
+        /* application from whatever directory server is locally configured. */
+        /* The protocol the application uses to access the directory (e.g., DAP */
+        /* or LDAP) is a local matter. */
+
+
 
         /*
          * Get a short-lived arena. We'll be done with this space once

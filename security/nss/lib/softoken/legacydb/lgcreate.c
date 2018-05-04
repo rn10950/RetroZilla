@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "secitem.h"
 #include "pkcs11.h"
 #include "lgdb.h" 
@@ -143,7 +110,7 @@ lg_createCertObject(SDB *sdb, CK_OBJECT_HANDLE *handle,
     /*
      * Add a NULL S/MIME profile if necessary.
      */
-    email = lg_getString(CKA_NETSCAPE_EMAIL, templ, count);
+    email = lg_getString(CKA_NSS_EMAIL, templ, count);
     if (email) {
 	certDBEntrySMime *entry;
 
@@ -168,17 +135,15 @@ lg_MapTrust(CK_TRUST trust, PRBool clientAuth)
     unsigned int trustCA = clientAuth ? CERTDB_TRUSTED_CLIENT_CA :
 							CERTDB_TRUSTED_CA;
     switch (trust) {
-    case CKT_NETSCAPE_TRUSTED:
-	return CERTDB_VALID_PEER|CERTDB_TRUSTED;
-    case CKT_NETSCAPE_TRUSTED_DELEGATOR:
+    case CKT_NSS_TRUSTED:
+	return CERTDB_TERMINAL_RECORD|CERTDB_TRUSTED;
+    case CKT_NSS_TRUSTED_DELEGATOR:
 	return CERTDB_VALID_CA|trustCA;
-    case CKT_NETSCAPE_UNTRUSTED:
-	return CERTDB_NOT_TRUSTED;
-    case CKT_NETSCAPE_MUST_VERIFY:
-	return 0;
-    case CKT_NETSCAPE_VALID: /* implies must verify */
-	return CERTDB_VALID_PEER;
-    case CKT_NETSCAPE_VALID_DELEGATOR: /* implies must verify */
+    case CKT_NSS_MUST_VERIFY_TRUST:
+	return CERTDB_MUST_VERIFY;
+    case CKT_NSS_NOT_TRUSTED:
+	return CERTDB_TERMINAL_RECORD;
+    case CKT_NSS_VALID_DELEGATOR: /* implies must verify */
 	return CERTDB_VALID_CA;
     default:
 	break;
@@ -198,10 +163,10 @@ lg_createTrustObject(SDB *sdb, CK_OBJECT_HANDLE *handle,
     const CK_ATTRIBUTE *serial = NULL;
     NSSLOWCERTCertificate *cert = NULL;
     const CK_ATTRIBUTE *trust;
-    CK_TRUST sslTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
-    CK_TRUST clientTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
-    CK_TRUST emailTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
-    CK_TRUST signTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
+    CK_TRUST sslTrust = CKT_NSS_TRUST_UNKNOWN;
+    CK_TRUST clientTrust = CKT_NSS_TRUST_UNKNOWN;
+    CK_TRUST emailTrust = CKT_NSS_TRUST_UNKNOWN;
+    CK_TRUST signTrust = CKT_NSS_TRUST_UNKNOWN;
     CK_BBOOL stepUp;
     NSSLOWCERTCertTrust dbTrust = { 0 };
     SECStatus rv;
@@ -323,7 +288,7 @@ lg_createSMimeObject(SDB *sdb, CK_OBJECT_HANDLE *handle,
     }
 
     /* lookup Time */
-    time = lg_FindAttribute(CKA_NETSCAPE_SMIME_TIMESTAMP,templ,count);
+    time = lg_FindAttribute(CKA_NSS_SMIME_TIMESTAMP,templ,count);
     if (time) {
 	rawTime.data = (unsigned char *)time->pValue;
 	rawTime.len = time->ulValueLen ;
@@ -332,7 +297,7 @@ lg_createSMimeObject(SDB *sdb, CK_OBJECT_HANDLE *handle,
     }
 
 
-    email = lg_getString(CKA_NETSCAPE_EMAIL,templ,count);
+    email = lg_getString(CKA_NSS_EMAIL,templ,count);
     if (!email) {
 	ck_rv = CKR_ATTRIBUTE_VALUE_INVALID;
 	goto loser;
@@ -399,8 +364,8 @@ lg_createCrlObject(SDB *sdb, CK_OBJECT_HANDLE *handle,
     derCrl.data = (unsigned char *)crl->pValue;
     derCrl.len = crl->ulValueLen ;
 
-    url = lg_getString(CKA_NETSCAPE_URL,templ,count);
-    isKRL = lg_isTrue(CKA_NETSCAPE_KRL,templ,count);
+    url = lg_getString(CKA_NSS_URL,templ,count);
+    isKRL = lg_isTrue(CKA_NSS_KRL,templ,count);
 
     /* Store CRL by SUBJECT */
     rv = nsslowcert_AddCrl(certHandle, &derCrl, &derSubj, url, isKRL);
@@ -436,7 +401,7 @@ lg_createPublicKeyObject(SDB *sdb, CK_KEY_TYPE key_type,
     SECItem *pubKey;
 #ifdef NSS_ENABLE_ECC
     SECItem pubKey2Space = {siBuffer, NULL, 0};
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
 #endif /* NSS_ENABLE_ECC */
     NSSLOWKEYDBHandle *keyHandle = NULL;
 	
@@ -520,7 +485,7 @@ lg_createPublicKeyObject(SDB *sdb, CK_KEY_TYPE key_type,
 	crv = CKR_ATTRIBUTE_VALUE_INVALID;
 	goto done;
     }
-    nsslowkey_DestroyPrivateKey(priv);
+    lg_nsslowkey_DestroyPrivateKey(priv);
     crv = CKR_OK;
 
     *handle = lg_mkHandle(sdb, pubKey, LG_TOKEN_TYPE_PUB);
@@ -727,7 +692,7 @@ fail:
     if (label) PORT_Free(label);
     *handle = lg_mkHandle(sdb,&pubKey,LG_TOKEN_TYPE_PRIV);
     if (pubKey.data) PORT_Free(pubKey.data);
-    nsslowkey_DestroyPrivateKey(privKey);
+    lg_nsslowkey_DestroyPrivateKey(privKey);
     if (rv != SECSuccess) return crv;
 
     return CKR_OK;
@@ -818,11 +783,16 @@ static NSSLOWKEYPrivateKey *lg_mkSecretKeyRep(const CK_ATTRIBUTE *templ,
     privKey->keyType = NSSLOWKEYRSAKey;
 
     /* The modulus is set to the key id of the symmetric key */
-    crv = lg_Attribute2SecItem(arena, CKA_ID, templ, count, 
-				&privKey->u.rsa.modulus);
-    if (crv != CKR_OK) goto loser;
+    privKey->u.rsa.modulus.data =
+		(unsigned char *) PORT_ArenaAlloc(arena, pubkey->len);
+    if (privKey->u.rsa.modulus.data == NULL) {
+	crv = CKR_HOST_MEMORY;
+	goto loser;
+    }
+    privKey->u.rsa.modulus.len = pubkey->len;
+    PORT_Memcpy(privKey->u.rsa.modulus.data, pubkey->data, pubkey->len);
 
-    /* The public exponent is set to 0 length to indicate a special key */
+    /* The public exponent is set to 0 to indicate a special key */
     privKey->u.rsa.publicExponent.len = sizeof derZero;
     privKey->u.rsa.publicExponent.data = derZero;
 
@@ -929,7 +899,7 @@ lg_createSecretKeyObject(SDB *sdb, CK_KEY_TYPE key_type,
 
 loser:
     if (label) PORT_Free(label);
-    if (privKey) nsslowkey_DestroyPrivateKey(privKey);
+    if (privKey) lg_nsslowkey_DestroyPrivateKey(privKey);
     if (pubKey.data) PORT_Free(pubKey.data);
 
     return crv;
@@ -987,13 +957,13 @@ lg_CreateObject(SDB *sdb, CK_OBJECT_HANDLE *handle,
     case CKO_CERTIFICATE:
 	crv = lg_createCertObject(sdb,handle,templ,count);
 	break;
-    case CKO_NETSCAPE_TRUST:
+    case CKO_NSS_TRUST:
 	crv = lg_createTrustObject(sdb,handle,templ,count);
 	break;
-    case CKO_NETSCAPE_CRL:
+    case CKO_NSS_CRL:
 	crv = lg_createCrlObject(sdb,handle,templ,count);
 	break;
-    case CKO_NETSCAPE_SMIME:
+    case CKO_NSS_SMIME:
 	crv = lg_createSMimeObject(sdb,handle,templ,count);
 	break;
     case CKO_PRIVATE_KEY:

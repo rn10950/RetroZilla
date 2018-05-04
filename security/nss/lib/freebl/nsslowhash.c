@@ -1,46 +1,16 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: nsslowhash.c,v 1.2 2008/11/27 15:20:44 wtc%google.com Exp $ */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#ifdef FREEBL_NO_DEPEND
 #include "stubs.h"
+#endif
 #include "prtypes.h"
 #include "secerr.h"
 #include "pkcs11t.h"
 #include "blapi.h"
-#include "sechash.h"
+#include "hasht.h"
+#include "plhash.h"
 #include "nsslowhash.h"
 
 /* FIPS preprocessor directives for message digests             */
@@ -129,6 +99,13 @@ freebl_fips_SHA_PowerUpSelfTest( void )
 			       0x72,0xf6,0xc7,0x22,0xf1,0x27,0x9f,0xf0,
 			       0xe0,0x68,0x47,0x7a};
 
+    /* SHA-224 Known Digest Message (224-bits). */
+    static const PRUint8 sha224_known_digest[] = {
+        0x89,0x5e,0x7f,0xfd,0x0e,0xd8,0x35,0x6f,
+        0x64,0x6d,0xf2,0xde,0x5e,0xed,0xa6,0x7f,
+        0x29,0xd1,0x12,0x73,0x42,0x84,0x95,0x4f,
+        0x8e,0x08,0xe5,0xcb};
+
     /* SHA-256 Known Digest Message (256-bits). */
     static const PRUint8 sha256_known_digest[] = {
         0x38,0xa9,0xc1,0xf0,0x35,0xf6,0x5d,0x61,
@@ -170,6 +147,18 @@ freebl_fips_SHA_PowerUpSelfTest( void )
     if( ( sha_status != SECSuccess ) ||
         ( PORT_Memcmp( sha_computed_digest, sha1_known_digest,
                        SHA1_LENGTH ) != 0 ) )
+        return( CKR_DEVICE_ERROR );
+
+    /***************************************************/
+    /* SHA-224 Single-Round Known Answer Hashing Test. */
+    /***************************************************/
+
+    sha_status = SHA224_HashBuf( sha_computed_digest, known_hash_message,
+                                FIPS_KNOWN_HASH_MESSAGE_LENGTH );
+
+    if( ( sha_status != SECSuccess ) ||
+        ( PORT_Memcmp( sha_computed_digest, sha224_known_digest,
+                       SHA224_LENGTH ) != 0 ) )
         return( CKR_DEVICE_ERROR );
 
     /***************************************************/
@@ -267,7 +256,29 @@ struct NSSLOWHASHContextStr {
    
 };
 
+static int nsslow_GetFIPSEnabled(void) {
+#ifdef LINUX
+    FILE *f;
+    char d;
+    size_t size;
+
+    f = fopen("/proc/sys/crypto/fips_enabled", "r");
+    if (!f)
+        return 0;
+
+    size = fread(&d, 1, 1, f);
+    fclose(f);
+    if (size != 1)
+        return 0;
+    if (d != '1')
+        return 0;
+#endif
+    return 1;
+}
+
+
 static int post = 0;
+static int post_failed = 0;
 
 static NSSLOWInitContext dummyContext = { 0 };
 
@@ -276,16 +287,23 @@ NSSLOW_Init(void)
 {
     SECStatus rv;
     CK_RV crv;
+#ifdef FREEBL_NO_DEPEND
     PRBool nsprAvailable = PR_FALSE;
 
 
     rv = FREEBL_InitStubs();
     nsprAvailable = (rv ==  SECSuccess ) ? PR_TRUE : PR_FALSE;
+#endif
+
+    if (post_failed) {
+	return NULL;
+    }
 	
 
-    if (!post) {
+    if (!post && nsslow_GetFIPSEnabled()) {
 	crv = freebl_fipsPowerUpSelfTest();
 	if (crv != CKR_OK) {
+	    post_failed = 1;
 	    return NULL;
 	}
     }
@@ -302,11 +320,25 @@ NSSLOW_Shutdown(NSSLOWInitContext *context)
    return;
 }
 
+void
+NSSLOW_Reset(NSSLOWInitContext *context)
+{
+   PORT_Assert(context == &dummyContext);
+   post_failed = 0;
+   post = 0;
+   return;
+}
+
 NSSLOWHASHContext *
 NSSLOWHASH_NewContext(NSSLOWInitContext *initContext, 
 			HASH_HashType hashType)
 {
    NSSLOWHASHContext *context;
+
+   if (post_failed) {
+	PORT_SetError(SEC_ERROR_PKCS11_DEVICE_ERROR);
+	return NULL;
+   }
 
    if (initContext != &dummyContext) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);

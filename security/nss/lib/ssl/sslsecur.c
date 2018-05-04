@@ -1,43 +1,9 @@
 /*
  * Various SSL functions.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslsecur.c,v 1.42 2008/10/03 19:20:20 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "cert.h"
 #include "secitem.h"
 #include "keyhi.h"
@@ -84,7 +50,8 @@
  *
  * 3.   SECWouldBlock was returned by one of the callback functions, via
  *	one of these paths:
- * -	ssl2_HandleMessage() -> ssl2_HandleRequestCertificate() -> ss->getClientAuthData()
+ * -	ssl2_HandleMessage() -> ssl2_HandleRequestCertificate() ->
+ *	ss->getClientAuthData()
  *
  * -	ssl2_HandleServerHelloMessage() -> ss->handleBadCert()
  *
@@ -117,6 +84,7 @@ ssl_Do1stHandshake(sslSocket *ss)
 	PORT_Assert(ss->opt.noLocks ||  ssl_Have1stHandshakeLock(ss) );
 	PORT_Assert(ss->opt.noLocks || !ssl_HaveRecvBufLock(ss));
 	PORT_Assert(ss->opt.noLocks || !ssl_HaveXmitBufLock(ss));
+	PORT_Assert(ss->opt.noLocks || !ssl_HaveSSL3HandshakeLock(ss));
 
 	if (ss->handshake == 0) {
 	    /* Previous handshake finished. Switch to next one */
@@ -129,23 +97,13 @@ ssl_Do1stHandshake(sslSocket *ss)
 	    ss->securityHandshake = 0;
 	}
 	if (ss->handshake == 0) {
-	    ssl_GetRecvBufLock(ss);
-	    ss->gs.recordLen = 0;
-	    ssl_ReleaseRecvBufLock(ss);
-
-	    SSL_TRC(3, ("%d: SSL[%d]: handshake is completed",
-			SSL_GETPID(), ss->fd));
-            /* call handshake callback for ssl v2 */
-	    /* for v3 this is done in ssl3_HandleFinished() */
-	    if ((ss->handshakeCallback != NULL) && /* has callback */
-		(!ss->firstHsDone) &&              /* only first time */
-		(ss->version < SSL_LIBRARY_VERSION_3_0)) {  /* not ssl3 */
-		ss->firstHsDone     = PR_TRUE;
-		(ss->handshakeCallback)(ss->fd, ss->handshakeCallbackData);
+	    /* for v3 this is done in ssl3_FinishHandshake */
+	    if (!ss->firstHsDone && ss->version < SSL_LIBRARY_VERSION_3_0) {
+		ssl_GetRecvBufLock(ss);
+		ss->gs.recordLen = 0;
+		ssl_FinishHandshake(ss);
+		ssl_ReleaseRecvBufLock(ss);
 	    }
-	    ss->firstHsDone         = PR_TRUE;
-	    ss->gs.writeOffset = 0;
-	    ss->gs.readOffset  = 0;
 	    break;
 	}
 	rv = (*ss->handshake)(ss);
@@ -157,6 +115,7 @@ ssl_Do1stHandshake(sslSocket *ss)
 
     PORT_Assert(ss->opt.noLocks || !ssl_HaveRecvBufLock(ss));
     PORT_Assert(ss->opt.noLocks || !ssl_HaveXmitBufLock(ss));
+    PORT_Assert(ss->opt.noLocks || !ssl_HaveSSL3HandshakeLock(ss));
 
     if (rv == SECWouldBlock) {
 	PORT_SetError(PR_WOULD_BLOCK_ERROR);
@@ -165,12 +124,30 @@ ssl_Do1stHandshake(sslSocket *ss)
     return rv;
 }
 
+void
+ssl_FinishHandshake(sslSocket *ss)
+{
+    PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
+    PORT_Assert( ss->opt.noLocks || ssl_HaveRecvBufLock(ss) );
+
+    SSL_TRC(3, ("%d: SSL[%d]: handshake is completed", SSL_GETPID(), ss->fd));
+
+    ss->firstHsDone = PR_TRUE;
+    ss->enoughFirstHsDone = PR_TRUE;
+    ss->gs.writeOffset = 0;
+    ss->gs.readOffset  = 0;
+
+    if (ss->handshakeCallback) {
+	(ss->handshakeCallback)(ss->fd, ss->handshakeCallbackData);
+    }
+}
+
 /*
  * Handshake function that blocks.  Used to force a
  * retry on a connection on the next read/write.
  */
 static SECStatus
-AlwaysBlock(sslSocket *ss)
+ssl3_AlwaysBlock(sslSocket *ss)
 {
     PORT_SetError(PR_WOULD_BLOCK_ERROR);	/* perhaps redundant. */
     return SECWouldBlock;
@@ -180,10 +157,10 @@ AlwaysBlock(sslSocket *ss)
  * set the initial handshake state machine to block
  */
 void
-ssl_SetAlwaysBlock(sslSocket *ss)
+ssl3_SetAlwaysBlock(sslSocket *ss)
 {
     if (!ss->firstHsDone) {
-	ss->handshake = AlwaysBlock;
+	ss->handshake = ssl3_AlwaysBlock;
 	ss->nextHandshake = 0;
     }
 }
@@ -235,9 +212,9 @@ SSL_ResetHandshake(PRFileDesc *s, PRBool asServer)
 
     /* Reset handshake state */
     ssl_Get1stHandshakeLock(ss);
-    ssl_GetSSL3HandshakeLock(ss);
 
     ss->firstHsDone = PR_FALSE;
+    ss->enoughFirstHsDone = PR_FALSE;
     if ( asServer ) {
 	ss->handshake = ssl2_BeginServerHandshake;
 	ss->handshaking = sslHandshakingAsServer;
@@ -251,6 +228,10 @@ SSL_ResetHandshake(PRFileDesc *s, PRBool asServer)
     ssl_GetRecvBufLock(ss);
     status = ssl_InitGather(&ss->gs);
     ssl_ReleaseRecvBufLock(ss);
+
+    ssl_GetSSL3HandshakeLock(ss);
+    ss->ssl3.hs.canFalseStart = PR_FALSE;
+    ss->ssl3.hs.restartTarget = NULL;
 
     /*
     ** Blow away old security state and get a fresh setup.
@@ -296,7 +277,7 @@ SSL_ReHandshake(PRFileDesc *fd, PRBool flushCache)
 
     /* SSL v2 protocol does not support subsequent handshakes. */
     if (ss->version < SSL_LIBRARY_VERSION_3_0) {
-	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	PORT_SetError(SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SSL2);
 	rv = SECFailure;
     } else {
 	ssl_GetSSL3HandshakeLock(ss);
@@ -361,6 +342,71 @@ SSL_HandshakeCallback(PRFileDesc *fd, SSLHandshakeCallback cb,
     return SECSuccess;
 }
 
+/* Register an application callback to be called when false start may happen.
+** Acquires and releases HandshakeLock.
+*/
+SECStatus
+SSL_SetCanFalseStartCallback(PRFileDesc *fd, SSLCanFalseStartCallback cb,
+			     void *arg)
+{
+    sslSocket *ss;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetCanFalseStartCallback",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    if (!ss->opt.useSecurity) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    ssl_Get1stHandshakeLock(ss);
+    ssl_GetSSL3HandshakeLock(ss);
+
+    ss->canFalseStartCallback     = cb;
+    ss->canFalseStartCallbackData = arg;
+
+    ssl_ReleaseSSL3HandshakeLock(ss);
+    ssl_Release1stHandshakeLock(ss);
+
+    return SECSuccess;
+}
+
+SECStatus
+SSL_RecommendedCanFalseStart(PRFileDesc *fd, PRBool *canFalseStart)
+{
+    sslSocket *ss;
+
+    *canFalseStart = PR_FALSE;
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_RecommendedCanFalseStart",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    if (!ss->ssl3.initialized) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    if (ss->version < SSL_LIBRARY_VERSION_3_0) {
+	PORT_SetError(SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SSL2);
+	return SECFailure;
+    }
+
+    /* Require a forward-secret key exchange. */
+    *canFalseStart = ss->ssl3.hs.kea_def->kea == kea_dhe_dss ||
+		     ss->ssl3.hs.kea_def->kea == kea_dhe_rsa ||
+		     ss->ssl3.hs.kea_def->kea == kea_ecdhe_ecdsa ||
+		     ss->ssl3.hs.kea_def->kea == kea_ecdhe_rsa;
+
+    return SECSuccess;
+}
+
 /* Try to make progress on an SSL handshake by attempting to read the 
 ** next handshake from the peer, and sending any responses.
 ** For non-blocking sockets, returns PR_ERROR_WOULD_BLOCK  if it cannot 
@@ -387,6 +433,18 @@ SSL_ForceHandshake(PRFileDesc *fd)
     /* Don't waste my time */
     if (!ss->opt.useSecurity) 
     	return SECSuccess;
+
+    if (!ssl_SocketIsBlocking(ss)) {
+	ssl_GetXmitBufLock(ss);
+	if (ss->pendingBuf.len != 0) {
+	    int sent = ssl_SendSavedWriteData(ss);
+	    if ((sent < 0) && (PORT_GetError() != PR_WOULD_BLOCK_ERROR)) {
+		ssl_ReleaseXmitBufLock(ss);
+		return SECFailure;
+	    }
+	}
+	ssl_ReleaseXmitBufLock(ss);
+    }
 
     ssl_Get1stHandshakeLock(ss);
 
@@ -542,6 +600,9 @@ DoRecv(sslSocket *ss, unsigned char *out, int len, int flags)
     int              amount;
     int              available;
 
+    /* ssl3_GatherAppDataRecord may call ssl_FinishHandshake, which needs the
+     * 1stHandshakeLock. */
+    ssl_Get1stHandshakeLock(ss);
     ssl_GetRecvBufLock(ss);
 
     available = ss->gs.writeOffset - ss->gs.readOffset;
@@ -599,6 +660,7 @@ DoRecv(sslSocket *ss, unsigned char *out, int len, int flags)
     if (!(flags & PR_MSG_PEEK)) {
 	ss->gs.readOffset += amount;
     }
+    PORT_Assert(ss->gs.readOffset <= ss->gs.writeOffset);
     rv = amount;
 
     SSL_TRC(30, ("%d: SSL[%d]: amount=%d available=%d",
@@ -607,13 +669,17 @@ DoRecv(sslSocket *ss, unsigned char *out, int len, int flags)
 
 done:
     ssl_ReleaseRecvBufLock(ss);
+    ssl_Release1stHandshakeLock(ss);
     return rv;
 }
 
 /************************************************************************/
 
+/*
+** Return SSLKEAType derived from cert's Public Key algorithm info.
+*/
 SSLKEAType
-ssl_FindCertKEAType(CERTCertificate * cert)
+NSS_FindCertKEAType(CERTCertificate * cert)
 {
   SSLKEAType keaType = kt_null; 
   int tag;
@@ -627,7 +693,6 @@ ssl_FindCertKEAType(CERTCertificate * cert)
   case SEC_OID_PKCS1_RSA_ENCRYPTION:
     keaType = kt_rsa;
     break;
-
   case SEC_OID_X942_DIFFIE_HELMAN_KEY:
     keaType = kt_dh;
     break;
@@ -643,7 +708,6 @@ ssl_FindCertKEAType(CERTCertificate * cert)
  loser:
   
   return keaType;
-
 }
 
 static const PRCallOnceType pristineCallOnce;
@@ -672,6 +736,79 @@ static PRStatus serverCAListSetup(void *arg)
     return PR_FAILURE;
 }
 
+SECStatus
+ssl_ConfigSecureServer(sslSocket *ss, CERTCertificate *cert,
+                       const CERTCertificateList *certChain,
+                       ssl3KeyPair *keyPair, SSLKEAType kea)
+{
+    CERTCertificateList *localCertChain = NULL;
+    sslServerCerts  *sc = ss->serverCerts + kea;
+
+    /* load the server certificate */
+    if (sc->serverCert != NULL) {
+	CERT_DestroyCertificate(sc->serverCert);
+    	sc->serverCert = NULL;
+        sc->serverKeyBits = 0;
+    }
+    /* load the server cert chain */
+    if (sc->serverCertChain != NULL) {
+	CERT_DestroyCertificateList(sc->serverCertChain);
+    	sc->serverCertChain = NULL;
+    }
+    if (cert) {
+        sc->serverCert = CERT_DupCertificate(cert);
+        /* get the size of the cert's public key, and remember it */
+        sc->serverKeyBits = SECKEY_PublicKeyStrengthInBits(keyPair->pubKey);
+        if (!certChain) {
+            localCertChain =
+                CERT_CertChainFromCert(sc->serverCert, certUsageSSLServer,
+                                       PR_TRUE);
+            if (!localCertChain)
+                goto loser;
+        }
+        sc->serverCertChain = (certChain) ? CERT_DupCertList(certChain) :
+                                            localCertChain;
+        if (!sc->serverCertChain) {
+            goto loser;
+        }
+        localCertChain = NULL;      /* consumed */
+    }
+
+    /* get keyPair */
+    if (sc->serverKeyPair != NULL) {
+        ssl3_FreeKeyPair(sc->serverKeyPair);
+        sc->serverKeyPair = NULL;
+    }
+    if (keyPair) {
+        SECKEY_CacheStaticFlags(keyPair->privKey);
+        sc->serverKeyPair = ssl3_GetKeyPairRef(keyPair);
+    }
+    if (kea == kt_rsa && cert && sc->serverKeyBits > 512 &&
+        !ss->opt.noStepDown && !ss->stepDownKeyPair) { 
+        if (ssl3_CreateRSAStepDownKeys(ss) != SECSuccess) {
+            goto loser;
+        }
+    }
+    return SECSuccess;
+
+loser:
+    if (localCertChain) {
+        CERT_DestroyCertificateList(localCertChain);
+    }
+    if (sc->serverCert != NULL) {
+	CERT_DestroyCertificate(sc->serverCert);
+	sc->serverCert = NULL;
+    }
+    if (sc->serverCertChain != NULL) {
+	CERT_DestroyCertificateList(sc->serverCertChain);
+	sc->serverCertChain = NULL;
+    }
+    if (sc->serverKeyPair != NULL) {
+	ssl3_FreeKeyPair(sc->serverKeyPair);
+	sc->serverKeyPair = NULL;
+    }
+    return SECFailure;
+}
 
 /* XXX need to protect the data that gets changed here.!! */
 
@@ -679,10 +816,19 @@ SECStatus
 SSL_ConfigSecureServer(PRFileDesc *fd, CERTCertificate *cert,
 		       SECKEYPrivateKey *key, SSL3KEAType kea)
 {
-    SECStatus rv;
+
+    return SSL_ConfigSecureServerWithCertChain(fd, cert, NULL, key, kea);
+}
+
+SECStatus
+SSL_ConfigSecureServerWithCertChain(PRFileDesc *fd, CERTCertificate *cert,
+                                    const CERTCertificateList *certChainOpt,
+                                    SECKEYPrivateKey *key, SSL3KEAType kea)
+{
     sslSocket *ss;
-    sslServerCerts  *sc;
-    SECKEYPublicKey * pubKey = NULL;
+    SECKEYPublicKey *pubKey = NULL;
+    ssl3KeyPair *keyPair = NULL;
+    SECStatus rv = SECFailure;
 
     ss = ssl_FindSocket(fd);
     if (!ss) {
@@ -703,46 +849,18 @@ SSL_ConfigSecureServer(PRFileDesc *fd, CERTCertificate *cert,
 	return SECFailure;
     }
 
-    if (kea != ssl_FindCertKEAType(cert)) {
+    if (kea != NSS_FindCertKEAType(cert)) {
     	PORT_SetError(SSL_ERROR_CERT_KEA_MISMATCH);
 	return SECFailure;
     }
 
-    sc = ss->serverCerts + kea;
-    /* load the server certificate */
-    if (sc->serverCert != NULL) {
-	CERT_DestroyCertificate(sc->serverCert);
-    	sc->serverCert = NULL;
-    }
     if (cert) {
-	sc->serverCert = CERT_DupCertificate(cert);
-	if (!sc->serverCert)
-	    goto loser;
     	/* get the size of the cert's public key, and remember it */
 	pubKey = CERT_ExtractPublicKey(cert);
 	if (!pubKey) 
-	    goto loser;
-	sc->serverKeyBits = SECKEY_PublicKeyStrengthInBits(pubKey);
+            return SECFailure;
     }
 
-
-    /* load the server cert chain */
-    if (sc->serverCertChain != NULL) {
-	CERT_DestroyCertificateList(sc->serverCertChain);
-    	sc->serverCertChain = NULL;
-    }
-    if (cert) {
-	sc->serverCertChain = CERT_CertChainFromCert(
-			    sc->serverCert, certUsageSSLServer, PR_TRUE);
-	if (sc->serverCertChain == NULL)
-	     goto loser;
-    }
-
-    /* load the private key */
-    if (sc->serverKeyPair != NULL) {
-        ssl3_FreeKeyPair(sc->serverKeyPair);
-        sc->serverKeyPair = NULL;
-    }
     if (key) {
 	SECKEYPrivateKey * keyCopy	= NULL;
 	CK_MECHANISM_TYPE  keyMech	= CKM_INVALID_MECHANISM;
@@ -770,51 +888,34 @@ SSL_ConfigSecureServer(PRFileDesc *fd, CERTCertificate *cert,
 	    keyCopy = SECKEY_CopyPrivateKey(key);
 	if (keyCopy == NULL)
 	    goto loser;
-	SECKEY_CacheStaticFlags(keyCopy);
-        sc->serverKeyPair = ssl3_NewKeyPair(keyCopy, pubKey);
-        if (sc->serverKeyPair == NULL) {
+        keyPair = ssl3_NewKeyPair(keyCopy, pubKey);
+        if (keyPair == NULL) {
             SECKEY_DestroyPrivateKey(keyCopy);
             goto loser;
         }
 	pubKey = NULL; /* adopted by serverKeyPair */
     }
-
-    if (kea == kt_rsa && cert && sc->serverKeyBits > 512) {
-	if (ss->opt.noStepDown) {
-	    /* disable all export ciphersuites */
-	} else {
-	    rv = ssl3_CreateRSAStepDownKeys(ss);
-	    if (rv != SECSuccess) {
-		return SECFailure; /* err set by ssl3_CreateRSAStepDownKeys */
-	    }
-	}
+    if (ssl_ConfigSecureServer(ss, cert, certChainOpt,
+                               keyPair, kea) == SECFailure) {
+        goto loser;
     }
 
     /* Only do this once because it's global. */
     if (PR_SUCCESS == PR_CallOnceWithArg(&setupServerCAListOnce, 
                                          &serverCAListSetup,
                                          (void *)(ss->dbHandle))) {
-	return SECSuccess;
+        rv = SECSuccess;
     }
 
 loser:
+    if (keyPair) {
+        ssl3_FreeKeyPair(keyPair);
+    }
     if (pubKey) {
 	SECKEY_DestroyPublicKey(pubKey); 
 	pubKey = NULL;
     }
-    if (sc->serverCert != NULL) {
-	CERT_DestroyCertificate(sc->serverCert);
-	sc->serverCert = NULL;
-    }
-    if (sc->serverCertChain != NULL) {
-	CERT_DestroyCertificateList(sc->serverCertChain);
-	sc->serverCertChain = NULL;
-    }
-    if (sc->serverKeyPair != NULL) {
-	ssl3_FreeKeyPair(sc->serverKeyPair);
-	sc->serverKeyPair = NULL;
-    }
-    return SECFailure;
+    return rv;
 }
 
 /************************************************************************/
@@ -1100,7 +1201,6 @@ ssl_SecureRecv(sslSocket *ss, unsigned char *buf, int len, int flags)
 		ssl_ReleaseXmitBufLock(ss);
 		return SECFailure;
 	    }
-	    /* XXX short write? */
 	}
 	ssl_ReleaseXmitBufLock(ss);
     }
@@ -1136,7 +1236,7 @@ ssl_SecureRead(sslSocket *ss, unsigned char *buf, int len)
 int
 ssl_SecureSend(sslSocket *ss, const unsigned char *buf, int len, int flags)
 {
-    int              rv		= 0;
+    int rv = 0;
 
     SSL_TRC(2, ("%d: SSL[%d]: SecureSend: sending %d bytes",
 		SSL_GETPID(), ss->fd, len));
@@ -1171,8 +1271,16 @@ ssl_SecureSend(sslSocket *ss, const unsigned char *buf, int len, int flags)
     	ss->writerThread = PR_GetCurrentThread();
     /* If any of these is non-zero, the initial handshake is not done. */
     if (!ss->firstHsDone) {
+	PRBool falseStart = PR_FALSE;
 	ssl_Get1stHandshakeLock(ss);
-	if (ss->handshake || ss->nextHandshake || ss->securityHandshake) {
+	if (ss->opt.enableFalseStart &&
+	    ss->version >= SSL_LIBRARY_VERSION_3_0) {
+	    ssl_GetSSL3HandshakeLock(ss);
+	    falseStart = ss->ssl3.hs.canFalseStart;
+	    ssl_ReleaseSSL3HandshakeLock(ss);
+	}
+	if (!falseStart &&
+	    (ss->handshake || ss->nextHandshake || ss->securityHandshake)) {
 	    rv = ssl_Do1stHandshake(ss);
 	}
 	ssl_Release1stHandshakeLock(ss);
@@ -1194,6 +1302,17 @@ ssl_SecureSend(sslSocket *ss, const unsigned char *buf, int len, int flags)
 	PORT_SetError(PR_INVALID_ARGUMENT_ERROR);
     	rv = PR_FAILURE;
 	goto done;
+    }
+
+    if (!ss->firstHsDone) {
+	PORT_Assert(ss->version >= SSL_LIBRARY_VERSION_3_0);
+#ifdef DEBUG
+	ssl_GetSSL3HandshakeLock(ss);
+	PORT_Assert(ss->ssl3.hs.canFalseStart);
+	ssl_ReleaseSSL3HandshakeLock(ss);
+#endif
+	SSL_TRC(3, ("%d: SSL[%d]: SecureSend: sending data due to false start",
+		    SSL_GETPID(), ss->fd));
     }
 
     /* Send out the data using one of these functions:
@@ -1241,7 +1360,8 @@ SSL_BadCertHook(PRFileDesc *fd, SSLBadCertHandler f, void *arg)
 
 /*
  * Allow the application to pass the url or hostname into the SSL library
- * so that we can do some checking on it.
+ * so that we can do some checking on it. It will be used for the value in
+ * SNI extension of client hello message.
  */
 SECStatus
 SSL_SetURL(PRFileDesc *fd, const char *url)
@@ -1273,6 +1393,41 @@ SSL_SetURL(PRFileDesc *fd, const char *url)
 }
 
 /*
+ * Allow the application to pass the set of trust anchors
+ */
+SECStatus
+SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
+{
+    sslSocket *   ss = ssl_FindSocket(fd);
+    CERTDistNames *names = NULL;
+
+    if (!certList) {
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return SECFailure;
+    }
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetTrustAnchors",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    names = CERT_DistNamesFromCertList(certList);
+    if (names == NULL) {
+        return SECFailure;
+    }
+    ssl_Get1stHandshakeLock(ss);
+    ssl_GetSSL3HandshakeLock(ss);
+    if (ss->ssl3.ca_list) {
+        CERT_FreeDistNames(ss->ssl3.ca_list);
+    }
+    ss->ssl3.ca_list = names;
+    ssl_ReleaseSSL3HandshakeLock(ss);
+    ssl_Release1stHandshakeLock(ss);
+
+    return SECSuccess;
+}
+
+/*
 ** Returns Negative number on error, zero or greater on success.
 ** Returns the amount of data immediately available to be read.
 */
@@ -1285,16 +1440,9 @@ SSL_DataPending(PRFileDesc *fd)
     ss = ssl_FindSocket(fd);
 
     if (ss && ss->opt.useSecurity) {
-
-	ssl_Get1stHandshakeLock(ss);
-	ssl_GetSSL3HandshakeLock(ss);
-
 	ssl_GetRecvBufLock(ss);
 	rv = ss->gs.writeOffset - ss->gs.readOffset;
 	ssl_ReleaseRecvBufLock(ss);
-
-	ssl_ReleaseSSL3HandshakeLock(ss);
-	ssl_Release1stHandshakeLock(ss);
     }
 
     return rv;
@@ -1310,7 +1458,7 @@ SSL_InvalidateSession(PRFileDesc *fd)
 	ssl_Get1stHandshakeLock(ss);
 	ssl_GetSSL3HandshakeLock(ss);
 
-	if (ss->sec.ci.sid) {
+	if (ss->sec.ci.sid && ss->sec.uncache) {
 	    ss->sec.uncache(ss->sec.ci.sid);
 	    rv = SECSuccess;
 	}
@@ -1370,29 +1518,8 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle)
     return SECSuccess;
 }
 
-/*
- * attempt to restart the handshake after asynchronously handling
- * a request for the client's certificate.
- *
- * inputs:  
- *	cert	Client cert chosen by application.
- *		Note: ssl takes this reference, and does not bump the 
- *		reference count.  The caller should drop its reference
- *		without calling CERT_DestroyCert after calling this function.
- *
- *	key	Private key associated with cert.  This function makes a 
- *		copy of the private key, so the caller remains responsible 
- *		for destroying its copy after this function returns.
- *
- *	certChain  Chain of signers for cert.  
- *		Note: ssl takes this reference, and does not copy the chain.
- *		The caller should drop its reference without destroying the 
- *		chain.  SSL will free the chain when it is done with it.
- *
- * Return value: XXX
- *
- * XXX This code only works on the initial handshake on a connection, XXX
- *     It does not work on a subsequent handshake (redo).
+/* DO NOT USE. This function was exported in ssl.def with the wrong signature;
+ * this implementation exists to maintain link-time compatibility.
  */
 int
 SSL_RestartHandshakeAfterCertReq(sslSocket *         ss,
@@ -1400,43 +1527,65 @@ SSL_RestartHandshakeAfterCertReq(sslSocket *         ss,
 				SECKEYPrivateKey *   key,
 				CERTCertificateList *certChain)
 {
-    int              ret;
-
-    ssl_Get1stHandshakeLock(ss);   /************************************/
-
-    if (ss->version >= SSL_LIBRARY_VERSION_3_0) {
-	ret = ssl3_RestartHandshakeAfterCertReq(ss, cert, key, certChain);
-    } else {
-    	ret = ssl2_RestartHandshakeAfterCertReq(ss, cert, key);
-    }
-
-    ssl_Release1stHandshakeLock(ss);  /************************************/
-    return ret;
+    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
+    return -1;
 }
 
-
-/* restart an SSL connection that we stopped to run certificate dialogs 
-** XXX	Need to document here how an application marks a cert to show that
-**	the application has accepted it (overridden CERT_VerifyCert).
- *
- * XXX This code only works on the initial handshake on a connection, XXX
- *     It does not work on a subsequent handshake (redo).
- *
- * Return value: XXX
-*/
+/* DO NOT USE. This function was exported in ssl.def with the wrong signature;
+ * this implementation exists to maintain link-time compatibility.
+ */
 int
-SSL_RestartHandshakeAfterServerCert(sslSocket *ss)
+SSL_RestartHandshakeAfterServerCert(sslSocket * ss)
 {
-    int rv	= SECSuccess;
+    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
+    return -1;
+}
 
-    ssl_Get1stHandshakeLock(ss); 
+/* See documentation in ssl.h */
+SECStatus
+SSL_AuthCertificateComplete(PRFileDesc *fd, PRErrorCode error)
+{
+    SECStatus rv;
+    sslSocket *ss = ssl_FindSocket(fd);
 
-    if (ss->version >= SSL_LIBRARY_VERSION_3_0) {
-	rv = ssl3_RestartHandshakeAfterServerCert(ss);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_AuthCertificateComplete",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    ssl_Get1stHandshakeLock(ss);
+
+    if (!ss->ssl3.initialized) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	rv = SECFailure;
+    } else if (ss->version < SSL_LIBRARY_VERSION_3_0) {
+	PORT_SetError(SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SSL2);
+	rv = SECFailure;
     } else {
-	rv = ssl2_RestartHandshakeAfterServerCert(ss);
+	rv = ssl3_AuthCertificateComplete(ss, error);
     }
 
     ssl_Release1stHandshakeLock(ss);
+
     return rv;
+}
+
+/* For more info see ssl.h */
+SECStatus 
+SSL_SNISocketConfigHook(PRFileDesc *fd, SSLSNISocketConfig func,
+                        void *arg)
+{
+    sslSocket *ss;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SNISocketConfigHook",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    ss->sniSocketConfig = func;
+    ss->sniSocketConfigArg = arg;
+    return SECSuccess;
 }

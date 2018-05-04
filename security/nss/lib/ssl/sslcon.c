@@ -1,43 +1,9 @@
 /* 
  * SSL v2 handshake functions, and functions common to SSL2 and SSL3.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslcon.c,v 1.36 2009/03/04 21:57:18 nelson%bolyard.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "nssrenam.h"
 #include "cert.h"
@@ -54,7 +20,6 @@
 #include "prinit.h"
 #include "prtime.h" 	/* for PR_Now() */
 
-#define XXX
 static PRBool policyWasSet;
 
 /* This ordered list is indexed by (SSL_CK_xx * 3)   */
@@ -277,12 +242,13 @@ ssl2_CheckConfigSanity(sslSocket *ss)
     /* Ask how many ssl3 CipherSuites were enabled. */
     rv = ssl3_ConstructV2CipherSpecsHack(ss, NULL, &ssl3CipherCount);
     if (rv != SECSuccess || ssl3CipherCount <= 0) {
-	ss->opt.enableSSL3 = PR_FALSE; /* not really enabled if no ciphers */
-	ss->opt.enableTLS  = PR_FALSE;
+	/* SSL3/TLS not really enabled if no ciphers */
+	ss->vrange.min = SSL_LIBRARY_VERSION_NONE;
+	ss->vrange.max = SSL_LIBRARY_VERSION_NONE;
     }
 
-    if (!ss->opt.enableSSL2 && !ss->opt.enableSSL3 && !ss->opt.enableTLS) {
-	SSL_DBG(("%d: SSL[%d]: Can't handshake! both v2 and v3 disabled.",
+    if (!ss->opt.enableSSL2 && SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
+	SSL_DBG(("%d: SSL[%d]: Can't handshake! all versions disabled.",
 		 SSL_GETPID(), ss->fd));
 disabled:
 	PORT_SetError(SSL_ERROR_SSL_DISABLED);
@@ -518,7 +484,6 @@ ssl2_GetSendBuffer(sslSocket *ss, unsigned int len)
  * ssl2_HandleMessage()                <- ssl_Do1stHandshake()
  * ssl2_HandleServerHelloMessage() <- ssl_Do1stHandshake()
                                      after ssl2_BeginClientHandshake()
- * ssl2_RestartHandshakeAfterCertReq() <- Called from certdlgs.c in nav.
  * ssl2_HandleClientHelloMessage() <- ssl_Do1stHandshake() 
                                      after ssl2_BeginServerHandshake()
  * 
@@ -658,11 +623,13 @@ ssl2_SendServerFinishedMessage(sslSocket *ss)
 
 	if (sent < 0) {
 	    /* If send failed, it is now a bogus  session-id */
-	    (*ss->sec.uncache)(sid);
+	    if (ss->sec.uncache)
+		(*ss->sec.uncache)(sid);
 	    rv = (SECStatus)sent;
 	} else if (!ss->opt.noCache) {
-	    /* Put the sid in session-id cache, (may already be there) */
-	    (*ss->sec.cache)(sid);
+	    if (sid->cached == never_cached) {
+		(*ss->sec.cache)(sid);
+	    }
 	    rv = SECSuccess;
 	}
 	ssl_FreeSID(sid);
@@ -765,7 +732,6 @@ done:
 }
 
 /* Called from ssl2_HandleRequestCertificate() <- ssl2_HandleMessage()
- *             ssl2_RestartHandshakeAfterCertReq() <- (application)
  * Acquires and releases the socket's xmitBufLock.
  */
 static int
@@ -1177,7 +1143,6 @@ loser:
 /*
 ** Called from: ssl2_HandleServerHelloMessage,
 **              ssl2_HandleClientSessionKeyMessage,
-**              ssl2_RestartHandshakeAfterServerCert,
 **              ssl2_HandleClientHelloMessage,
 **              
 */
@@ -1237,9 +1202,7 @@ ssl2_UseClearSendFunc(sslSocket *ss)
  *	ssl2_HandleServerHelloMessage
  *	ssl2_BeginClientHandshake	
  *	ssl2_HandleClientSessionKeyMessage
- *	ssl2_RestartHandshakeAfterCertReq 
  *	ssl3_RestartHandshakeAfterCertReq 
- *	ssl2_RestartHandshakeAfterServerCert 
  *	ssl3_RestartHandshakeAfterServerCert 
  *	ssl2_HandleClientHelloMessage
  *	ssl2_BeginServerHandshake
@@ -1253,7 +1216,12 @@ ssl_GatherRecord1stHandshake(sslSocket *ss)
 
     ssl_GetRecvBufLock(ss);
 
-    if (ss->version >= SSL_LIBRARY_VERSION_3_0) {
+    /* The special case DTLS logic is needed here because the SSL/TLS
+     * version wants to auto-detect SSL2 vs. SSL3 on the initial handshake
+     * (ss->version == 0) but with DTLS it gets confused, so we force the
+     * SSL3 version.
+     */
+    if ((ss->version >= SSL_LIBRARY_VERSION_3_0) || IS_DTLS(ss)) {
 	/* Wait for handshake to complete, or application data to arrive.  */
 	rv = ssl3_GatherCompleteHandshake(ss, 0);
     } else {
@@ -1440,7 +1408,7 @@ ssl2_CreateSessionCypher(sslSocket *ss, sslSessionID *sid, PRBool isClient)
     writeKey.data = 0;
 
     PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
-    if((ss->sec.ci.sid == 0))
+    if (ss->sec.ci.sid == 0)
     	goto sec_loser;	/* don't crash if asserts are off */
 
     /* Trying to cut down on all these switch statements that should be tables.
@@ -1688,7 +1656,7 @@ ssl2_ServerSetupSessionCypher(sslSocket *ss, int cipher, unsigned int keyBits,
     }
 
     /* Make sure we're not subject to a version rollback attack. */
-    if (ss->opt.enableSSL3 || ss->opt.enableTLS) {
+    if (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	static const PRUint8 threes[8] = { 0x03, 0x03, 0x03, 0x03,
 			                   0x03, 0x03, 0x03, 0x03 };
 	
@@ -1861,7 +1829,7 @@ ssl2_ChooseSessionCypher(sslSocket *ss,
     }
     preferred = ss->preferredCipher ? ss->preferredCipher : noneSuch;
     /*
-    ** Scan list of ciphers recieved from peer and look for a match in
+    ** Scan list of ciphers received from peer and look for a match in
     ** our list.  
     *  Note: Our list may contain SSL v3 ciphers.  
     *  We MUST NOT match on any of those.  
@@ -2149,7 +2117,7 @@ ssl2_ClientSetupSessionCypher(sslSocket *ss, PRUint8 *cs, int csLen)
 
     /* Set up the padding for version 2 rollback detection. */
     /* XXX We should really use defines here */
-    if (ss->opt.enableSSL3 || ss->opt.enableTLS) {
+    if (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	PORT_Assert((modulusLen - rek.len) > 12);
 	PORT_Memset(eblock + modulusLen - rek.len - 8 - 1, 0x03, 8);
     }
@@ -2203,7 +2171,7 @@ ssl2_ClientRegSessionID(sslSocket *ss, PRUint8 *s)
 	sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
 
     }
-    if (!ss->opt.noCache)
+    if (!ss->opt.noCache && sid->cached == never_cached)
 	(*ss->sec.cache)(sid);
 }
 
@@ -2232,8 +2200,6 @@ ssl2_TriggerNextMessage(sslSocket *ss)
 **             ssl2_HandleVerifyMessage 
 **             ssl2_HandleServerHelloMessage
 **             ssl2_HandleClientSessionKeyMessage
-**             ssl2_RestartHandshakeAfterCertReq
-**             ssl2_RestartHandshakeAfterServerCert
 */
 static SECStatus
 ssl2_TryToFinish(sslSocket *ss)
@@ -2267,7 +2233,6 @@ ssl2_TryToFinish(sslSocket *ss)
 
 /*
 ** Called from ssl2_HandleRequestCertificate
-**             ssl2_RestartHandshakeAfterCertReq
 */
 static SECStatus
 ssl2_SignResponse(sslSocket *ss,
@@ -2354,8 +2319,9 @@ ssl2_HandleRequestCertificate(sslSocket *ss)
     ret = (*ss->getClientAuthData)(ss->getClientAuthDataArg, ss->fd,
 				   NULL, &cert, &key);
     if ( ret == SECWouldBlock ) {
-	ssl_SetAlwaysBlock(ss);
-	goto done;
+	PORT_SetError(SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SSL2);
+	ret = -1;
+	goto loser;
     }
 
     if (ret) {
@@ -2715,8 +2681,7 @@ ssl2_HandleMessage(sslSocket *ss)
 
 /************************************************************************/
 
-/* Called from ssl_Do1stHandshake, after ssl2_HandleServerHelloMessage or 
-** ssl2_RestartHandshakeAfterServerCert.
+/* Called from ssl_Do1stHandshake, after ssl2_HandleServerHelloMessage.
 */
 static SECStatus
 ssl2_HandleVerifyMessage(sslSocket *ss)
@@ -2731,7 +2696,8 @@ ssl2_HandleVerifyMessage(sslSocket *ss)
     DUMP_MSG(29, (ss, data, ss->gs.recordLen));
     if ((ss->gs.recordLen != 1 + SSL_CHALLENGE_BYTES) ||
 	(data[0] != SSL_MT_SERVER_VERIFY) ||
-	PORT_Memcmp(data+1, ss->sec.ci.clientChallenge, SSL_CHALLENGE_BYTES)) {
+	NSS_SecureMemcmp(data+1, ss->sec.ci.clientChallenge,
+	                 SSL_CHALLENGE_BYTES)) {
 	/* Bad server */
 	PORT_SetError(SSL_ERROR_BAD_SERVER);
 	goto loser;
@@ -2892,9 +2858,10 @@ ssl2_HandleServerHelloMessage(sslSocket *ss)
 	    /* Forget our session-id - server didn't like it */
 	    SSL_TRC(7, ("%d: SSL[%d]: server forgot me, uncaching session-id",
 			SSL_GETPID(), ss->fd));
-	    (*ss->sec.uncache)(sid);
+	    if (ss->sec.uncache)
+		(*ss->sec.uncache)(sid);
 	    ssl_FreeSID(sid);
-	    ss->sec.ci.sid = sid = (sslSessionID*) PORT_ZAlloc(sizeof(sslSessionID));
+	    ss->sec.ci.sid = sid = PORT_ZNew(sslSessionID);
 	    if (!sid) {
 		goto loser;
 	    }
@@ -2935,19 +2902,16 @@ ssl2_HandleServerHelloMessage(sslSocket *ss)
 	    rv = (*ss->handleBadCert)(ss->badCertArg, ss->fd);
 	    if ( rv ) {
 		if ( rv == SECWouldBlock ) {
-		    /* someone will handle this connection asynchronously*/
-
-		    SSL_DBG(("%d: SSL[%d]: go to async cert handler",
-			     SSL_GETPID(), ss->fd));
-		    ssl_ReleaseRecvBufLock(ss);
-		    ssl_SetAlwaysBlock(ss);
-		    return SECWouldBlock;
+		    SSL_DBG(("%d: SSL[%d]: SSL2 bad cert handler returned "
+			     "SECWouldBlock", SSL_GETPID(), ss->fd));
+		    PORT_SetError(SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SSL2);
+		    rv = SECFailure;
+		} else {
+		    /* cert is bad */
+		    SSL_DBG(("%d: SSL[%d]: server certificate is no good: error=%d",
+			     SSL_GETPID(), ss->fd, PORT_GetError()));
 		}
-		/* cert is bad */
-		SSL_DBG(("%d: SSL[%d]: server certificate is no good: error=%d",
-			 SSL_GETPID(), ss->fd, PORT_GetError()));
 		goto loser;
-
 	    }
 	    /* cert is good */
 	} else {
@@ -3006,6 +2970,7 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     unsigned int      i;
     int               sendLen, sidLen = 0;
     SECStatus         rv;
+    TLSExtensionData  *xtnData;
 
     PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
 
@@ -3060,23 +3025,29 @@ ssl2_BeginClientHandshake(sslSocket *ss)
 	                    ss->url);
     }
     while (sid) {  /* this isn't really a loop */
+	PRBool sidVersionEnabled =
+	    (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange) &&
+	     sid->version >= ss->vrange.min &&
+	     sid->version <= ss->vrange.max) ||
+	    (sid->version < SSL_LIBRARY_VERSION_3_0 && ss->opt.enableSSL2);
+
 	/* if we're not doing this SID's protocol any more, drop it. */
-	if (((sid->version  < SSL_LIBRARY_VERSION_3_0) && !ss->opt.enableSSL2) ||
-	    ((sid->version == SSL_LIBRARY_VERSION_3_0) && !ss->opt.enableSSL3) ||
-	    ((sid->version >  SSL_LIBRARY_VERSION_3_0) && !ss->opt.enableTLS)) {
-	    ss->sec.uncache(sid);
+	if (!sidVersionEnabled) {
+	    if (ss->sec.uncache)
+		ss->sec.uncache(sid);
 	    ssl_FreeSID(sid);
 	    sid = NULL;
 	    break;
 	}
-	if (ss->opt.enableSSL2 && sid->version < SSL_LIBRARY_VERSION_3_0) {
+	if (sid->version < SSL_LIBRARY_VERSION_3_0) {
 	    /* If the cipher in this sid is not enabled, drop it. */
 	    for (i = 0; i < ss->sizeCipherSpecs; i += 3) {
 		if (ss->cipherSpecs[i] == sid->u.ssl2.cipherType)
 		    break;
 	    }
 	    if (i >= ss->sizeCipherSpecs) {
-		ss->sec.uncache(sid);
+		if (ss->sec.uncache)
+		    ss->sec.uncache(sid);
 		ssl_FreeSID(sid);
 		sid = NULL;
 		break;
@@ -3095,7 +3066,7 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     } 
     if (!sid) {
 	sidLen = 0;
-	sid = (sslSessionID*) PORT_ZAlloc(sizeof(sslSessionID));
+	sid = PORT_ZNew(sslSessionID);
 	if (!sid) {
 	    goto loser;
 	}
@@ -3115,23 +3086,22 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     PORT_Assert(sid != NULL);
 
     if ((sid->version >= SSL_LIBRARY_VERSION_3_0 || !ss->opt.v2CompatibleHello) &&
-        (ss->opt.enableSSL3 || ss->opt.enableTLS)) {
-
+	!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	ss->gs.state      = GS_INIT;
 	ss->handshake     = ssl_GatherRecord1stHandshake;
 
 	/* ssl3_SendClientHello will override this if it succeeds. */
 	ss->version       = SSL_LIBRARY_VERSION_3_0;
 
-	ssl_GetXmitBufLock(ss);    /***************************************/
 	ssl_GetSSL3HandshakeLock(ss);
-	rv =  ssl3_SendClientHello(ss);
+	ssl_GetXmitBufLock(ss);
+	rv =  ssl3_SendClientHello(ss, PR_FALSE);
+	ssl_ReleaseXmitBufLock(ss);
 	ssl_ReleaseSSL3HandshakeLock(ss);
-	ssl_ReleaseXmitBufLock(ss); /***************************************/
 
 	return rv;
     }
-#if defined(NSS_ENABLE_ECC) && !defined(NSS_ECC_MORE_THAN_SUITE_B)
+#if defined(NSS_ENABLE_ECC)
     /* ensure we don't neogtiate ECC cipher suites with SSL2 hello */
     ssl3_DisableECCSuites(ss, NULL); /* disable all ECC suites */
     if (ss->cipherSpecs != NULL) {
@@ -3150,7 +3120,8 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     localCipherSpecs = ss->cipherSpecs;
     localCipherSize  = ss->sizeCipherSpecs;
 
-    sendLen = SSL_HL_CLIENT_HELLO_HBYTES + localCipherSize + sidLen +
+    /* Add 3 for SCSV */
+    sendLen = SSL_HL_CLIENT_HELLO_HBYTES + localCipherSize + 3 + sidLen +
 	SSL_CHALLENGE_BYTES;
 
     /* Generate challenge bytes for server */
@@ -3165,18 +3136,14 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     /* Construct client-hello message */
     cp = msg = ss->sec.ci.sendBuf.buf;
     msg[0] = SSL_MT_CLIENT_HELLO;
-    if ( ss->opt.enableTLS ) {
-	ss->clientHelloVersion = SSL_LIBRARY_VERSION_3_1_TLS;
-    } else if ( ss->opt.enableSSL3 ) {
-	ss->clientHelloVersion = SSL_LIBRARY_VERSION_3_0;
-    } else {
-	ss->clientHelloVersion = SSL_LIBRARY_VERSION_2;
-    }
-    
+    ss->clientHelloVersion = SSL3_ALL_VERSIONS_DISABLED(&ss->vrange) ?
+	SSL_LIBRARY_VERSION_2 : ss->vrange.max;
+
     msg[1] = MSB(ss->clientHelloVersion);
     msg[2] = LSB(ss->clientHelloVersion);
-    msg[3] = MSB(localCipherSize);
-    msg[4] = LSB(localCipherSize);
+    /* Add 3 for SCSV */
+    msg[3] = MSB(localCipherSize + 3);
+    msg[4] = LSB(localCipherSize + 3);
     msg[5] = MSB(sidLen);
     msg[6] = LSB(sidLen);
     msg[7] = MSB(SSL_CHALLENGE_BYTES);
@@ -3184,6 +3151,16 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     cp += SSL_HL_CLIENT_HELLO_HBYTES;
     PORT_Memcpy(cp, localCipherSpecs, localCipherSize);
     cp += localCipherSize;
+    /*
+     * Add SCSV.  SSL 2.0 cipher suites are listed before SSL 3.0 cipher
+     * suites in localCipherSpecs for compatibility with SSL 2.0 servers.
+     * Since SCSV looks like an SSL 3.0 cipher suite, we can't add it at
+     * the beginning.
+     */
+    cp[0] = 0x00;
+    cp[1] = 0x00;
+    cp[2] = 0xff;
+    cp += 3;
     if (sidLen) {
 	PORT_Memcpy(cp, sid->u.ssl2.sessionID, sidLen);
 	cp += sidLen;
@@ -3205,6 +3182,14 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     if (rv < 0) {
 	goto loser;
     }
+
+    /*
+     * Since we sent the SCSV, pretend we sent empty RI extension.  We need
+     * to record the extension has been advertised after ssl3_InitState has
+     * been called, which ssl3_StartHandshakeHash took care for us above.
+     */
+    xtnData = &ss->xtnData;
+    xtnData->advertised[xtnData->numAdvertised++] = ssl_renegotiation_info_xtn;
 
     /* Setup to receive servers hello message */
     ssl_GetRecvBufLock(ss);
@@ -3309,133 +3294,6 @@ loser:
 }
 
 /*
- * attempt to restart the handshake after asynchronously handling
- * a request for the client's certificate.
- *
- * inputs:  
- *	cert	Client cert chosen by application.
- *	key	Private key associated with cert.  
- *
- * XXX: need to make ssl2 and ssl3 versions of this function agree on whether
- *	they take the reference, or bump the ref count!
- *
- * Return value: XXX
- *
- * Caller holds 1stHandshakeLock.
- */
-int
-ssl2_RestartHandshakeAfterCertReq(sslSocket *          ss,
-				  CERTCertificate *    cert, 
-				  SECKEYPrivateKey *   key)
-{
-    int              ret;
-    SECStatus        rv          = SECSuccess;
-    SECItem          response;
-
-    if (ss->version >= SSL_LIBRARY_VERSION_3_0) 
-    	return SECFailure;
-
-    response.data = NULL;
-
-    /* generate error if no cert or key */
-    if ( ( cert == NULL ) || ( key == NULL ) ) {
-	goto no_cert;
-    }
-    
-    /* generate signed response to the challenge */
-    rv = ssl2_SignResponse(ss, key, &response);
-    if ( rv != SECSuccess ) {
-	goto no_cert;
-    }
-    
-    /* Send response message */
-    ret = ssl2_SendCertificateResponseMessage(ss, &cert->derCert, &response);
-    if (ret) {
-	goto no_cert;
-    }
-
-    /* try to finish the handshake */
-    ret = ssl2_TryToFinish(ss);
-    if (ret) {
-	goto loser;
-    }
-    
-    /* done with handshake */
-    if (ss->handshake == 0) {
-	ret = SECSuccess;
-	goto done;
-    }
-
-    /* continue handshake */
-    ssl_GetRecvBufLock(ss);
-    ss->gs.recordLen = 0;
-    ssl_ReleaseRecvBufLock(ss);
-
-    ss->handshake     = ssl_GatherRecord1stHandshake;
-    ss->nextHandshake = ssl2_HandleMessage;
-    ret = ssl2_TriggerNextMessage(ss);
-    goto done;
-    
-no_cert:
-    /* no cert - send error */
-    ret = ssl2_SendErrorMessage(ss, SSL_PE_NO_CERTIFICATE);
-    goto done;
-    
-loser:
-    ret = SECFailure;
-done:
-    /* free allocated data */
-    if ( response.data ) {
-	PORT_Free(response.data);
-    }
-    
-    return ret;
-}
-
-
-/* restart an SSL connection that we stopped to run certificate dialogs 
-** XXX	Need to document here how an application marks a cert to show that
-**	the application has accepted it (overridden CERT_VerifyCert).
- *
- * Return value: XXX
- *
- * Caller holds 1stHandshakeLock.
-*/
-int
-ssl2_RestartHandshakeAfterServerCert(sslSocket *ss)
-{
-    int rv	= SECSuccess;
-
-    if (ss->version >= SSL_LIBRARY_VERSION_3_0) 
-	return SECFailure;
-
-    /* SSL 2
-    ** At this point we have a completed session key and our session
-    ** cipher is setup and ready to go. Switch to encrypted write routine
-    ** as all future message data is to be encrypted.
-    */
-    ssl2_UseEncryptedSendFunc(ss);
-
-    rv = ssl2_TryToFinish(ss);
-    if (rv == SECSuccess && ss->handshake != NULL) {	
-	/* handshake is not yet finished. */
-
-	SSL_TRC(5, ("%d: SSL[%d]: got server-hello, required=0x%d got=0x%x",
-		SSL_GETPID(), ss->fd, ss->sec.ci.requiredElements,
-		ss->sec.ci.elements));
-
-	ssl_GetRecvBufLock(ss);
-	ss->gs.recordLen = 0;	/* mark it all used up. */
-	ssl_ReleaseRecvBufLock(ss);
-
-	ss->handshake     = ssl_GatherRecord1stHandshake;
-	ss->nextHandshake = ssl2_HandleVerifyMessage;
-    }
-
-    return rv;
-}
-
-/*
 ** Handle the initial hello message from the client
 **
 ** not static because ssl2_GatherData() tests ss->nextHandshake for this value.
@@ -3497,7 +3355,7 @@ ssl2_HandleClientHelloMessage(sslSocket *ss)
      */
     if ((data[0] == SSL_MT_CLIENT_HELLO) && 
         (data[1] >= MSB(SSL_LIBRARY_VERSION_3_0)) && 
-	(ss->opt.enableSSL3 || ss->opt.enableTLS)) {
+	!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	rv = ssl3_HandleV2ClientHello(ss, data, ss->gs.recordLen);
 	if (rv != SECFailure) { /* Success */
 	    ss->handshake             = NULL;
@@ -3634,7 +3492,7 @@ ssl2_HandleClientHelloMessage(sslSocket *ss)
 	    goto loser;
 	}
 	hit = 0;
-	sid = (sslSessionID*) PORT_ZAlloc(sizeof(sslSessionID));
+	sid = PORT_ZNew(sslSessionID);
 	if (!sid) {
 	    goto loser;
 	}
@@ -3829,4 +3687,10 @@ NSSSSL_VersionCheck(const char *importedVersion)
 
     c = __nss_ssl_rcsid[0] + __nss_ssl_sccsid[0]; 
     return NSS_VersionCheck(importedVersion);
+}
+
+const char *
+NSSSSL_GetVersion(void)
+{
+    return NSS_VERSION;
 }

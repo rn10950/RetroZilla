@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_pl_generalname.c
  *
@@ -241,9 +208,6 @@ pkix_pl_GeneralName_Create(
         OtherName *otherName = NULL;
         CERTGeneralNameList *nssGenNameList = NULL;
         CERTGeneralNameType nameType;
-        SECItem *secItem = NULL;
-        char *asciiName = NULL;
-        SECStatus rv;
 
         PKIX_ENTER(GENERALNAME, "pkix_pl_GeneralName_Create");
         PKIX_NULLCHECK_TWO(nssAltName, pGenName);
@@ -308,12 +272,8 @@ pkix_pl_GeneralName_Create(
                 genName->directoryName = pkixDN;
                 break;
         case certRegisterID:
-
-                PKIX_CHECK(pkix_pl_oidBytes2Ascii
-                            (&nssAltName->name.other, &asciiName, plContext),
-                            PKIX_OIDBYTES2ASCIIFAILED);
-
-                PKIX_CHECK(PKIX_PL_OID_Create(asciiName, &pkixOID, plContext),
+                PKIX_CHECK(PKIX_PL_OID_CreateBySECItem(&nssAltName->name.other,
+                                                       &pkixOID, plContext),
                             PKIX_OIDCREATEFAILED);
 
                 genName->oid = pkixOID;
@@ -324,39 +284,20 @@ pkix_pl_GeneralName_Create(
         case certRFC822Name:
         case certX400Address:
         case certURI:
-
-                PKIX_GENERALNAME_DEBUG("\t\tCalling SECITEM_AllocItem).\n");
-                secItem = SECITEM_AllocItem(NULL, NULL, 0);
-                if (secItem == NULL){
-                        PKIX_ERROR(PKIX_OUTOFMEMORY);
-                }
-
-                PKIX_GENERALNAME_DEBUG("\t\tCalling SECITEM_CopyItem).\n");
-                rv = SECITEM_CopyItem(NULL, secItem, &nssAltName->name.other);
-                if (rv != SECSuccess) {
-                        PKIX_ERROR(PKIX_OUTOFMEMORY);
-                }
-
-                genName->other = secItem;
+                genName->other = SECITEM_DupItem(&nssAltName->name.other);
+                if (!genName->other) {
+                    PKIX_ERROR(PKIX_OUTOFMEMORY);
+                }     
                 break;
         default:
                 PKIX_ERROR(PKIX_NAMETYPENOTSUPPORTED);
         }
 
         *pGenName = genName;
+        genName = NULL;
+
 cleanup:
-
-        PKIX_FREE(asciiName);
-
-        if (PKIX_ERROR_RECEIVED){
-                PKIX_DECREF(genName);
-                if (secItem){
-                        PKIX_GENERALNAME_DEBUG
-                                ("\t\tCalling SECITEM_FreeItem).\n");
-                        SECITEM_FreeItem(secItem, PR_TRUE);
-                        secItem = NULL;
-                }
-        }
+        PKIX_DECREF(genName);
 
         PKIX_RETURN(GENERALNAME);
 }

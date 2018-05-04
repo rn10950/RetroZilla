@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_pl_ocspresponse.c
  *
@@ -374,6 +341,8 @@ pkix_pl_OcspResponse_RegisterSelf(void *plContext)
  * PARAMETERS
  *  "request"
  *      Address of the OcspRequest for which a response is desired.
+ *  "httpMethod"
+ *      GET or POST
  *  "responder"
  *      Address, if non-NULL, of the SEC_HttpClientFcn to be sent the OCSP
  *      query.
@@ -397,6 +366,7 @@ pkix_pl_OcspResponse_RegisterSelf(void *plContext)
 PKIX_Error *
 pkix_pl_OcspResponse_Create(
         PKIX_PL_OcspRequest *request,
+        const char *httpMethod,
         void *responder,
         PKIX_PL_VerifyCallback verifyFcn,
         void **pNBIOContext,
@@ -421,6 +391,10 @@ pkix_pl_OcspResponse_Create(
  
         PKIX_ENTER(OCSPRESPONSE, "pkix_pl_OcspResponse_Create");
         PKIX_NULLCHECK_TWO(pNBIOContext, pResponse);
+
+	if (!strcmp(httpMethod, "GET") && !strcmp(httpMethod, "POST")) {
+		PKIX_ERROR(PKIX_INVALIDOCSPHTTPMETHOD);
+	}
 
         nbioContext = *pNBIOContext;
         *pNBIOContext = NULL;
@@ -455,6 +429,9 @@ pkix_pl_OcspResponse_Create(
                 }
 
                 if (httpClient && (httpClient->version == 1)) {
+			char *fullGetPath = NULL;
+			const char *sessionPath = NULL;
+			PRBool usePOST = !strcmp(httpMethod, "POST");
 
                         hcv1 = &(httpClient->fcnTable.ftable1);
 
@@ -474,21 +451,68 @@ pkix_pl_OcspResponse_Create(
                                 PKIX_ERROR(PKIX_OCSPSERVERERROR);
                         }       
 
-                        rv = (*hcv1->createFcn)(serverSession, "http", path,
-                                                "POST",
+			if (usePOST) {
+				sessionPath = path;
+			} else {
+				/* calculate, are we allowed to use GET? */
+				enum { max_get_request_size = 255 }; /* defined by RFC2560 */
+				char b64ReqBuf[max_get_request_size+1];
+				size_t base64size;
+				size_t slashLengthIfNeeded = 0;
+				size_t pathLength;
+				PRInt32 urlEncodedBufLength;
+				size_t getURLLength;
+				char *walkOutput = NULL;
+
+				pathLength = strlen(path);
+				if (path[pathLength-1] != '/') {
+					slashLengthIfNeeded = 1;
+				}
+				base64size = (((encodedRequest->len +2)/3) * 4);
+				if (base64size > max_get_request_size) {
+					PKIX_ERROR(PKIX_OCSPGETREQUESTTOOBIG);
+				}
+				memset(b64ReqBuf, 0, sizeof(b64ReqBuf));
+				PL_Base64Encode((const char *)encodedRequest->data, encodedRequest->len, b64ReqBuf);
+				urlEncodedBufLength = ocsp_UrlEncodeBase64Buf(b64ReqBuf, NULL);
+				getURLLength = pathLength + urlEncodedBufLength + slashLengthIfNeeded;
+				fullGetPath = (char*)PORT_Alloc(getURLLength);
+				if (!fullGetPath) {
+					PKIX_ERROR(PKIX_OUTOFMEMORY);
+				}
+				strcpy(fullGetPath, path);
+				walkOutput = fullGetPath + pathLength;
+				if (walkOutput > fullGetPath && slashLengthIfNeeded) {
+					strcpy(walkOutput, "/");
+					++walkOutput;
+				}
+				ocsp_UrlEncodeBase64Buf(b64ReqBuf, walkOutput);
+				sessionPath = fullGetPath;
+			}
+
+                        rv = (*hcv1->createFcn)(serverSession, "http",
+                                                sessionPath, httpMethod,
                                                 PR_SecondsToInterval(timeout),
                                                 &sessionRequest);
+			sessionPath = NULL;
+			if (fullGetPath) {
+				PORT_Free(fullGetPath);
+				fullGetPath = NULL;
+			}
+			
                         if (rv != SECSuccess) {
                                 PKIX_ERROR(PKIX_OCSPSERVERERROR);
                         }       
 
-                        rv = (*hcv1->setPostDataFcn)(sessionRequest,
-                                                  (char *)encodedRequest->data,
-                                                  encodedRequest->len,
-                                                  "application/ocsp-request");
-                        if (rv != SECSuccess) {
-                                PKIX_ERROR(PKIX_OCSPSERVERERROR);
-                        }       
+			if (usePOST) {
+				rv = (*hcv1->setPostDataFcn)(sessionRequest,
+							  (char *)encodedRequest->data,
+							  encodedRequest->len,
+							  "application/ocsp-request");
+				if (rv != SECSuccess) {
+					PKIX_ERROR(PKIX_OCSPSERVERERROR);
+				}
+			}
 
                         /* create a PKIX_PL_OcspResponse object */
                         PKIX_CHECK(PKIX_PL_Object_Alloc
@@ -502,7 +526,9 @@ pkix_pl_OcspResponse_Create(
                         ocspResponse->request = request;
                         ocspResponse->httpClient = httpClient;
                         ocspResponse->serverSession = serverSession;
+                        serverSession = NULL;
                         ocspResponse->sessionRequest = sessionRequest;
+                        sessionRequest = NULL;
                         ocspResponse->verifyFcn = verifyFcn;
                         ocspResponse->handle = CERT_GetDefaultCertDB();
                         ocspResponse->encodedResponse = NULL;
@@ -522,10 +548,10 @@ pkix_pl_OcspResponse_Create(
 
                 hcv1 = &(httpClient->fcnTable.ftable1);
 
-                rv = (*hcv1->trySendAndReceiveFcn)(sessionRequest,
+                rv = (*hcv1->trySendAndReceiveFcn)(ocspResponse->sessionRequest,
                         (PRPollDesc **)&nbioContext,
                         &responseCode,
-                        &responseContentType,
+                        (const char **)&responseContentType,
                         NULL,   /* responseHeaders */
                         (const char **)&responseData,
                         &responseDataLen);
@@ -560,26 +586,24 @@ pkix_pl_OcspResponse_Create(
                             responseData, responseDataLen);
         }
         *pResponse = ocspResponse;
+        ocspResponse = NULL;
 
 cleanup:
 
         if (path != NULL) {
             PORT_Free(path);
         }
-
         if (hostname != NULL) {
             PORT_Free(hostname);
         }
-
-        if (PKIX_ERROR_RECEIVED){
-            if (ocspResponse) {
-                PKIX_DECREF(ocspResponse);
-            } else {
-                if (serverSession) 
-                    hcv1->freeSessionFcn(serverSession);
-                if (sessionRequest)
-                    hcv1->freeFcn(sessionRequest);
-            }
+        if (ocspResponse) {
+            PKIX_DECREF(ocspResponse);
+        }
+        if (serverSession) {
+            hcv1->freeSessionFcn(serverSession);
+        }
+        if (sessionRequest) {
+            hcv1->freeFcn(sessionRequest);
         }
 
         PKIX_RETURN(OCSPRESPONSE);
@@ -830,10 +854,12 @@ pkix_pl_OcspResponse_VerifySignature(
                                           signature, issuerCert);
             
             if (response->signerCert == NULL) {
-                PORT_SetError(SEC_ERROR_UNKNOWN_SIGNER);
+                if (PORT_GetError() == SEC_ERROR_UNKNOWN_CERT) {
+                    /* Make the error a little more specific. */
+                    PORT_SetError(SEC_ERROR_OCSP_INVALID_SIGNING_CERT);
+                }
                 goto cleanup;
-            }
-            
+            }            
             PKIX_CHECK( 
                 PKIX_PL_Cert_CreateFromCERTCertificate(response->signerCert,
                                                        &(response->pkixSignerCert),
@@ -970,13 +996,15 @@ PKIX_Error *
 pkix_pl_OcspResponse_GetStatusForCert(
         PKIX_PL_OcspCertID *cid,
         PKIX_PL_OcspResponse *response,
+        PKIX_Boolean allowCachingOfFailures,
+        PKIX_PL_Date *validity,
         PKIX_Boolean *pPassed,
         SECErrorCodes *pReturnCode,
         void *plContext)
 {
+        PRTime time = 0;
         SECStatus rv = SECFailure;
-        SECStatus rvCache;
-        PRBool certIDWasConsumed = PR_FALSE;
+        CERTOCSPSingleResponse *single = NULL;
 
         PKIX_ENTER(OCSPRESPONSE, "pkix_pl_OcspResponse_GetStatusForCert");
         PKIX_NULLCHECK_THREE(response, pPassed, pReturnCode);
@@ -989,15 +1017,42 @@ pkix_pl_OcspResponse_GetStatusForCert(
         PKIX_NULLCHECK_TWO(response->signerCert, response->request);
         PKIX_NULLCHECK_TWO(cid, cid->certID);
 
-        rv = cert_ProcessOCSPResponse(response->handle,
-                                      response->nssOCSPResponse,
-                                      cid->certID,
-                                      response->signerCert,
-                                      PR_Now(),
-                                      &certIDWasConsumed,
-                                      &rvCache);
-        if (certIDWasConsumed) {
-                cid->certID = NULL;
+        if (validity != NULL) {
+            PKIX_Error *er = pkix_pl_Date_GetPRTime(validity, &time, plContext);
+            PKIX_DECREF(er);
+        }
+        if (!time) {
+            time = PR_Now();
+        }
+
+        rv = ocsp_GetVerifiedSingleResponseForCertID(response->handle,
+                                                     response->nssOCSPResponse,
+                                                     cid->certID, 
+                                                     response->signerCert,
+                                                     time, &single);
+        if (rv == SECSuccess) {
+                /*
+                 * Check whether the status says revoked, and if so 
+                 * how that compares to the time value passed into this routine.
+                 */
+                rv = ocsp_CertHasGoodStatus(single->certStatus, time);
+        }
+
+        if (rv == SECSuccess || allowCachingOfFailures) {
+                /* allowed to update the cache */
+                PRBool certIDWasConsumed = PR_FALSE;
+
+                if (single) {
+                        ocsp_CacheSingleResponse(cid->certID,single,
+                                                 &certIDWasConsumed);
+                } else {
+                        cert_RememberOCSPProcessingFailure(cid->certID,
+                                                           &certIDWasConsumed);
+                }
+
+                if (certIDWasConsumed) {
+                        cid->certID = NULL;
+                }
         }
 
 	if (rv == SECSuccess) {

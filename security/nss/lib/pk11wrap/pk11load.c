@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * The following handles the loading, unloading and management of
  * various PCKS #11 modules
@@ -48,6 +16,7 @@
 #include "nssilock.h"
 #include "secerr.h"
 #include "prenv.h"
+#include "utilparst.h"
 
 #define DEBUG_MODULE 1
 
@@ -120,14 +89,120 @@ PRBool pk11_getFinalizeModulesOption(void)
 }
 
 /*
+ * Allow specification loading the same module more than once at init time.
+ * This enables 2 things.
+ *
+ *    1) we can load additional databases by manipulating secmod.db/pkcs11.txt.
+ *    2) we can handle the case where some library has already initialized NSS
+ *    before the main application.
+ *
+ * oldModule is the module we have already initialized.
+ * char *modulespec is the full module spec for the library we want to
+ * initialize.
+ */
+static SECStatus
+secmod_handleReload(SECMODModule *oldModule, SECMODModule *newModule)
+{
+    PK11SlotInfo *slot;
+    char *modulespec;
+    char *newModuleSpec;
+    char **children;
+    CK_SLOT_ID *ids;
+    SECMODConfigList *conflist = NULL;
+    SECStatus         rv       = SECFailure;
+    int               count    = 0;
+
+    /* first look for tokens= key words from the module spec */
+    modulespec = newModule->libraryParams;
+    newModuleSpec = secmod_ParseModuleSpecForTokens(PR_TRUE,
+				newModule->isFIPS, modulespec, &children, &ids);
+    if (!newModuleSpec) {
+	return SECFailure;
+    }
+
+    /* 
+     * We are now trying to open a new slot on an already loaded module.
+     * If that slot represents a cert/key database, we don't want to open
+     * multiple copies of that same database. Unfortunately we understand
+     * the softoken flags well enough to be able to do this, so we can only get
+     * the list of already loaded databases if we are trying to open another
+     * internal module. 
+     */
+    if (oldModule->internal) {
+	conflist = secmod_GetConfigList(oldModule->isFIPS, 
+					oldModule->libraryParams, &count);
+    }
+
+
+    /* don't open multiple of the same db */
+    if (conflist && secmod_MatchConfigList(newModuleSpec, conflist, count)) { 
+	rv = SECSuccess;
+	goto loser;
+    }
+    slot = SECMOD_OpenNewSlot(oldModule, newModuleSpec);
+    if (slot) {
+	int newID;
+	char **thisChild;
+	CK_SLOT_ID *thisID;
+	char *oldModuleSpec;
+
+	if (secmod_IsInternalKeySlot(newModule)) {
+	    pk11_SetInternalKeySlotIfFirst(slot);
+	} 
+	newID = slot->slotID;
+	PK11_FreeSlot(slot);
+	for (thisChild=children, thisID=ids; thisChild && *thisChild; 
+						thisChild++,thisID++) {
+	    if (conflist &&
+		       secmod_MatchConfigList(*thisChild, conflist, count)) {
+		*thisID = (CK_SLOT_ID) -1;
+		continue;
+	    }
+	    slot = SECMOD_OpenNewSlot(oldModule, *thisChild);
+	    if (slot) {
+		*thisID = slot->slotID;
+		PK11_FreeSlot(slot);
+	    } else {
+		*thisID = (CK_SLOT_ID) -1;
+	    }
+	}
+
+	/* update the old module initialization string in case we need to
+	 * shutdown and reinit the whole mess (this is rare, but can happen
+	 * when trying to stop smart card insertion/removal threads)... */
+	oldModuleSpec = secmod_MkAppendTokensList(oldModule->arena, 
+		oldModule->libraryParams, newModuleSpec, newID, 
+		children, ids);
+	if (oldModuleSpec) {
+	    oldModule->libraryParams = oldModuleSpec;
+	}
+	
+	rv = SECSuccess;
+    }
+
+loser:
+    secmod_FreeChildren(children, ids);
+    PORT_Free(newModuleSpec);
+    if (conflist) {
+	secmod_FreeConfigList(conflist, count);
+    }
+    return rv;
+}
+
+/*
  * collect the steps we need to initialize a module in a single function
  */
 SECStatus
-secmod_ModuleInit(SECMODModule *mod, PRBool* alreadyLoaded)
+secmod_ModuleInit(SECMODModule *mod, SECMODModule **reload, 
+		  PRBool* alreadyLoaded)
 {
     CK_C_INITIALIZE_ARGS moduleArgs;
     CK_VOID_PTR pInitArgs;
     CK_RV crv;
+
+    if (reload) {
+	*reload = NULL;
+    }
 
     if (!mod || !alreadyLoaded) {
         PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -144,10 +219,36 @@ secmod_ModuleInit(SECMODModule *mod, PRBool* alreadyLoaded)
 	pInitArgs = &moduleArgs;
     }
     crv = PK11_GETTAB(mod)->C_Initialize(pInitArgs);
-    if ((CKR_CRYPTOKI_ALREADY_INITIALIZED == crv) &&
-        (!enforceAlreadyInitializedError)) {
-        *alreadyLoaded = PR_TRUE;
-        return SECSuccess;
+    if (CKR_CRYPTOKI_ALREADY_INITIALIZED == crv) {
+	SECMODModule *oldModule = NULL;
+
+	/* Library has already been loaded once, if caller expects it, and it
+	 * has additional configuration, try reloading it as well. */
+	if (reload != NULL && mod->libraryParams) {
+	    oldModule = secmod_FindModuleByFuncPtr(mod->functionList);
+	}
+	/* Library has been loaded by NSS. It means it may be capable of
+	 * reloading */
+	if (oldModule) {
+	    SECStatus rv;
+	    rv = secmod_handleReload(oldModule, mod);
+	    if (rv == SECSuccess) {
+		/* This module should go away soon, since we've
+		 * simply expanded the slots on the old module.
+		 * When it goes away, it should not Finalize since
+		 * that will close our old module as well. Setting
+		 * the function list to NULL will prevent that close */
+		mod->functionList = NULL;
+		*reload = oldModule;
+		return SECSuccess;
+	    }
+	    SECMOD_DestroyModule(oldModule);
+	}
+	/* reload not possible, fall back to old semantics */
+	if (!enforceAlreadyInitializedError) {
+       	    *alreadyLoaded = PR_TRUE;
+            return SECSuccess;
+	}
     }
     if (crv != CKR_OK) {
 	if (pInitArgs == NULL ||
@@ -217,9 +318,9 @@ SECMOD_SetRootCerts(PK11SlotInfo *slot, SECMODModule *mod) {
     }
 }
 
-static const char* NameOfThisSharedLib =
+static const char* my_shlib_name =
     SHLIB_PREFIX"nss"SHLIB_VERSION"."SHLIB_SUFFIX;
-static const char* softoken_default_name =
+static const char* softoken_shlib_name =
     SHLIB_PREFIX"softokn"SOFTOKEN_SHLIB_VERSION"."SHLIB_SUFFIX;
 static const PRCallOnceType pristineCallOnce;
 static PRCallOnceType loadSoftokenOnce;
@@ -231,22 +332,16 @@ static PRInt32 softokenLoadCount;
 #include <stdio.h>
 #include "prsystem.h"
 
-#include "../freebl/genload.c"
-
 /* This function must be run only once. */
 /*  determine if hybrid platform, then actually load the DSO. */
 static PRStatus
 softoken_LoadDSO( void ) 
 {
   PRLibrary *  handle;
-  const char * name = softoken_default_name;
 
-  if (!name) {
-    PR_SetError(PR_LOAD_LIBRARY_ERROR, 0);
-    return PR_FAILURE;
-  }
-
-  handle = loader_LoadLibrary(name);
+  handle = PORT_LoadLibraryFromOrigin(my_shlib_name,
+                                      (PRFuncPtr) &softoken_LoadDSO,
+                                      softoken_shlib_name);
   if (handle) {
     softokenLib = handle;
     return PR_SUCCESS;
@@ -258,10 +353,9 @@ softoken_LoadDSO( void )
  * load a new module into our address space and initialize it.
  */
 SECStatus
-SECMOD_LoadPKCS11Module(SECMODModule *mod) {
+secmod_LoadPKCS11Module(SECMODModule *mod, SECMODModule **oldModule) {
     PRLibrary *library = NULL;
     CK_C_GetFunctionList entry = NULL;
-    char * full_name;
     CK_INFO info;
     CK_ULONG slotCount = 0;
     SECStatus rv;
@@ -271,7 +365,7 @@ SECMOD_LoadPKCS11Module(SECMODModule *mod) {
     if (mod->loaded) return SECSuccess;
 
     /* intenal modules get loaded from their internal list */
-    if (mod->internal) {
+    if (mod->internal && (mod->dllName == NULL)) {
     /*
      * Loads softoken as a dynamic library,
      * even though the rest of NSS assumes this as the "internal" module.
@@ -280,7 +374,7 @@ SECMOD_LoadPKCS11Module(SECMODModule *mod) {
         PR_SUCCESS != PR_CallOnce(&loadSoftokenOnce, &softoken_LoadDSO))
         return SECFailure;
 
-    PR_AtomicIncrement(&softokenLoadCount);
+    PR_ATOMIC_INCREMENT(&softokenLoadCount);
 
     if (mod->isFIPS) {
         entry = (CK_C_GetFunctionList) 
@@ -308,26 +402,11 @@ SECMOD_LoadPKCS11Module(SECMODModule *mod) {
 	    return SECFailure;
 	}
 
-#ifdef notdef
-	/* look up the library name */
-	full_name = PR_GetLibraryName(PR_GetLibraryPath(),mod->dllName);
-	if (full_name == NULL) {
-	    return SECFailure;
-	}
-#else
-	full_name = PORT_Strdup(mod->dllName);
-#endif
-
 	/* load the library. If this succeeds, then we have to remember to
 	 * unload the library if anything goes wrong from here on out...
 	 */
-	library = PR_LoadLibrary(full_name);
+	library = PR_LoadLibrary(mod->dllName);
 	mod->library = (void *)library;
-#ifdef notdef
-	PR_FreeLibraryName(full_name);
-#else
-	PORT_Free(full_name);
-#endif
 
 	if (library == NULL) {
 	    return SECFailure;
@@ -375,9 +454,16 @@ SECMOD_LoadPKCS11Module(SECMODModule *mod) {
     mod->isThreadSafe = PR_TRUE;
 
     /* Now we initialize the module */
-    rv = secmod_ModuleInit(mod, &alreadyLoaded);
+    rv = secmod_ModuleInit(mod, oldModule, &alreadyLoaded);
     if (rv != SECSuccess) {
 	goto fail;
+    }
+
+    /* module has been reloaded, this module itself is done, 
+     * return to the caller */
+    if (mod->functionList == NULL) {
+	mod->loaded = PR_TRUE; /* technically the module is loaded.. */
+	return SECSuccess;
     }
 
     /* check the version number */
@@ -429,6 +515,11 @@ SECMOD_LoadPKCS11Module(SECMODModule *mod) {
 	    /* look down the slot info table */
 	    PK11_LoadSlotList(mod->slots[i],mod->slotInfo,mod->slotInfoCount);
 	    SECMOD_SetRootCerts(mod->slots[i],mod);
+	    /* explicitly mark the internal slot as such if IsInternalKeySlot()
+	     * is set */
+	    if (secmod_IsInternalKeySlot(mod) && (i == (mod->isFIPS ? 0 : 1))) {
+		pk11_SetInternalKeySlotIfFirst(mod->slots[i]);
+	    } 
 	}
 	mod->slotCount = slotCount;
 	mod->slotInfoCount = 0;
@@ -460,7 +551,9 @@ SECMOD_UnloadModule(SECMODModule *mod) {
 	return SECFailure;
     }
     if (finalizeModules) {
-        if (!mod->moduleDBOnly) PK11_GETTAB(mod)->C_Finalize(NULL);
+        if (mod->functionList &&!mod->moduleDBOnly) {
+	    PK11_GETTAB(mod)->C_Finalize(NULL);
+	}
     }
     mod->moduleID = 0;
     mod->loaded = PR_FALSE;
@@ -468,8 +561,8 @@ SECMOD_UnloadModule(SECMODModule *mod) {
     /* do we want the semantics to allow unloading the internal library?
      * if not, we should change this to SECFailure and move it above the
      * mod->loaded = PR_FALSE; */
-    if (mod->internal) {
-        if (0 == PR_AtomicDecrement(&softokenLoadCount)) {
+    if (mod->internal && (mod->dllName == NULL)) {
+        if (0 == PR_ATOMIC_DECREMENT(&softokenLoadCount)) {
           if (softokenLib) {
               disableUnload = PR_GetEnv("NSS_DISABLE_UNLOAD");
               if (!disableUnload) {

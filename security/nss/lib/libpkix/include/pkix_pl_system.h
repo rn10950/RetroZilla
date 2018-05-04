@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * This file defines several platform independent functions to make system
  * calls in a portable manner.
@@ -1462,20 +1429,11 @@ PKIX_PL_ByteArray_GetLength(
  * FUNCTION: PKIX_PL_OID_Create
  * DESCRIPTION:
  *
- *  Creates a new OID using the string pointed to by "stringRep" and stores it
- *  at "pOID". The string representation is a null-terminated char * consisting
- *  of decimal components separated by dots. All other characters are illegal.
- *  The first field must be be 0, 1 or 2. If the first field is 0 or 1, the
- *  second field must be between 0 and 39. All fields must be ASCII decimal
- *  digits less than or equal to 2^32. Once created, an OID is immutable.
- *
- *  The regexp format is as follows:
- *   OID := [0,1,2](.NUM)+
- *   NUM := [0-9]+
+ *  Creates a new OID using NSS oid tag.
  *
  * PARAMETERS:
- *  "stringRep"
- *      Address of character data representing an OID. Must be non-NULL.
+ *  "idtag"
+ *      nss oid id tag.
  *  "pOID"
  *      Address where object pointer will be stored. Must be non-NULL.
  *  "plContext"
@@ -1489,7 +1447,33 @@ PKIX_PL_ByteArray_GetLength(
  */
 PKIX_Error *
 PKIX_PL_OID_Create(
-        char *stringRep,
+        SECOidTag idtag,
+        PKIX_PL_OID **pOID,
+        void *plContext);
+
+/*
+ * FUNCTION: PKIX_PL_OID_CreateBySECItem
+ * DESCRIPTION:
+ *
+ *  Creates a new OID using a DER encoded OID stored as SECItem.
+ *
+ * PARAMETERS:
+ *  "derOid"
+ *      Address of SECItem that holds DER encoded OID.
+ *  "pOID"
+ *      Address where object pointer will be stored. Must be non-NULL.
+ *  "plContext"
+ *      Platform-specific context pointer.
+ * THREAD SAFETY:
+ *  Thread Safe (see Thread Safety Definitions in Programmer's Guide)
+ * RETURNS:
+ *  Returns NULL if the function succeeds.
+ *  Returns an OID Error if the function fails in a non-fatal way.
+ *  Returns a Fatal Error if the function fails in an unrecoverable way.
+ */
+PKIX_Error *
+PKIX_PL_OID_CreateBySECItem(
+        SECItem *derOid,
         PKIX_PL_OID **pOID,
         void *plContext);
 

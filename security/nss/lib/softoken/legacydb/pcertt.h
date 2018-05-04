@@ -1,42 +1,8 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * certt.h - public data structures for the certificate library
- *
- * $Id: pcertt.h,v 1.2 2007/06/13 00:24:57 rrelyea%redhat.com Exp $
  */
 #ifndef _PCERTT_H_
 #define _PCERTT_H_
@@ -68,7 +34,7 @@ typedef struct NSSLOWCERTValidityStr                   NSSLOWCERTValidity;
 ** An X.509 validity object
 */
 struct NSSLOWCERTValidityStr {
-    PRArenaPool *arena;
+    PLArenaPool *arena;
     SECItem notBefore;
     SECItem notAfter;
 };
@@ -95,7 +61,7 @@ struct NSSLOWCERTSignedDataStr {
 ** An X.509 subject-public-key-info object
 */
 struct NSSLOWCERTSubjectPublicKeyInfoStr {
-    PRArenaPool *arena;
+    PLArenaPool *arena;
     SECAlgorithmID algorithm;
     SECItem subjectPublicKey;
 };
@@ -168,6 +134,8 @@ struct NSSLOWCERTCertificateStr {
 #define SEC_CRL_VERSION_1		0	/* default */
 #define SEC_CRL_VERSION_2		1	/* v2 extensions */
 
+#define NSS_MAX_LEGACY_DB_KEY_SIZE (60 * 1024)
+
 struct NSSLOWCERTIssuerAndSNStr {
     SECItem derIssuer;
     SECItem serialNumber;
@@ -222,7 +190,7 @@ typedef struct {
     certDBEntryType type;
     unsigned int version;
     unsigned int flags;
-    PRArenaPool *arena;
+    PLArenaPool *arena;
 } certDBEntryCommon;
 
 /*
@@ -429,7 +397,7 @@ typedef union {
 #define DB_CERT_ENTRY_HEADER_LEN	10
 
 /* common flags for all types of certificates */
-#define CERTDB_VALID_PEER	(1<<0)
+#define CERTDB_TERMINAL_RECORD	(1<<0)
 #define CERTDB_TRUSTED		(1<<1)
 #define CERTDB_SEND_WARN	(1<<2)
 #define CERTDB_VALID_CA		(1<<3)
@@ -439,11 +407,11 @@ typedef union {
 #define CERTDB_TRUSTED_CLIENT_CA (1<<7) /* trusted for issuing client certs */
 #define CERTDB_INVISIBLE_CA	(1<<8) /* don't show in UI */
 #define CERTDB_GOVT_APPROVED_CA	(1<<9) /* can do strong crypto in export ver */
-#define CERTDB_NOT_TRUSTED	(1<<10) /* explicitly don't trust this cert */
+#define CERTDB_MUST_VERIFY	(1<<10) /* explicitly don't trust this cert */
 #define CERTDB_TRUSTED_UNKNOWN	(1<<11) /* accept trust from another source */
 
 /* bits not affected by the CKO_NETSCAPE_TRUST object */
-#define CERTDB_PRESERVE_TRUST_BITS (CERTDB_USER | CERTDB_VALID_PEER | \
+#define CERTDB_PRESERVE_TRUST_BITS (CERTDB_USER | \
         CERTDB_NS_TRUSTED_CA | CERTDB_VALID_CA | CERTDB_INVISIBLE_CA | \
                                         CERTDB_GOVT_APPROVED_CA)
 

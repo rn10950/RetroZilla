@@ -1,43 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Header for CMS types.
- *
- * $Id: cmst.h,v 1.10 2005/06/27 22:21:19 julien.pierre.bugs%sun.com Exp $
  */
 
 #ifndef _CMST_H_
@@ -98,7 +64,7 @@ typedef struct NSSCMSRecipientInfoStr NSSCMSRecipientInfo;
 typedef struct NSSCMSDigestedDataStr NSSCMSDigestedData;
 typedef struct NSSCMSEncryptedDataStr NSSCMSEncryptedData;
 
-typedef struct NSSCMSSMIMEKEAParametersStr NSSCMSSMIMEKEAParameters;
+typedef struct NSSCMSGenericWrapperDataStr NSSCMSGenericWrapperData;
 
 typedef struct NSSCMSAttributeStr NSSCMSAttribute;
 
@@ -107,6 +73,21 @@ typedef struct NSSCMSEncoderContextStr NSSCMSEncoderContext;
 
 typedef struct NSSCMSCipherContextStr NSSCMSCipherContext;
 typedef struct NSSCMSDigestContextStr NSSCMSDigestContext;
+
+typedef struct NSSCMSContentInfoPrivateStr NSSCMSContentInfoPrivate;
+
+typedef SECStatus (*NSSCMSGenericWrapperDataCallback)
+						(NSSCMSGenericWrapperData *);
+typedef   void    (*NSSCMSGenericWrapperDataDestroy) 
+						(NSSCMSGenericWrapperData *);
+
+extern const SEC_ASN1Template NSSCMSGenericWrapperDataTemplate[];
+extern const SEC_ASN1Template NSS_PointerToCMSGenericWrapperDataTemplate[];
+
+SEC_ASN1_CHOOSER_DECLARE(NSS_PointerToCMSGenericWrapperDataTemplate)
+SEC_ASN1_CHOOSER_DECLARE(NSSCMSGenericWrapperDataTemplate)
+
+
 
 /*
  * Type of function passed to NSSCMSDecode or NSSCMSDecoderStart.
@@ -142,6 +123,7 @@ union NSSCMSContentUnion {
     NSSCMSEncryptedData	*	encryptedData;
     NSSCMSEnvelopedData	*	envelopedData;
     NSSCMSSignedData *		signedData;
+    NSSCMSGenericWrapperData *	genericData;
     /* or anonymous pointer to something */
     void *			pointer;
 };
@@ -164,8 +146,8 @@ struct NSSCMSContentInfoStr {
 							 * (only used by creation code) */
     SECOidTag			contentEncAlgTag;	/* oid tag of encryption algorithm
 							 * (only used by creation code) */
-    NSSCMSCipherContext		*ciphcx;		/* context for en/decryption going on */
-    NSSCMSDigestContext		*digcx;			/* context for digesting going on */
+    NSSCMSContentInfoPrivate	*privateInfo;		/* place for NSS private info */
+    void		*reserved;			/* keep binary compatibility */
 };
 
 /* =============================================================================
@@ -184,6 +166,18 @@ struct NSSCMSMessageStr {
     void *		pwfn_arg;
     NSSCMSGetDecryptKeyCallback decrypt_key_cb;
     void *		decrypt_key_cb_arg;
+};
+
+/* ============================================================================
+ * GENERIC WRAPPER
+ * 
+ * used for user defined types.
+ */
+struct NSSCMSGenericWrapperDataStr {
+    NSSCMSContentInfo	contentInfo;
+    /* ---- local; not part of encoding ------ */
+    NSSCMSMessage *	cmsg;
+    /* wrapperspecific data starts here */
 };
 
 /* =============================================================================
@@ -480,38 +474,6 @@ struct NSSCMSEncryptedDataStr {
 };
 #define NSS_CMS_ENCRYPTED_DATA_VERSION		0	/* what we *create* */
 #define NSS_CMS_ENCRYPTED_DATA_VERSION_UPATTR	2	/* what we *create* */
-
-/* =============================================================================
- * FORTEZZA KEA
- */
-
-/* An enumerated type used to select templates based on the encryption
-   scenario and data specifics. */
-typedef enum {
-    NSSCMSKEAInvalid = -1,
-    NSSCMSKEAUsesSkipjack = 0,
-    NSSCMSKEAUsesNonSkipjack = 1,
-    NSSCMSKEAUsesNonSkipjackWithPaddedEncKey = 2
-} NSSCMSKEATemplateSelector;
-
-/* ### mwelch - S/MIME KEA parameters. These don't really fit here,
-                but I cannot think of a more appropriate place at this time. */
-struct NSSCMSSMIMEKEAParametersStr {
-    SECItem originatorKEAKey;	/* sender KEA key (encrypted?) */
-    SECItem originatorRA;	/* random number generated by sender */
-    SECItem nonSkipjackIV;	/* init'n vector for SkipjackCBC64
-			           decryption of KEA key if Skipjack
-				   is not the bulk algorithm used on
-				   the message */
-    SECItem bulkKeySize;	/* if Skipjack is not the bulk
-			           algorithm used on the message,
-				   and the size of the bulk encryption
-				   key is not the same as that of
-				   originatorKEAKey (due to padding
-				   perhaps), this field will contain
-				   the real size of the bulk encryption
-				   key. */
-};
 
 /*
  * *****************************************************************************

@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /* 
  * this file maps PKCS11 Errors into SECErrors
  *  This is an information reducing process, since most errors are reflected
@@ -40,6 +8,10 @@
  *  operations). If any of these errors need more detail in the upper layers
  *  which call PK11 library functions, we can add more SEC_ERROR_XXX functions
  *  and change there mappings here.
+ *
+ *  Some PKCS11 errors are mapped to SEC_ERROR_LIBRARY_FAILURE intentionally
+ *  because they indicate that there is a bug in the library (either NSS or
+ *  the token).
  */
 #include "pkcs11t.h"
 #include "pk11func.h"
@@ -104,11 +76,13 @@ PK11_MapError(CK_RV rv) {
 	MAPERROR(CKR_PIN_INCORRECT, SEC_ERROR_BAD_PASSWORD)
 	MAPERROR(CKR_PIN_INVALID, SEC_ERROR_INVALID_PASSWORD)
 	MAPERROR(CKR_PIN_LEN_RANGE, SEC_ERROR_INVALID_PASSWORD)
+	MAPERROR(CKR_PIN_EXPIRED, SEC_ERROR_EXPIRED_PASSWORD)
+	MAPERROR(CKR_PIN_LOCKED, SEC_ERROR_LOCKED_PASSWORD)
 	MAPERROR(CKR_SESSION_CLOSED, SEC_ERROR_LIBRARY_FAILURE)
 	MAPERROR(CKR_SESSION_COUNT, SEC_ERROR_NO_MEMORY) /* XXXX? */
 	MAPERROR(CKR_SESSION_HANDLE_INVALID, SEC_ERROR_BAD_DATA)
 	MAPERROR(CKR_SESSION_PARALLEL_NOT_SUPPORTED, SEC_ERROR_LIBRARY_FAILURE)
-	MAPERROR(CKR_SESSION_READ_ONLY, SEC_ERROR_LIBRARY_FAILURE)
+	MAPERROR(CKR_SESSION_READ_ONLY, SEC_ERROR_READ_ONLY)
 	MAPERROR(CKR_SIGNATURE_INVALID, SEC_ERROR_BAD_SIGNATURE)
 	MAPERROR(CKR_SIGNATURE_LEN_RANGE, SEC_ERROR_BAD_SIGNATURE)
 	MAPERROR(CKR_TEMPLATE_INCOMPLETE, SEC_ERROR_BAD_DATA)
@@ -145,7 +119,7 @@ PK11_MapError(CK_RV rv) {
 	    return pk11_error_map[i].sec_error;
 	}
     }
-    return SEC_ERROR_IO;
+    return SEC_ERROR_UNKNOWN_PKCS11_ERROR;
  }
 
 
@@ -154,7 +128,7 @@ PK11_MapError(CK_RV rv) {
     default:
 	break;
     }
-    return SEC_ERROR_IO;
+    return SEC_ERROR_UNKNOWN_PKCS11_ERROR;
 }
 
 

@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_pl_infoaccess.c
  *
@@ -42,16 +9,6 @@
  */
 
 #include "pkix_pl_infoaccess.h"
-
-/* XXX Following SEC_OID_PKIX defines should be merged in NSS */
-#define SEC_OID_PKIX_CA_REPOSITORY     1003
-#define SEC_OID_PKIX_TIMESTAMPING      1005
-/* XXX Following OID defines hould be moved to NSS */
-static const unsigned char siaTimeStampingOID[] = {0x2b, 0x06, 0x01, 0x05,
-                                0x05, 0x07, 0x030, 0x03};
-static const unsigned char siaCaRepositoryOID[] = {0x2b, 0x06, 0x01, 0x05,
-                                0x05, 0x07, 0x030, 0x05};
-
 
 /* --Private-InfoAccess-Functions----------------------------------*/
 
@@ -415,37 +372,6 @@ pkix_pl_InfoAccess_CreateList(
 
                 PKIX_CERT_DEBUG("\t\tCalling SECOID_FindOIDTag).\n");
                 method = SECOID_FindOIDTag(&nssInfoAccess[i]->method);
-
-                if (method == 0) {
-
-                /* XXX
-                 * This part of code is definitely hacking, need NSS decode
-                 * support. We can reuse the CERT_DecodeAuthInfoAccessExtension
-                 * since SIA and AIA are all the same type. However NSS need
-                 * to add SIA, CaRepository, TimeStamping OID definitions and
-                 * the numerical method, timeStamping and caRepository values.
-                 *
-                 * We assume now, since method is 0, implies the method for SIA
-                 * was not decoded by CERT_DecodeAuthInfoAccessExtension()
-                 * so we compare and put value in. This part should be taken
-                 * out eventually if CERT_DecodeInfoAccessExtension (*renamed*)
-                 * is doing the job.
-                 */
-
-                        PKIX_CERT_DEBUG("\t\tCalling PORT_Strncmp).\n");
-                        if (PORT_Strncmp
-                                ((char *)nssInfoAccess[i]->method.data,
-                                (char *)siaTimeStampingOID,
-                                nssInfoAccess[i]->method.len) == 0) {
-                                method = SEC_OID_PKIX_TIMESTAMPING;
-                        } else if (PORT_Strncmp
-                                ((char *)nssInfoAccess[i]->method.data,
-                                (char *)siaCaRepositoryOID,
-                                nssInfoAccess[i]->method.len) == 0) {
-                                method = SEC_OID_PKIX_CA_REPOSITORY;
-                        }
-                }
-
                 /* Map NSS access method value into PKIX constant */
                 switch(method) {
                         case SEC_OID_PKIX_CA_ISSUERS:
@@ -461,7 +387,7 @@ pkix_pl_InfoAccess_CreateList(
                                 method = PKIX_INFOACCESS_CA_REPOSITORY;
                                 break;
                         default:
-                                break;
+                                PKIX_ERROR(PKIX_UNKNOWNINFOACCESSMETHOD);
                 }
 
                 PKIX_CHECK(pkix_pl_InfoAccess_Create
@@ -585,7 +511,7 @@ cleanup:
  *
  * PARAMETERS
  *  "arena"
- *      Address of a PRArenaPool to be used in populating the LDAPLocation.
+ *      Address of a PLArenaPool to be used in populating the LDAPLocation.
  *      Must be non-NULL.
  *  "startPos"
  *      The address of char string that contains a subset of ldap location.
@@ -607,18 +533,15 @@ cleanup:
  */
 static PKIX_Error *
 pkix_pl_InfoAccess_ParseTokens(
-        PRArenaPool *arena,
+        PLArenaPool *arena,
         char **startPos, /* return update */
         char ***tokens,
         char separator,
         char terminator,
         void *plContext)
 {
-        PKIX_UInt32 len = 0;
         PKIX_UInt32 numFilters = 0;
-        PKIX_Int32 cmpResult = -1;
         char *endPos = NULL;
-        char *p = NULL;
         char **filterP = NULL;
 
         PKIX_ENTER(INFOACCESS, "pkix_pl_InfoAccess_ParseTokens");
@@ -639,8 +562,8 @@ pkix_pl_InfoAccess_ParseTokens(
                 PKIX_ERROR(PKIX_LOCATIONSTRINGNOTPROPERLYTERMINATED);
         }
 
-        /* Last one doesn't have a "," as separator, although we allow it */
-        if (*(endPos-1) != ',') {
+        /* Last component doesn't need a separator, although we allow it */
+        if (endPos > *startPos && *(endPos-1) != separator) {
                 numFilters++;
         }
 
@@ -650,7 +573,7 @@ pkix_pl_InfoAccess_ParseTokens(
          */
         if (numFilters > 2) numFilters = 2;
 
-        filterP = PORT_ArenaZNewArray(arena, void*, numFilters+1);
+        filterP = PORT_ArenaZNewArray(arena, char*, numFilters+1);
         if (filterP == NULL) {
             PKIX_ERROR(PKIX_PORTARENAALLOCFAILED);
         }
@@ -661,38 +584,23 @@ pkix_pl_InfoAccess_ParseTokens(
 
         while (numFilters) {
             if (*endPos == separator || *endPos == terminator) {
-                    len = endPos - *startPos;
-                    p = PORT_ArenaZAlloc(arena, len+1);
+                    PKIX_UInt32 len = endPos - *startPos;
+                    char *p = PORT_ArenaZAlloc(arena, len+1);
                     if (p == NULL) {
                         PKIX_ERROR(PKIX_PORTARENAALLOCFAILED);
                     }
 
+                    PORT_Memcpy(p, *startPos, len);
+                    p[len] = '\0';
+
                     *filterP = p;
-
-                    while (len) {
-                            if (**startPos == '%') {
-                            /* replace %20 by blank */
-                                cmpResult = strncmp(*startPos, "%20", 3);
-                                if (cmpResult == 0) {
-                                    *p = ' ';
-                                    *startPos += 3;
-                                    len -= 3;
-                                }
-                            } else {
-                                *p = **startPos;
-                                (*startPos)++;
-                                len--;
-                            }
-                            p++;
-                    }
-
-                    *p = '\0';
                     filterP++;
                     numFilters--;
 
                     separator = terminator;
 
-                    if (endPos == '\0') {
+                    if (*endPos == '\0') {
+                        *startPos = endPos;
                         break;
                     } else {
                         endPos++;
@@ -710,13 +618,51 @@ cleanup:
         PKIX_RETURN(INFOACCESS);
 }
 
+static int
+pkix_pl_HexDigitToInt(
+        int ch)
+{
+        if (isdigit(ch)) {
+                ch = ch - '0';
+        } else if (isupper(ch)) {
+                ch = ch - 'A' + 10;
+        } else {
+                ch = ch - 'a' + 10;
+        }
+        return ch;
+}
+
+/*
+ * Convert the "%" hex hex escape sequences in the URL 'location' in place.
+ */
+static void
+pkix_pl_UnescapeURL(
+        char *location)
+{
+        const char *src;
+        char *dst;
+
+        for (src = dst = location; *src != '\0'; src++, dst++) {
+                if (*src == '%' && isxdigit((unsigned char)*(src+1)) &&
+                    isxdigit((unsigned char)*(src+2))) {
+                        *dst = pkix_pl_HexDigitToInt((unsigned char)*(src+1));
+                        *dst *= 16;
+                        *dst += pkix_pl_HexDigitToInt((unsigned char)*(src+2));
+                        src += 2;
+                } else {
+                        *dst = *src;
+                }
+        }
+        *dst = *src;  /* the terminating null */
+}
+
 /*
  * FUNCTION: pkix_pl_InfoAccess_ParseLocation
  * DESCRIPTION:
  *
  *  This function parses the GeneralName pointed to by "generalName" into the
  *  fields of the LDAPRequestParams pointed to by "request" and a domainName
- *  pointed to by "pDomainName", using the PRArenaPool pointed to by "arena" to
+ *  pointed to by "pDomainName", using the PLArenaPool pointed to by "arena" to
  *  allocate storage for the request components and for the domainName string.
  *
  *  The expected GeneralName string should be in the format described by the
@@ -733,7 +679,7 @@ cleanup:
  *      Address of the GeneralName whose LDAPLocation is to be parsed. Must be
  *      non-NULL.
  *  "arena"
- *      Address of PRArenaPool to be used for the domainName and for components
+ *      Address of PLArenaPool to be used for the domainName and for components
  *      of the LDAPRequest. Must be non-NULL.
  *  "request"
  *      Address of the LDAPRequestParams into which request components are
@@ -752,7 +698,7 @@ cleanup:
 PKIX_Error *
 pkix_pl_InfoAccess_ParseLocation(
         PKIX_PL_GeneralName *generalName,
-        PRArenaPool *arena,
+        PLArenaPool *arena,
         LDAPRequestParams *request,
         char **pDomainName,
         void *plContext)
@@ -786,11 +732,7 @@ pkix_pl_InfoAccess_ParseLocation(
                 plContext),
                 PKIX_STRINGGETENCODEDFAILED);
 
-#if 0
-        /* For testing inside the firewall... */
-        locationAscii = "ldap://nss.red.iplanet.com:1389/cn=Good%20CA,o="
-                "Test%20Certificates,c=US?caCertificate;binary";
-#endif
+        pkix_pl_UnescapeURL(locationAscii);
 
         /* Skip "ldap:" */
         endPos = locationAscii;
@@ -881,7 +823,7 @@ pkix_pl_InfoAccess_ParseLocation(
                 nameComponent->attrType = (unsigned char *)avaPtr;
                 while ((*avaPtr != '=') && (*avaPtr != '\0')) {
                         avaPtr++;
-                        if (avaPtr == '\0') {
+                        if (*avaPtr == '\0') {
                                 PKIX_ERROR(PKIX_NAMECOMPONENTWITHNOEQ);
                         }
                 }

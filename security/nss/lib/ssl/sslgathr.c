@@ -1,42 +1,9 @@
 /*
  * Gather (Read) entire SSL2 records from socket into buffer.  
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslgathr.c,v 1.9 2007/07/06 03:16:54 julien.pierre.bugs%sun.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "cert.h"
 #include "ssl.h"
 #include "sslimpl.h"
@@ -141,7 +108,7 @@ ssl2_GatherData(sslSocket *ss, sslGather *gs, int flags)
 	/* Probably finished this piece */
 	switch (gs->state) {
 	case GS_HEADER: 
-	    if ((ss->opt.enableSSL3 || ss->opt.enableTLS) && !ss->firstHsDone) {
+	    if (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange) && !ss->firstHsDone) {
 
 		PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
 
@@ -185,7 +152,7 @@ ssl2_GatherData(sslSocket *ss, sslGather *gs, int flags)
 			return SECFailure;
 		    }
 		}
-	    }	/* ((ss->opt.enableSSL3 || ss->opt.enableTLS) && !ss->firstHsDone) */
+	    }
 
 	    /* we've got the first 3 bytes.  The header may be two or three. */
 	    if (gs->hdr[0] & 0x80) {
@@ -272,7 +239,7 @@ ssl2_GatherData(sslSocket *ss, sslGather *gs, int flags)
 		goto spec_locked_done;
 	    }
 
-	    /* Decrypt the portion of data that we just recieved.
+	    /* Decrypt the portion of data that we just received.
 	    ** Decrypt it in place.
 	    */
 	    rv = (*ss->sec.dec)(ss->sec.readcx, pBuf, &nout, gs->offset,
@@ -303,25 +270,25 @@ ssl2_GatherData(sslSocket *ss, sslGather *gs, int flags)
 				        gs->offset - macLen);
 		(*ss->sec.hash->update)(ss->sec.hashcx, seq, 4);
 		(*ss->sec.hash->end)(ss->sec.hashcx, mac, &macLen, macLen);
+
+		PORT_Assert(macLen == ss->sec.hash->length);
+
+		ssl_ReleaseSpecReadLock(ss);  /******************************/
+
+		if (NSS_SecureMemcmp(mac, pBuf, macLen) != 0) {
+		    /* MAC's didn't match... */
+		    SSL_DBG(("%d: SSL[%d]: mac check failed, seq=%d",
+			     SSL_GETPID(), ss->fd, ss->sec.rcvSequence));
+		    PRINT_BUF(1, (ss, "computed mac:", mac, macLen));
+		    PRINT_BUF(1, (ss, "received mac:", pBuf, macLen));
+		    PORT_SetError(SSL_ERROR_BAD_MAC_READ);
+		    rv = SECFailure;
+		    goto cleanup;
+		}
+	    } else {
+		ssl_ReleaseSpecReadLock(ss);  /******************************/
 	    }
 
-	    PORT_Assert(macLen == ss->sec.hash->length);
-
-	    ssl_ReleaseSpecReadLock(ss);  /******************************/
-
-	    if (PORT_Memcmp(mac, pBuf, macLen) != 0) {
-		/* MAC's didn't match... */
-		SSL_DBG(("%d: SSL[%d]: mac check failed, seq=%d",
-			 SSL_GETPID(), ss->fd, ss->sec.rcvSequence));
-		PRINT_BUF(1, (ss, "computed mac:", mac, macLen));
-		PRINT_BUF(1, (ss, "received mac:", pBuf, macLen));
-		PORT_SetError(SSL_ERROR_BAD_MAC_READ);
-		rv = SECFailure;
-		goto cleanup;
-	    }
-
-
-	    PORT_Assert(gs->recordPadding + macLen <= gs->offset);
 	    if (gs->recordPadding + macLen <= gs->offset) {
 		gs->recordOffset  = macLen;
 		gs->readOffset    = macLen;
@@ -434,6 +401,8 @@ ssl_InitGather(sslGather *gs)
     gs->state = GS_INIT;
     gs->writeOffset = 0;
     gs->readOffset  = 0;
+    gs->dtlsPacketOffset = 0;
+    gs->dtlsPacket.len = 0;
     status = sslBuffer_Grow(&gs->buf, 4096);
     return status;
 }
@@ -445,6 +414,7 @@ ssl_DestroyGather(sslGather *gs)
     if (gs) {	/* the PORT_*Free functions check for NULL pointers. */
 	PORT_ZFree(gs->buf.buf, gs->buf.space);
 	PORT_Free(gs->inbuf.buf);
+	PORT_Free(gs->dtlsPacket.buf);
     }
 }
 
@@ -453,7 +423,6 @@ static SECStatus
 ssl2_HandleV3HandshakeRecord(sslSocket *ss)
 {
     SECStatus           rv;
-    SSL3ProtocolVersion version = (ss->gs.hdr[1] << 8) | ss->gs.hdr[2];
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveRecvBufLock(ss) );
     PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
@@ -472,7 +441,8 @@ ssl2_HandleV3HandshakeRecord(sslSocket *ss)
     ** ssl_GatherRecord1stHandshake to invoke ssl3_GatherCompleteHandshake() 
     ** the next time it is called.
     **/
-    rv = ssl3_NegotiateVersion(ss, version);
+    rv = ssl3_NegotiateVersion(ss, SSL_LIBRARY_VERSION_MAX_SUPPORTED,
+			       PR_TRUE);
     if (rv != SECSuccess) {
 	return rv;
     }

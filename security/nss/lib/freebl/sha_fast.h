@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is SHA 180-1 Reference Implementation (Optimized).
- *
- * The Initial Developer of the Original Code is
- * Paul Kocher of Cryptography Research.
- * Portions created by the Initial Developer are Copyright (C) 1995-9
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _SHA_FAST_H_
 #define _SHA_FAST_H_
@@ -63,7 +31,7 @@ struct SHA1ContextStr {
 #if (_MSC_VER >= 1300)
 #pragma intrinsic(_byteswap_ulong)
 #define SHA_HTONL(x) _byteswap_ulong(x)
-#elif defined(_X86_)
+#elif defined(NSS_X86_OR_X64)
 #ifndef FORCEINLINE
 #if (_MSC_VER >= 1200)
 #define FORCEINLINE __forceinline
@@ -83,7 +51,7 @@ swap4b(PRUint32 dwd)
 }
 
 #define SHA_HTONL(x) swap4b(x)
-#endif /* _X86_ */
+#endif /* NSS_X86_OR_X64 */
 #endif /* IS_LITTLE_ENDIAN */
 
 #pragma intrinsic (_lrotr, _lrotl) 
@@ -93,7 +61,6 @@ swap4b(PRUint32 dwd)
 
 #if defined(__GNUC__) 
 /* __x86_64__  and __x86_64 are defined by GCC on x86_64 CPUs */
-
 #if defined( SHA1_USING_64_BIT )
 static __inline__ PRUint64 SHA_ROTL(PRUint64 x, PRUint32 n)
 {
@@ -108,13 +75,33 @@ static __inline__ PRUint32 SHA_ROTL(PRUint32 t, PRUint32 n)
 #endif
 #define SHA_ROTL_IS_DEFINED 1
 
-#if defined(_X86_) || defined(__x86_64__) || defined(__x86_64) 
+#if defined(NSS_X86_OR_X64)
 static __inline__ PRUint32 swap4b(PRUint32 value)
 {
     __asm__("bswap %0" : "+r" (value));
     return (value);
 }
 #define SHA_HTONL(x) swap4b(x)
+
+#elif defined(__thumb2__) || \
+      (!defined(__thumb__) && \
+       (defined(__ARM_ARCH_6__) || \
+        defined(__ARM_ARCH_6J__) || \
+        defined(__ARM_ARCH_6K__) || \
+        defined(__ARM_ARCH_6Z__) || \
+        defined(__ARM_ARCH_6ZK__) || \
+        defined(__ARM_ARCH_6T2__) || \
+        defined(__ARM_ARCH_7__) || \
+        defined(__ARM_ARCH_7A__) || \
+        defined(__ARM_ARCH_7R__)))
+static __inline__ PRUint32 swap4b(PRUint32 value)
+{
+    PRUint32 ret;
+    __asm__("rev %0, %1" : "=r" (ret) : "r"(value));
+    return ret;
+}
+#define SHA_HTONL(x) swap4b(x)
+
 #endif /* x86 family */
 
 #endif /* __GNUC__ */
@@ -124,7 +111,7 @@ static __inline__ PRUint32 swap4b(PRUint32 value)
 #define SHA_ROTL(X,n) (tmp = (X), ((tmp) << (n)) | ((tmp) >> (32-(n))))
 #endif
 
-#if defined(_X86_) || defined(__x86_64__) || defined(__x86_64) 
+#if defined(NSS_X86_OR_X64)
 #define SHA_ALLOW_UNALIGNED_ACCESS 1
 #endif
 
@@ -160,12 +147,12 @@ static __inline__ PRUint32 swap4b(PRUint32 value)
     SHA_STORE(3); \
     SHA_STORE(4); \
   } else { \
-    ctx->u.w[0] = SHA_HTONL(ctx->H[0]); \
-    ctx->u.w[1] = SHA_HTONL(ctx->H[1]); \
-    ctx->u.w[2] = SHA_HTONL(ctx->H[2]); \
-    ctx->u.w[3] = SHA_HTONL(ctx->H[3]); \
-    ctx->u.w[4] = SHA_HTONL(ctx->H[4]); \
-    memcpy(hashout, ctx->u.w, SHA1_LENGTH); \
+    tmpbuf[0] = SHA_HTONL(ctx->H[0]); \
+    tmpbuf[1] = SHA_HTONL(ctx->H[1]); \
+    tmpbuf[2] = SHA_HTONL(ctx->H[2]); \
+    tmpbuf[3] = SHA_HTONL(ctx->H[3]); \
+    tmpbuf[4] = SHA_HTONL(ctx->H[4]); \
+    memcpy(hashout, tmpbuf, SHA1_LENGTH); \
   }
 
 #else

@@ -1,43 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Interfaces of the CMS implementation.
- *
- * $Id: cms.h,v 1.22 2008/06/14 14:20:31 wtc%google.com Exp $
  */
 
 #ifndef _CMS_H_
@@ -301,6 +267,14 @@ NSS_CMSContentInfo_SetContent_DigestedData(NSSCMSMessage *cmsg, NSSCMSContentInf
 
 extern SECStatus
 NSS_CMSContentInfo_SetContent_EncryptedData(NSSCMSMessage *cmsg, NSSCMSContentInfo *cinfo, NSSCMSEncryptedData *encd);
+
+/*
+ * turn off streaming for this content type.
+ * This could fail with SEC_ERROR_NO_MEMORY in memory constrained conditions.
+ */
+extern SECStatus
+NSS_CMSContentInfo_SetDontStream(NSSCMSContentInfo *cinfo, PRBool dontStream);
+
 
 /*
  * NSS_CMSContentInfo_GetContent - get pointer to inner content
@@ -734,7 +708,7 @@ NSS_CMSSignerInfo_AddSMIMEEncKeyPrefs(NSSCMSSignerInfo *signerinfo, CERTCertific
 
 /*
  * NSS_CMSSignerInfo_AddMSSMIMEEncKeyPrefs - add a SMIMEEncryptionKeyPreferences attribute to the
- * authenticated (i.e. signed) attributes of "signerinfo", using the OID prefered by Microsoft.
+ * authenticated (i.e. signed) attributes of "signerinfo", using the OID preferred by Microsoft.
  *
  * This is expected to be included in outgoing signed messages for email (S/MIME),
  * if compatibility with Microsoft mail clients is wanted.
@@ -1127,6 +1101,51 @@ extern SECStatus
 NSS_CMSDEREncode(NSSCMSMessage *cmsg, SECItem *input, SECItem *derOut, 
                  PLArenaPool *arena);
 
+
+/************************************************************************
+ * 
+ ************************************************************************/
+
+/*
+ *  define new S/MIME content type entries
+ *
+ *  S/MIME uses the builtin PKCS7 oid types for encoding and decoding the
+ *  various S/MIME content. Some applications have their own content type
+ *  which is different from the standard content type defined by S/MIME.
+ *
+ *  This function allows you to register new content types. There are basically
+ *  Two different types of content, Wrappping content, and Data.
+ *
+ *  For data types, All the functions below can be zero or NULL excext 
+ *  type and is isData, which should be your oid tag and PR_FALSE respectively
+ *
+ *  For wrapping types, everything must be provided, or you will get encoder
+ *  failures.
+ *
+ *  If NSS doesn't already define the OID that you need, you can register 
+ *  your own with SECOID_AddEntry.
+ * 
+ *  Once you have defined your new content type, you can pass your new content
+ *  type to NSS_CMSContentInfo_SetContent().
+ * 
+ *  If you are using a wrapping type you can pass your own data structure in 
+ *  the ptr field, but it must contain and embedded NSSCMSGenericWrappingData 
+ *  structure as the first element. The size you pass to 
+ *  NSS_CMSType_RegisterContentType is the total size of your self defined 
+ *  data structure. NSS_CMSContentInfo_GetContent will return that data 
+ *  structure from the content info. Your ASN1Template will be evaluated 
+ *  against that data structure.
+ */
+SECStatus NSS_CMSType_RegisterContentType(SECOidTag type,
+                          SEC_ASN1Template *asn1Template, size_t size,
+                          NSSCMSGenericWrapperDataDestroy  destroy,
+                          NSSCMSGenericWrapperDataCallback decode_before,
+                          NSSCMSGenericWrapperDataCallback decode_after,
+                          NSSCMSGenericWrapperDataCallback decode_end,
+                          NSSCMSGenericWrapperDataCallback encode_start,
+                          NSSCMSGenericWrapperDataCallback encode_before,
+                          NSSCMSGenericWrapperDataCallback encode_after,
+                          PRBool isData);
 
 /************************************************************************/
 SEC_END_PROTOS

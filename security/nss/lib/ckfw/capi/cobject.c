@@ -1,43 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- * Portions created by Red Hat, Inc, are Copyright (C) 2005
- *
- * Contributor(s):
- *   Bob Relyea (rrelyea@redhat.com)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-#ifdef DEBUG
-static const char CVS_ID[] = "@(#) $RCSfile: cobject.c,v $ $Revision: 1.5 $ $Date: 2009/02/25 18:37:49 $";
-#endif /* DEBUG */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "ckcapi.h"
 #include "nssbase.h"
@@ -137,13 +100,13 @@ static const NSSItem ckcapi_emptyItem = {
 /*
  * unwrap a single DER value
  */
-char *
+unsigned char *
 nss_ckcapi_DERUnwrap
 (
-  char *src, 
-  int size, 
-  int *outSize, 
-  char **next
+  unsigned char *src, 
+  unsigned int size, 
+  unsigned int *outSize, 
+  unsigned char **next
 )
 {
   unsigned char *start = src;
@@ -159,11 +122,11 @@ nss_ckcapi_DERUnwrap
   if (size < 2) {
     return start;
   }
-  src ++ ; /* skip the tag -- should check it against an expected value! */
+  src++; /* skip the tag -- should check it against an expected value! */
   len = (unsigned) *src++;
   if (len & 0x80) {
-    int count = len & 0x7f;
-    len =0;
+    unsigned int count = len & 0x7f;
+    len = 0;
 
     if (count+2 > size) {
       return start;
@@ -172,7 +135,7 @@ nss_ckcapi_DERUnwrap
       len = (len << 8) | (unsigned) *src++;
     }
   }
-  if (len + (src-start) > (unsigned int)size) {
+  if (len + (src-start) > size) {
     return start;
   }
   if (next) {
@@ -360,7 +323,8 @@ nss_ckcapi_GetStringAttribute
 }
 
 /*
- * Return the size in bytes of a wide string
+ * Return the size in bytes of a wide string, including the terminating null
+ * character
  */
 int
 nss_ckcapi_WideSize
@@ -374,7 +338,7 @@ nss_ckcapi_WideSize
     return 0;
   }
   size = wcslen(wide)+1;
-  return size*2;
+  return size*sizeof(WCHAR);
 }
 
 /*
@@ -386,7 +350,6 @@ nss_ckcapi_WideToUTF8
   LPCWSTR wide 
 )
 {
-  DWORD len;
   DWORD size;
   char *buf;
 
@@ -394,14 +357,12 @@ nss_ckcapi_WideToUTF8
     return (char *)NULL;
   }
 
-  len = nss_ckcapi_WideSize(wide);
-
-  size = WideCharToMultiByte(CP_UTF8, 0, wide, len, NULL, 0, NULL, 0);
+  size = WideCharToMultiByte(CP_UTF8, 0, wide, -1, NULL, 0, NULL, 0);
   if (size == 0) {
     return (char *)NULL;
   }
   buf = nss_ZNEWARRAY(NULL, char, size);
-  size = WideCharToMultiByte(CP_UTF8, 0, wide, len, buf, size, NULL, 0);
+  size = WideCharToMultiByte(CP_UTF8, 0, wide, -1, buf, size, NULL, 0);
   if (size == 0) {
     nss_ZFreeIf(buf);
     return (char *)NULL;
@@ -418,20 +379,20 @@ nss_ckcapi_WideDup
   LPCWSTR wide
 )
 {
-  DWORD len = nss_ckcapi_WideSize(wide);
+  DWORD len;
   LPWSTR buf;
 
   if ((LPWSTR)NULL == wide) {
     return (LPWSTR)NULL;
   }
 
-  len = nss_ckcapi_WideSize(wide);
+  len = wcslen(wide)+1;
 
-  buf = (LPWSTR) nss_ZNEWARRAY(NULL, char, len);
+  buf = nss_ZNEWARRAY(NULL, WCHAR, len);
   if ((LPWSTR) NULL == buf) {
     return buf;
   }
-  nsslibc_memcpy(buf, wide, len);
+  nsslibc_memcpy(buf, wide, len*sizeof(WCHAR));
   return buf;
 }
 
@@ -445,21 +406,18 @@ nss_ckcapi_UTF8ToWide
 )
 {
   DWORD size;
-  DWORD len = strlen(buf)+1;
   LPWSTR wide;
 
   if ((char *)NULL == buf) {
     return (LPWSTR) NULL;
   }
     
-  len = strlen(buf)+1;
-
-  size = MultiByteToWideChar(CP_UTF8, 0, buf, len, NULL, 0);
+  size = MultiByteToWideChar(CP_UTF8, 0, buf, -1, NULL, 0);
   if (size == 0) {
     return (LPWSTR) NULL;
   }
   wide = nss_ZNEWARRAY(NULL, WCHAR, size);
-  size = MultiByteToWideChar(CP_UTF8, 0, buf, len, wide, size);
+  size = MultiByteToWideChar(CP_UTF8, 0, buf, -1, wide, size);
   if (size == 0) {
     nss_ZFreeIf(wide);
     return (LPWSTR) NULL;
@@ -572,10 +530,12 @@ ckcapi_CertPopulateModulusExponent
 {
   ckcapiKeyParams *kp = &io->u.cert.key;
   PCCERT_CONTEXT certContext = io->u.cert.certContext;
-  char *pkData = certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.pbData;
-  CK_ULONG size= certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.cbData;
-  CK_ULONG newSize;
-  char *ptr, *newptr;
+  unsigned char *pkData =
+      certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.pbData;
+  unsigned int size=
+      certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.cbData;
+  unsigned int newSize;
+  unsigned char *ptr, *newptr;
 
   /* find the start of the modulus -- this will not give good results if
    * the key isn't an rsa key! */
@@ -1420,7 +1380,6 @@ ckcapi_mdObject_Destroy
       goto loser;
     }
     rc = CertDeleteCertificateFromStore(certContext);
-    CertFreeCertificateContext(certContext);
   } else {
     char *provName = NULL;
     char *containerName = NULL;
@@ -2299,7 +2258,7 @@ nss_ckcapi_CreateObject
 )
 {
   CK_OBJECT_CLASS objClass;
-  ckcapiInternalObject *io;
+  ckcapiInternalObject *io = NULL;
   CK_BBOOL isToken;
 
   /*

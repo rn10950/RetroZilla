@@ -1,41 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Stephen Henson <stephen.henson@gemplus.com>
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: keyhi.h,v 1.17 2008/06/14 14:20:00 wtc%google.com Exp $ */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _KEYHI_H_
 #define _KEYHI_H_
@@ -67,17 +32,11 @@ extern SECStatus SECKEY_CopySubjectPublicKeyInfo(PLArenaPool *arena,
 
 /*
 ** Update the PQG parameters for a cert's public key.
-** Only done for DSA and Fortezza certs
+** Only done for DSA certs
 */
 extern SECStatus
 SECKEY_UpdateCertPQG(CERTCertificate * subjectCert);
 
-
-/* Compare the KEA parameters of two public keys.  
- * Only used by fortezza.      */
-
-extern SECStatus
-SECKEY_KEAParamCompare(CERTCertificate *cert1,CERTCertificate *cert2);
 
 /*
 ** Return the strength of the public key in bytes
@@ -136,12 +95,12 @@ SECKEY_CreateSubjectPublicKeyInfo(SECKEYPublicKey *k);
 /*
 ** Decode a DER encoded public key into an SECKEYPublicKey structure.
 */
-extern SECKEYPublicKey *SECKEY_DecodeDERPublicKey(SECItem *pubkder);
+extern SECKEYPublicKey *SECKEY_DecodeDERPublicKey(const SECItem *pubkder);
 
 /*
 ** Convert a base64 ascii encoded DER public key to our internal format.
 */
-extern SECKEYPublicKey *SECKEY_ConvertAndDecodePublicKey(char *pubkstr);
+extern SECKEYPublicKey *SECKEY_ConvertAndDecodePublicKey(const char *pubkstr);
 
 /*
 ** Convert a base64 ascii encoded DER public key and challenge to spki,
@@ -163,21 +122,21 @@ SECKEY_EncodeDERSubjectPublicKeyInfo(SECKEYPublicKey *pubk);
 ** CERTSubjectPublicKeyInfo structure.
 */
 extern CERTSubjectPublicKeyInfo *
-SECKEY_DecodeDERSubjectPublicKeyInfo(SECItem *spkider);
+SECKEY_DecodeDERSubjectPublicKeyInfo(const SECItem *spkider);
 
 /*
 ** Convert a base64 ascii encoded DER subject public key info to our
 ** internal format.
 */
 extern CERTSubjectPublicKeyInfo *
-SECKEY_ConvertAndDecodeSubjectPublicKeyInfo(char *spkistr);
+SECKEY_ConvertAndDecodeSubjectPublicKeyInfo(const char *spkistr);
 
 /*
  * extract the public key from a subject Public Key info structure.
  * (used by JSS).
  */
 extern SECKEYPublicKey *
-SECKEY_ExtractPublicKey(CERTSubjectPublicKeyInfo *);
+SECKEY_ExtractPublicKey(const CERTSubjectPublicKeyInfo *);
 
 /*
 ** Destroy a private key object.
@@ -224,7 +183,7 @@ SECKEY_DestroyEncryptedPrivateKeyInfo(SECKEYEncryptedPrivateKeyInfo *epki,
 extern SECStatus
 SECKEY_CopyPrivateKeyInfo(PLArenaPool *poolp,
 			  SECKEYPrivateKeyInfo *to,
-			  SECKEYPrivateKeyInfo *from);
+			  const SECKEYPrivateKeyInfo *from);
 
 extern SECStatus
 SECKEY_CacheStaticFlags(SECKEYPrivateKey* key);
@@ -240,19 +199,19 @@ SECKEY_CacheStaticFlags(SECKEYPrivateKey* key);
 extern SECStatus
 SECKEY_CopyEncryptedPrivateKeyInfo(PLArenaPool *poolp,
 				   SECKEYEncryptedPrivateKeyInfo *to,
-				   SECKEYEncryptedPrivateKeyInfo *from);
+				   const SECKEYEncryptedPrivateKeyInfo *from);
 /*
  * Accessor functions for key type of public and private keys.
  */
-KeyType SECKEY_GetPrivateKeyType(SECKEYPrivateKey *privKey);
-KeyType SECKEY_GetPublicKeyType(SECKEYPublicKey *pubKey);
+KeyType SECKEY_GetPrivateKeyType(const SECKEYPrivateKey *privKey);
+KeyType SECKEY_GetPublicKeyType(const SECKEYPublicKey *pubKey);
 
 /*
  * Creates a PublicKey from its DER encoding.
  * Currently only supports RSA and DSA keys.
  */
 SECKEYPublicKey*
-SECKEY_ImportDERPublicKey(SECItem *derKey, CK_KEY_TYPE type);
+SECKEY_ImportDERPublicKey(const SECItem *derKey, CK_KEY_TYPE type);
 
 SECKEYPrivateKeyList*
 SECKEY_NewPrivateKeyList(void);

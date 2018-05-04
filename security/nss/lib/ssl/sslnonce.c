@@ -1,42 +1,9 @@
 /* 
  * This file implements the CLIENT Session ID cache.  
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslnonce.c,v 1.25 2008/03/10 00:01:28 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "cert.h"
 #include "pk11pub.h"
@@ -47,7 +14,7 @@
 #include "sslimpl.h"
 #include "sslproto.h"
 #include "nssilock.h"
-#if (defined(XP_UNIX) || defined(XP_WIN) || defined(_WINDOWS) || defined(XP_BEOS)) && !defined(_WIN32_WCE)
+#if defined(XP_UNIX) || defined(XP_WIN) || defined(_WINDOWS) || defined(XP_BEOS)
 #include <time.h>
 #endif
 
@@ -198,15 +165,26 @@ static void
 ssl_DestroySID(sslSessionID *sid)
 {
     SSL_TRC(8, ("SSL: destroy sid: sid=0x%x cached=%d", sid, sid->cached));
-    PORT_Assert((sid->references == 0));
-
-    if (sid->cached == in_client_cache)
-    	return;	/* it will get taken care of next time cache is traversed. */
+    PORT_Assert(sid->references == 0);
+    PORT_Assert(sid->cached != in_client_cache);
 
     if (sid->version < SSL_LIBRARY_VERSION_3_0) {
 	SECITEM_ZfreeItem(&sid->u.ssl2.masterKey, PR_FALSE);
 	SECITEM_ZfreeItem(&sid->u.ssl2.cipherArg, PR_FALSE);
+    } else {
+        if (sid->u.ssl3.locked.sessionTicket.ticket.data) {
+            SECITEM_FreeItem(&sid->u.ssl3.locked.sessionTicket.ticket,
+                             PR_FALSE);
+        }
+        if (sid->u.ssl3.srvName.data) {
+            SECITEM_FreeItem(&sid->u.ssl3.srvName, PR_FALSE);
+        }
+
+        if (sid->u.ssl3.lock) {
+            PR_DestroyRWLock(sid->u.ssl3.lock);
+        }
     }
+
     if (sid->peerID != NULL)
 	PORT_Free((void *)sid->peerID);		/* CONST */
 
@@ -216,11 +194,12 @@ ssl_DestroySID(sslSessionID *sid)
     if ( sid->peerCert ) {
 	CERT_DestroyCertificate(sid->peerCert);
     }
+    if (sid->peerCertStatus.items) {
+        SECITEM_FreeArray(&sid->peerCertStatus, PR_FALSE);
+    }
+
     if ( sid->localCert ) {
 	CERT_DestroyCertificate(sid->localCert);
-    }
-    if (sid->u.ssl3.sessionTicket.ticket.data) {
-	SECITEM_FreeItem(&sid->u.ssl3.sessionTicket.ticket, PR_FALSE);
     }
     
     PORT_ZFree(sid, sizeof(sslSessionID));
@@ -283,9 +262,9 @@ ssl_LookupSID(const PRIPv6Addr *addr, PRUint16 port, const char *peerID,
 
 	SSL_TRC(8, ("SSL: Lookup1: sid=0x%x", sid));
 
-	if (sid->expirationTime < now || !sid->references) {
+	if (sid->expirationTime < now) {
 	    /*
-	    ** This session-id timed out, or was orphaned.
+	    ** This session-id timed out.
 	    ** Don't even care who it belongs to, blow it out of our cache.
 	    */
 	    SSL_TRC(7, ("SSL: lookup1, throwing sid out, age=%d refs=%d",
@@ -293,11 +272,7 @@ ssl_LookupSID(const PRIPv6Addr *addr, PRUint16 port, const char *peerID,
 
 	    *sidp = sid->next; 			/* delink it from the list. */
 	    sid->cached = invalid_cache;	/* mark not on list. */
-	    if (!sid->references)
-	    	ssl_DestroySID(sid);
-	    else
-		ssl_FreeLockedSID(sid);		/* drop ref count, free. */
-
+	    ssl_FreeLockedSID(sid);		/* drop ref count, free. */
 	} else if (!memcmp(&sid->addr, addr, sizeof(PRIPv6Addr)) && /* server IP addr matches */
 	           (sid->port == port) && /* server port matches */
 		   /* proxy (peerID) matches */
@@ -333,15 +308,15 @@ static void
 CacheSID(sslSessionID *sid)
 {
     PRUint32  expirationPeriod;
+
+    PORT_Assert(sid->cached == never_cached);
+
     SSL_TRC(8, ("SSL: Cache: sid=0x%x cached=%d addr=0x%08x%08x%08x%08x port=0x%04x "
 		"time=%x cached=%d",
 		sid, sid->cached, sid->addr.pr_s6_addr32[0], 
 		sid->addr.pr_s6_addr32[1], sid->addr.pr_s6_addr32[2],
 		sid->addr.pr_s6_addr32[3],  sid->port, sid->creationTime,
 		sid->cached));
-
-    if (sid->cached == in_client_cache)
-	return;
 
     if (!sid->urlSvrName) {
         /* don't cache this SID because it can never be matched */
@@ -359,8 +334,9 @@ CacheSID(sslSessionID *sid)
 		  sid->u.ssl2.cipherArg.data, sid->u.ssl2.cipherArg.len));
     } else {
 	if (sid->u.ssl3.sessionIDLength == 0 &&
-	    sid->u.ssl3.sessionTicket.ticket.data == NULL)
+	    sid->u.ssl3.locked.sessionTicket.ticket.data == NULL)
 	    return;
+
 	/* Client generates the SessionID if this was a stateless resume. */
 	if (sid->u.ssl3.sessionIDLength == 0) {
 	    SECStatus rv;
@@ -373,6 +349,11 @@ CacheSID(sslSessionID *sid)
 	expirationPeriod = ssl3_sid_timeout;
 	PRINT_BUF(8, (0, "sessionID:",
 		      sid->u.ssl3.sessionID, sid->u.ssl3.sessionIDLength));
+
+	sid->u.ssl3.lock = PR_NewRWLock(PR_RWLOCK_RANK_NONE, NULL);
+	if (!sid->u.ssl3.lock) {
+	    return;
+	}
     }
     PORT_Assert(sid->creationTime != 0 && sid->expirationTime != 0);
     if (!sid->creationTime)
@@ -481,7 +462,7 @@ PRUint32
 ssl_Time(void)
 {
     PRUint32 myTime;
-#if (defined(XP_UNIX) || defined(XP_WIN) || defined(_WINDOWS) || defined(XP_BEOS)) && !defined(_WIN32_WCE)
+#if defined(XP_UNIX) || defined(XP_WIN) || defined(_WINDOWS) || defined(XP_BEOS)
     myTime = time(NULL);	/* accurate until the year 2038. */
 #else
     /* portable, but possibly slower */
@@ -496,35 +477,38 @@ ssl_Time(void)
     return myTime;
 }
 
-SECStatus
-ssl3_SetSIDSessionTicket(sslSessionID *sid, NewSessionTicket *session_ticket)
+void
+ssl3_SetSIDSessionTicket(sslSessionID *sid,
+                         /*in/out*/ NewSessionTicket *newSessionTicket)
 {
-    SECStatus rv;
+    PORT_Assert(sid);
+    PORT_Assert(newSessionTicket);
 
-    /* We need to lock the cache, as this sid might already be in the cache. */
-    LOCK_CACHE;
-
-    /* A server might have sent us an empty ticket, which has the
-     * effect of clearing the previously known ticket.
+    /* if sid->u.ssl3.lock, we are updating an existing entry that is already
+     * cached or was once cached, so we need to acquire and release the write
+     * lock. Otherwise, this is a new session that isn't shared with anything
+     * yet, so no locking is needed.
      */
-    if (sid->u.ssl3.sessionTicket.ticket.data)
-	SECITEM_FreeItem(&sid->u.ssl3.sessionTicket.ticket, PR_FALSE);
-    if (session_ticket->ticket.len > 0) {
-	rv = SECITEM_CopyItem(NULL, &sid->u.ssl3.sessionTicket.ticket,
-	    &session_ticket->ticket);
-	if (rv != SECSuccess) {
-	    UNLOCK_CACHE;
-	    return rv;
-	}
-    } else {
-	sid->u.ssl3.sessionTicket.ticket.data = NULL;
-	sid->u.ssl3.sessionTicket.ticket.len = 0;
-    }
-    sid->u.ssl3.sessionTicket.received_timestamp =
-	session_ticket->received_timestamp;
-    sid->u.ssl3.sessionTicket.ticket_lifetime_hint =
-	session_ticket->ticket_lifetime_hint;
+    if (sid->u.ssl3.lock) {
+	PR_RWLock_Wlock(sid->u.ssl3.lock);
 
-    UNLOCK_CACHE;
-    return SECSuccess;
+	/* A server might have sent us an empty ticket, which has the
+	 * effect of clearing the previously known ticket.
+	 */
+	if (sid->u.ssl3.locked.sessionTicket.ticket.data) {
+	    SECITEM_FreeItem(&sid->u.ssl3.locked.sessionTicket.ticket,
+			     PR_FALSE);
+	}
+    }
+
+    PORT_Assert(!sid->u.ssl3.locked.sessionTicket.ticket.data);
+
+    /* Do a shallow copy, moving the ticket data. */
+    sid->u.ssl3.locked.sessionTicket = *newSessionTicket;
+    newSessionTicket->ticket.data = NULL;
+    newSessionTicket->ticket.len = 0;
+
+    if (sid->u.ssl3.lock) {
+	PR_RWLock_Unlock(sid->u.ssl3.lock);
+    }
 }

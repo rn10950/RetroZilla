@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   RSA Labs
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * Copyright (C) 1994-1999 RSA Security Inc. Licence to copy this document
  * is granted provided that it is identified as "RSA Security In.c Public-Key
@@ -74,12 +41,6 @@ extern "C" {
  *
  * #pragma pack(pop, cryptoki)
  *
- * In a Win16 environment, this might be done by using the
- * following preprocessor directive before including pkcs11.h
- * or pkcs11t.h:
- *
- * #pragma pack(1)
- *
  * In a UNIX environment, you're on your own here.  You might
  * not need to do anything.
  *
@@ -95,10 +56,6 @@ extern "C" {
  * In a Win32 environment, it might be defined by
  *
  * #define CK_PTR *
- *
- * In a Win16 environment, it might be defined by
- *
- * #define CK_PTR far *
  *
  * In a UNIX environment, it might be defined by
  *
@@ -124,12 +81,6 @@ extern "C" {
  * #define CK_DEFINE_FUNCTION(returnType, name) \
  *   returnType __declspec(dllexport) name
  *
- * For defining a function in a Win16 PKCS #11 .dll, it might be
- * defined by
- *
- * #define CK_DEFINE_FUNCTION(returnType, name) \
- *   returnType __export _far _pascal name
- *
  * In a UNIX environment, it might be defined by
  *
  * #define CK_DEFINE_FUNCTION(returnType, name) \
@@ -150,12 +101,6 @@ extern "C" {
  *
  * #define CK_DECLARE_FUNCTION(returnType, name) \
  *   returnType __declspec(dllimport) name
- *
- * For declaring a function in a Win16 PKCS #11 .dll, it might
- * be defined by
- *
- * #define CK_DECLARE_FUNCTION(returnType, name) \
- *   returnType __export _far _pascal name
  *
  * In a UNIX environment, it might be defined by
  *
@@ -187,12 +132,6 @@ extern "C" {
  * #define CK_DECLARE_FUNCTION_POINTER(returnType, name) \
  *   returnType __declspec(dllimport) (* name)
  *
- * For accessing functions in a Win16 PKCS #11 .dll, it might be
- * defined by
- *
- * #define CK_DECLARE_FUNCTION_POINTER(returnType, name) \
- *   returnType __export _far _pascal (* name)
- *
  * In a UNIX environment, it might be defined by
  *
  * #define CK_DECLARE_FUNCTION_POINTER(returnType, name) \
@@ -217,11 +156,6 @@ extern "C" {
  *
  * #define CK_CALLBACK_FUNCTION(returnType, name) \
  *   returnType (* name)
- *
- * In a Win16 environment, it might be defined by
- *
- * #define CK_CALLBACK_FUNCTION(returnType, name) \
- *   returnType _far _pascal (* name)
  *
  * In a UNIX environment, it might be defined by
  *

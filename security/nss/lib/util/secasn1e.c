@@ -1,44 +1,10 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Support for ENcoding ASN.1 data based on BER/DER (Basic/Distinguished
  * Encoding Rules).
- *
- * $Id: secasn1e.c,v 1.21 2006/04/07 11:41:18 kaie%kuix.de Exp $
  */
 
 #include "secasn1.h"
@@ -105,7 +71,7 @@ typedef struct sec_asn1e_state_struct {
  * it is passed to SEC_ASN1EncoderFinish().
  */
 struct sec_EncoderContext_struct {
-    PRArenaPool *our_pool;		/* for our internal allocs */
+    PLArenaPool *our_pool;		/* for our internal allocs */
 
     sec_asn1e_state *current;
     sec_asn1e_parse_status status;
@@ -1342,7 +1308,7 @@ SEC_ASN1EncoderContext *
 SEC_ASN1EncoderStart (const void *src, const SEC_ASN1Template *theTemplate,
 		      SEC_ASN1WriteProc output_proc, void *output_arg)
 {
-    PRArenaPool *our_pool;
+    PLArenaPool *our_pool;
     SEC_ASN1EncoderContext *cx;
 
     our_pool = PORT_NewArena (SEC_ASN1_DEFAULT_ARENA_SIZE);
@@ -1511,7 +1477,7 @@ sec_asn1e_encode_item_store (void *arg, const char *buf, unsigned long len,
  * XXX This seems like a reasonable general-purpose function (for SECITEM_)?
  */
 static SECItem *
-sec_asn1e_allocate_item (PRArenaPool *poolp, SECItem *dest, unsigned long len)
+sec_asn1e_allocate_item (PLArenaPool *poolp, SECItem *dest, unsigned long len)
 {
     if (poolp != NULL) {
 	void *release;
@@ -1554,7 +1520,7 @@ sec_asn1e_allocate_item (PRArenaPool *poolp, SECItem *dest, unsigned long len)
 
 
 SECItem *
-SEC_ASN1EncodeItem (PRArenaPool *poolp, SECItem *dest, const void *src,
+SEC_ASN1EncodeItem (PLArenaPool *poolp, SECItem *dest, const void *src,
 		    const SEC_ASN1Template *theTemplate)
 {
     unsigned long encoding_length;
@@ -1586,8 +1552,8 @@ SEC_ASN1EncodeItem (PRArenaPool *poolp, SECItem *dest, const void *src,
 
 
 static SECItem *
-sec_asn1e_integer(PRArenaPool *poolp, SECItem *dest, unsigned long value,
-		  PRBool make_unsigned)
+sec_asn1e_integer(PLArenaPool *poolp, SECItem *dest, unsigned long value,
+		  PRBool is_unsigned)
 {
     unsigned long copy;
     unsigned char sign;
@@ -1604,11 +1570,11 @@ sec_asn1e_integer(PRArenaPool *poolp, SECItem *dest, unsigned long value,
     } while (copy);
 
     /*
-     * If this is an unsigned encoding, and the high bit of the last
+     * If 'value' is non-negative, and the high bit of the last
      * byte we counted was set, we need to add one to the length so
      * we put a high-order zero byte in the encoding.
      */
-    if (sign && make_unsigned)
+    if (sign && (is_unsigned || (long)value >= 0))
 	len++;
 
     /*
@@ -1633,14 +1599,14 @@ sec_asn1e_integer(PRArenaPool *poolp, SECItem *dest, unsigned long value,
 
 
 SECItem *
-SEC_ASN1EncodeInteger(PRArenaPool *poolp, SECItem *dest, long value)
+SEC_ASN1EncodeInteger(PLArenaPool *poolp, SECItem *dest, long value)
 {
     return sec_asn1e_integer (poolp, dest, (unsigned long) value, PR_FALSE);
 }
 
 
 SECItem *
-SEC_ASN1EncodeUnsignedInteger(PRArenaPool *poolp,
+SEC_ASN1EncodeUnsignedInteger(PLArenaPool *poolp,
 			      SECItem *dest, unsigned long value)
 {
     return sec_asn1e_integer (poolp, dest, value, PR_TRUE);

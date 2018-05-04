@@ -1,43 +1,9 @@
 /*
  * This file contains prototypes for the public SSL functions.
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: sslt.h,v 1.12 2008/12/17 06:09:19 nelson%bolyard.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef __sslt_h_
 #define __sslt_h_
@@ -112,9 +78,10 @@ typedef enum {
     ssl_calg_3des     = 4,
     ssl_calg_idea     = 5,
     ssl_calg_fortezza = 6,      /* deprecated, now unused */
-    ssl_calg_aes      = 7,      /* coming soon */
+    ssl_calg_aes      = 7,
     ssl_calg_camellia = 8,
-    ssl_calg_seed     = 9
+    ssl_calg_seed     = 9,
+    ssl_calg_aes_gcm  = 10
 } SSLCipherAlgorithm;
 
 typedef enum { 
@@ -122,8 +89,15 @@ typedef enum {
     ssl_mac_md5       = 1, 
     ssl_mac_sha       = 2, 
     ssl_hmac_md5      = 3, 	/* TLS HMAC version of mac_md5 */
-    ssl_hmac_sha      = 4 	/* TLS HMAC version of mac_sha */
+    ssl_hmac_sha      = 4, 	/* TLS HMAC version of mac_sha */
+    ssl_hmac_sha256   = 5,
+    ssl_mac_aead      = 6
 } SSLMACAlgorithm;
+
+typedef enum {
+    ssl_compression_null = 0,
+    ssl_compression_deflate = 1  /* RFC 3749 */
+} SSLCompressionMethod;
 
 typedef struct SSLChannelInfoStr {
     PRUint32             length;
@@ -142,6 +116,12 @@ typedef struct SSLChannelInfoStr {
     PRUint32             expirationTime;	/* seconds since Jan 1, 1970 */
     PRUint32             sessionIDLength;	/* up to 32 */
     PRUint8              sessionID    [32];
+
+    /* The following fields are added in NSS 3.12.5. */
+
+    /* compression method info */
+    const char *         compressionMethodName;
+    SSLCompressionMethod compressionMethod;
 } SSLChannelInfo;
 
 typedef struct SSLCipherSuiteInfoStr {
@@ -167,6 +147,9 @@ typedef struct SSLCipherSuiteInfoStr {
     PRUint16             effectiveKeyBits;
 
     /* MAC info */
+    /* AEAD ciphers don't have a MAC. For an AEAD cipher, macAlgorithmName
+     * is "AEAD", macAlgorithm is ssl_mac_aead, and macBits is the length in
+     * bits of the authentication tag. */
     const char *         macAlgorithmName;
     SSLMACAlgorithm      macAlgorithm;
     PRUint16             macBits;
@@ -177,5 +160,40 @@ typedef struct SSLCipherSuiteInfoStr {
     PRUintn              reservedBits :29;
 
 } SSLCipherSuiteInfo;
+
+typedef enum {
+    ssl_variant_stream = 0,
+    ssl_variant_datagram = 1
+} SSLProtocolVariant;
+
+typedef struct SSLVersionRangeStr {
+    PRUint16 min;
+    PRUint16 max;
+} SSLVersionRange;
+
+typedef enum {
+    SSL_sni_host_name                    = 0,
+    SSL_sni_type_total
+} SSLSniNameType;
+
+/* Supported extensions. */
+/* Update SSL_MAX_EXTENSIONS whenever a new extension type is added. */
+typedef enum {
+    ssl_server_name_xtn              = 0,
+    ssl_cert_status_xtn              = 5,
+#ifdef NSS_ENABLE_ECC
+    ssl_elliptic_curves_xtn          = 10,
+    ssl_ec_point_formats_xtn         = 11,
+#endif
+    ssl_signature_algorithms_xtn     = 13,
+    ssl_use_srtp_xtn                 = 14,
+    ssl_app_layer_protocol_xtn       = 16,
+    ssl_session_ticket_xtn           = 35,
+    ssl_next_proto_nego_xtn          = 13172,
+    ssl_padding_xtn                  = 35655,
+    ssl_renegotiation_info_xtn       = 0xff01	/* experimental number */
+} SSLExtensionType;
+
+#define SSL_MAX_EXTENSIONS             10 /* doesn't include ssl_padding_xtn. */
 
 #endif /* __sslt_h_ */

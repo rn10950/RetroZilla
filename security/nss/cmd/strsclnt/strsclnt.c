@@ -1,51 +1,18 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include <stdio.h>
 #include <string.h>
 
 #include "secutil.h"
+#include "basicutil.h"
 
 #if defined(XP_UNIX)
 #include <unistd.h>
 #endif
 #include <stdlib.h>
-#if !defined(_WIN32_WCE)
 #include <errno.h>
 #include <fcntl.h>
-#endif
 #include <stdarg.h>
 
 #include "plgetopt.h"
@@ -154,17 +121,21 @@ static PRInt32 numUsed;
 static SSL3Statistics * ssl3stats;
 
 static int failed_already = 0;
-static PRBool disableSSL2     = PR_FALSE;
-static PRBool disableSSL3     = PR_FALSE;
-static PRBool disableTLS      = PR_FALSE;
+static SSLVersionRange enabledVersions;
+static PRBool enableSSL2      = PR_TRUE;
 static PRBool bypassPKCS11    = PR_FALSE;
 static PRBool disableLocking  = PR_FALSE;
 static PRBool ignoreErrors    = PR_FALSE;
 static PRBool enableSessionTickets = PR_FALSE;
+static PRBool enableCompression    = PR_FALSE;
+static PRBool enableFalseStart     = PR_FALSE;
+static PRBool enableCertStatus     = PR_FALSE;
 
 PRIntervalTime maxInterval    = PR_INTERVAL_NO_TIMEOUT;
 
 char * progName;
+
+secuPWData pwdata = { PW_NONE, 0 };
 
 int	stopping;
 int	verbose;
@@ -178,9 +149,9 @@ Usage(const char *progName)
 {
     fprintf(stderr, 
     	"Usage: %s [-n nickname] [-p port] [-d dbdir] [-c connections]\n"
- 	"          [-23BDNTovqs] [-f filename] [-N | -P percentage]\n"
-	"          [-w dbpasswd] [-C cipher(s)] [-t threads] hostname\n"
-        "          [-W pwfile]\n"
+ 	"          [-BDNovqs] [-f filename] [-N | -P percentage]\n"
+	"          [-w dbpasswd] [-C cipher(s)] [-t threads] [-W pwfile]\n"
+        "          [-V [min-version]:[max-version]] [-a sniHostName] hostname\n"
 	" where -v means verbose\n"
         "       -o flag is interpreted as follows:\n"
         "          1 -o   means override the result of server certificate validation.\n"
@@ -190,12 +161,16 @@ Usage(const char *progName)
 	"       -s means disable SSL socket locking\n"
 	"       -N means no session reuse\n"
 	"       -P means do a specified percentage of full handshakes (0-100)\n"
-        "       -2 means disable SSL2\n"
-        "       -3 means disable SSL3\n"
-        "       -T means disable TLS\n"
+        "       -V [min]:[max] restricts the set of enabled SSL/TLS protocols versions.\n"
+        "          All versions are enabled by default.\n"
+        "          Possible values for min/max: ssl2 ssl3 tls1.0 tls1.1 tls1.2\n"
+        "          Example: \"-V ssl3:\" enables SSL 3 and newer.\n"
         "       -U means enable throttling up threads\n"
 	"       -B bypasses the PKCS11 layer for SSL encryption and MACing\n"
-	"       -u enable TLS Session Ticket extension\n",
+	"       -T enable the cert_status extension (OCSP stapling)\n"
+	"       -u enable TLS Session Ticket extension\n"
+	"       -z enable compression\n"
+	"       -g enable false start\n",
 	progName);
     exit(1);
 }
@@ -205,10 +180,11 @@ static void
 errWarn(char * funcString)
 {
     PRErrorCode  perr      = PR_GetError();
+    PRInt32      oserr     = PR_GetOSError();
     const char * errString = SECU_Strerror(perr);
 
-    fprintf(stderr, "strsclnt: %s returned error %d:\n%s\n",
-            funcString, perr, errString);
+    fprintf(stderr, "strsclnt: %s returned error %d, OS error %d: %s\n",
+            funcString, perr, oserr, errString);
 }
 
 static void
@@ -227,8 +203,8 @@ errExit(char * funcString)
 void
 disableAllSSLCiphers(void)
 {
-    const PRUint16 *cipherSuites = SSL_ImplementedCiphers;
-    int             i            = SSL_NumImplementedCiphers;
+    const PRUint16 *cipherSuites = SSL_GetImplementedCiphers();
+    int             i            = SSL_GetNumImplementedCiphers();
     SECStatus       rv;
 
     /* disable all the SSL3 cipher suites */
@@ -253,6 +229,7 @@ mySSLAuthCertificate(void *arg, PRFileDesc *fd, PRBool checkSig,
 {
     SECStatus rv;
     CERTCertificate *    peerCert;
+    const SECItemArray *csa;
 
     if (MakeCertOK>=2) {
         return SECSuccess;
@@ -261,10 +238,15 @@ mySSLAuthCertificate(void *arg, PRFileDesc *fd, PRBool checkSig,
 
     PRINTF("strsclnt: Subject: %s\nstrsclnt: Issuer : %s\n", 
            peerCert->subjectName, peerCert->issuerName); 
+    csa = SSL_PeerStapledOCSPResponses(fd);
+    if (csa) {
+        PRINTF("Received %d Cert Status items (OCSP stapled data)\n",
+               csa->len);
+    }
     /* invoke the "default" AuthCert handler. */
     rv = SSL_AuthCertificate(arg, fd, checkSig, isServer);
 
-    PR_AtomicIncrement(&certsTested);
+    PR_ATOMIC_INCREMENT(&certsTested);
     if (rv == SECSuccess) {
 	fputs("strsclnt: -- SSL: Server Certificate Validated.\n", stderr);
     }
@@ -276,7 +258,7 @@ mySSLAuthCertificate(void *arg, PRFileDesc *fd, PRBool checkSig,
 static SECStatus
 myBadCertHandler( void *arg, PRFileDesc *fd)
 {
-    int err = PR_GetError();
+    PRErrorCode err = PR_GetError();
     if (!MakeCertOK)
 	fprintf(stderr, 
 	    "strsclnt: -- SSL: Server Certificate Invalid, err %d.\n%s\n", 
@@ -312,9 +294,11 @@ printSecurityInfo(PRFileDesc *fd)
 	       suite.effectiveKeyBits, suite.symCipherName, 
 	       suite.macBits, suite.macAlgorithmName);
 	    FPRINTF(stderr, 
-	    "strsclnt: Server Auth: %d-bit %s, Key Exchange: %d-bit %s\n",
+	    "strsclnt: Server Auth: %d-bit %s, Key Exchange: %d-bit %s\n"
+	    "          Compression: %s\n",
 	       channel.authKeyBits, suite.authAlgorithmName,
-	       channel.keaKeyBits,  suite.keaTypeName);
+	       channel.keaKeyBits,  suite.keaTypeName,
+	       channel.compressionMethodName);
     	}
     }
 
@@ -728,7 +712,7 @@ PRInt32 lastFullHandshakePeerID;
 void
 myHandshakeCallback(PRFileDesc *socket, void *arg) 
 {
-    PR_AtomicSet(&lastFullHandshakePeerID, (PRInt32) arg);
+    PR_ATOMIC_SET(&lastFullHandshakePeerID, (PRInt32) arg);
 }
 
 #endif
@@ -782,11 +766,13 @@ retry:
     prStatus = PR_Connect(tcp_sock, addr, PR_INTERVAL_NO_TIMEOUT);
     if (prStatus != PR_SUCCESS) {
         PRErrorCode err = PR_GetError(); /* save error code */
+        PRInt32 oserr = PR_GetOSError();
         if (ThrottleUp) {
             PRTime now = PR_Now();
             PR_Lock(threadLock);
             lastConnectFailure = PR_MAX(now, lastConnectFailure);
             PR_Unlock(threadLock);
+            PR_SetError(err, oserr); /* restore error code */
         }
         if ((err == PR_CONNECT_REFUSED_ERROR) || 
 	    (err == PR_CONNECT_RESET_ERROR)      ) {
@@ -834,7 +820,7 @@ retry:
         static PRInt32 sockPeerID = 0; /* atomically incremented */
         PRInt32 thisPeerID;
 #endif
-        PRInt32 savid = PR_AtomicIncrement(&globalconid);
+        PRInt32 savid = PR_ATOMIC_INCREMENT(&globalconid);
         PRInt32 conid = 1 + (savid - 1) % 100;
         /* don't change peer ID on the very first handshake, which is always
            a full, so the session gets stored into the client cache */
@@ -845,7 +831,7 @@ retry:
 #ifdef USE_SOCK_PEER_ID
         {
             /* force a full handshake by changing the socket peer ID */
-            thisPeerID = PR_AtomicIncrement(&sockPeerID);
+            thisPeerID = PR_ATOMIC_INCREMENT(&sockPeerID);
         } else {
             /* reuse previous sockPeerID for restart handhsake */
             thisPeerID = lastFullHandshakePeerID;
@@ -865,7 +851,7 @@ retry:
 	goto done;
     }
 
-    PR_AtomicIncrement(&numConnected);
+    PR_ATOMIC_INCREMENT(&numConnected);
 
     if (bigBuf.data != NULL) {
 	result = handle_fdx_connection( ssl_sock, tid);
@@ -873,7 +859,7 @@ retry:
 	result = handle_connection( ssl_sock, tid);
     }
 
-    PR_AtomicDecrement(&numConnected);
+    PR_ATOMIC_DECREMENT(&numConnected);
 
 done:
     if (ssl_sock) {
@@ -1074,7 +1060,8 @@ client_main(
     unsigned short      port, 
     int                 connections,
     cert_and_key* Cert_And_Key,
-    const char *	hostName)
+    const char *	hostName,
+    const char *	sniHostName)
 {
     PRFileDesc *model_sock	= NULL;
     int         i;
@@ -1178,25 +1165,24 @@ client_main(
     /* do SSL configuration. */
 
     rv = SSL_OptionSet(model_sock, SSL_SECURITY,
-        !(disableSSL2 && disableSSL3 && disableTLS));
+                       enableSSL2 || enabledVersions.min != 0);
     if (rv < 0) {
 	errExit("SSL_OptionSet SSL_SECURITY");
     }
 
-    /* disabling SSL2 compatible hellos also disables SSL2 */
-    rv = SSL_OptionSet(model_sock, SSL_V2_COMPATIBLE_HELLO, !disableSSL2);
+    rv = SSL_VersionRangeSet(model_sock, &enabledVersions);
     if (rv != SECSuccess) {
-	errExit("error enabling SSLv2 compatible hellos ");
+        errExit("error setting SSL/TLS version range ");
     }
 
-    rv = SSL_OptionSet(model_sock, SSL_ENABLE_SSL3, !disableSSL3);
+    rv = SSL_OptionSet(model_sock, SSL_ENABLE_SSL2, enableSSL2);
     if (rv != SECSuccess) {
-	errExit("error enabling SSLv3 ");
+       errExit("error enabling SSLv2 ");
     }
 
-    rv = SSL_OptionSet(model_sock, SSL_ENABLE_TLS, !disableTLS);
+    rv = SSL_OptionSet(model_sock, SSL_V2_COMPATIBLE_HELLO, enableSSL2);
     if (rv != SECSuccess) {
-	errExit("error enabling TLS ");
+        errExit("error enabling SSLv2 compatible hellos ");
     }
 
     if (bigBuf.data) { /* doing FDX */
@@ -1233,6 +1219,26 @@ client_main(
 	    errExit("SSL_OptionSet SSL_ENABLE_SESSION_TICKETS");
     }
 
+    if (enableCompression) {
+	rv = SSL_OptionSet(model_sock, SSL_ENABLE_DEFLATE, PR_TRUE);
+	if (rv != SECSuccess)
+	    errExit("SSL_OptionSet SSL_ENABLE_DEFLATE");
+    }
+
+    if (enableFalseStart) {
+	rv = SSL_OptionSet(model_sock, SSL_ENABLE_FALSE_START, PR_TRUE);
+	if (rv != SECSuccess)
+	    errExit("SSL_OptionSet SSL_ENABLE_FALSE_START");
+    }
+
+    if (enableCertStatus) {
+	rv = SSL_OptionSet(model_sock, SSL_ENABLE_OCSP_STAPLING, PR_TRUE);
+	if (rv != SECSuccess)
+	    errExit("SSL_OptionSet SSL_ENABLE_OCSP_STAPLING");
+    }
+
+    SSL_SetPKCS11PinArg(model_sock, &pwdata);
+
     SSL_SetURL(model_sock, hostName);
 
     SSL_AuthCertificateHook(model_sock, mySSLAuthCertificate, 
@@ -1241,6 +1247,9 @@ client_main(
 
     SSL_GetClientAuthDataHook(model_sock, StressClient_GetClientAuthData, (void*)Cert_And_Key);
 
+    if (sniHostName) {
+        SSL_SetURL(model_sock, sniHostName);
+    }
     /* I'm not going to set the HandshakeCallback function. */
 
     /* end of ssl configuration. */
@@ -1326,11 +1335,12 @@ main(int argc, char **argv)
     SECStatus            rv;
     PLOptState *         optstate;
     PLOptStatus          status;
-    cert_and_key Cert_And_Key;
-    secuPWData  pwdata          = { PW_NONE, 0 };
+    cert_and_key         Cert_And_Key;
+    char *               sniHostName = NULL;
 
     /* Call the NSPR initialization routines */
     PR_Init( PR_SYSTEM_THREAD, PR_PRIORITY_NORMAL, 1);
+    SSL_VersionRangeGetSupported(ssl_variant_stream, &enabledVersions);
 
     tmp      = strrchr(argv[0], '/');
     tmp      = tmp ? tmp + 1 : argv[0];
@@ -1338,33 +1348,42 @@ main(int argc, char **argv)
     progName = progName ? progName + 1 : tmp;
  
 
-    optstate = PL_CreateOptState(argc, argv, "23BC:DNP:TUW:c:d:f:in:op:qst:uvw:");
+    optstate = PL_CreateOptState(argc, argv,
+                                 "BC:DNP:TUV:W:a:c:d:f:gin:op:qst:uvw:z");
     while ((status = PL_GetNextOpt(optstate)) == PL_OPT_OK) {
 	switch(optstate->option) {
-
-	case '2': disableSSL2 = PR_TRUE; break;
-
-	case '3': disableSSL3 = PR_TRUE; break;
-
 	case 'B': bypassPKCS11 = PR_TRUE; break;
 
 	case 'C': cipherString = optstate->value; break;
 
 	case 'D': NoDelay = PR_TRUE; break;
 
+	case 'I': /* reserved for OCSP multi-stapling */ break;
+
 	case 'N': NoReuse = 1; break;
         
 	case 'P': fullhs = PORT_Atoi(optstate->value); break;
 
-	case 'T': disableTLS = PR_TRUE; break;
-            
+	case 'T': enableCertStatus = PR_TRUE; break;
+
 	case 'U': ThrottleUp = PR_TRUE; break;
+        
+        case 'V': if (SECU_ParseSSLVersionRangeString(optstate->value,
+                          enabledVersions, enableSSL2,
+                          &enabledVersions, &enableSSL2) != SECSuccess) {
+                      Usage(progName);
+                  }
+                  break;
+
+	case 'a': sniHostName = PL_strdup(optstate->value); break;
 
 	case 'c': connections = PORT_Atoi(optstate->value); break;
 
 	case 'd': dir = optstate->value; break;
 
 	case 'f': fileName = optstate->value; break;
+
+	case 'g': enableFalseStart = PR_TRUE; break;
 
 	case 'i': ignoreErrors = PR_TRUE; break;
 
@@ -1397,6 +1416,8 @@ main(int argc, char **argv)
             pwdata.source = PW_FROMFILE;
             pwdata.data = PL_strdup(optstate->value);
             break;
+
+	case 'z': enableCompression = PR_TRUE; break;
 
 	case 0:   /* positional parameter */
 	    if (hostName) {
@@ -1464,7 +1485,8 @@ main(int argc, char **argv)
 
     }
 
-    client_main(port, connections, &Cert_And_Key, hostName);
+    client_main(port, connections, &Cert_And_Key, hostName,
+                sniHostName);
 
     /* clean up */
     if (Cert_And_Key.cert) {
@@ -1481,6 +1503,9 @@ main(int argc, char **argv)
     }
     if (Cert_And_Key.nickname) {
         PL_strfree(Cert_And_Key.nickname);
+    }
+    if (sniHostName) {
+        PL_strfree(sniHostName);
     }
 
     PL_strfree(hostName);

@@ -1,43 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * certhtml.c --- convert a cert to html
- *
- * $Id: certhtml.c,v 1.8 2007/05/15 23:14:25 julien.pierre.bugs%sun.com Exp $
  */
 
 #include "seccomon.h"
@@ -126,6 +92,9 @@ char *CERT_FormatName (CERTName *name)
 	    tag = CERT_GetAVATag(ava);
 	    switch(tag) {
 	      case SEC_OID_AVA_COMMON_NAME:
+		if (cn) {
+			break;
+		}
 		cn = CERT_DecodeAVAValue(&ava->value);
 		if (!cn) {
  			goto loser;
@@ -133,6 +102,9 @@ char *CERT_FormatName (CERTName *name)
 		len += cn->len;
 		break;
 	      case SEC_OID_AVA_COUNTRY_NAME:
+		if (country) {
+			break;
+		}
 		country = CERT_DecodeAVAValue(&ava->value);
 		if (!country) {
  			goto loser;
@@ -140,6 +112,9 @@ char *CERT_FormatName (CERTName *name)
 		len += country->len;
 		break;
 	      case SEC_OID_AVA_LOCALITY:
+		if (loc) {
+			break;
+		}
 		loc = CERT_DecodeAVAValue(&ava->value);
 		if (!loc) {
  			goto loser;
@@ -147,6 +122,9 @@ char *CERT_FormatName (CERTName *name)
 		len += loc->len;
 		break;
 	      case SEC_OID_AVA_STATE_OR_PROVINCE:
+		if (state) {
+			break;
+		}
 		state = CERT_DecodeAVAValue(&ava->value);
 		if (!state) {
  			goto loser;
@@ -154,6 +132,9 @@ char *CERT_FormatName (CERTName *name)
 		len += state->len;
 		break;
 	      case SEC_OID_AVA_ORGANIZATION_NAME:
+		if (org) {
+			break;
+		}
 		org = CERT_DecodeAVAValue(&ava->value);
 		if (!org) {
  			goto loser;
@@ -161,6 +142,9 @@ char *CERT_FormatName (CERTName *name)
 		len += org->len;
 		break;
 	      case SEC_OID_AVA_DN_QUALIFIER:
+		if (dq) {
+			break;
+		}
 		dq = CERT_DecodeAVAValue(&ava->value);
 		if (!dq) {
  			goto loser;
@@ -187,6 +171,9 @@ char *CERT_FormatName (CERTName *name)
 		break;
 	      case SEC_OID_PKCS9_EMAIL_ADDRESS:
 	      case SEC_OID_RFC1274_MAIL:
+		if (email) {
+			break;
+		}
 		email = CERT_DecodeAVAValue(&ava->value);
 		if (!email) {
 			goto loser;
@@ -205,7 +192,7 @@ char *CERT_FormatName (CERTName *name)
     /* allocate buffer */
     buf = (char *)PORT_Alloc(len);
     if ( !buf ) {
-	return(0);
+	goto loser;
     }
 
     tmpbuf = buf;

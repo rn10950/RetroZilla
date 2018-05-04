@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_pl_cert.c
  *
@@ -146,14 +113,10 @@ pkix_pl_Cert_DecodePolicyInfo(
         /* Allocated in the arena; freed in CERT_Destroy... */
         CERTCertificatePolicies *certPol = NULL;
         CERTPolicyInfo **policyInfos = NULL;
-        CERTPolicyInfo *policyInfo = NULL;
-        CERTPolicyQualifier **policyQualifiers = NULL;
-        CERTPolicyQualifier *policyQualifier = NULL;
 
         /* Holder for the return value */
         PKIX_List *infos = NULL;
 
-        char *oidAscii = NULL;
         PKIX_PL_OID *pkixOID = NULL;
         PKIX_List *qualifiers = NULL;
         PKIX_PL_CertPolicyInfo *certPolicyInfo = NULL;
@@ -204,26 +167,22 @@ pkix_pl_Cert_DecodePolicyInfo(
          * building each PKIX_PL_CertPolicyInfo object in turn
          */
         while (*policyInfos != NULL) {
-                policyInfo = *policyInfos;
-                policyQualifiers = policyInfo->policyQualifiers;
+                CERTPolicyInfo *policyInfo = *policyInfos;
+                CERTPolicyQualifier **policyQualifiers =
+                                          policyInfo->policyQualifiers;
                 if (policyQualifiers) {
                         /* create a PKIX_List of PKIX_PL_CertPolicyQualifiers */
                         PKIX_CHECK(PKIX_List_Create(&qualifiers, plContext),
                                 PKIX_LISTCREATEFAILED);
 
                         while (*policyQualifiers != NULL) {
-                            policyQualifier = *policyQualifiers;
+                            CERTPolicyQualifier *policyQualifier =
+                                                         *policyQualifiers;
 
                             /* create the qualifier's OID object */
-
-                            PKIX_CHECK(pkix_pl_oidBytes2Ascii
-                                (&(policyQualifier->qualifierID),
-                                &oidAscii,
-                                plContext),
-                                PKIX_OIDBYTES2ASCIIFAILED);
-
-                            PKIX_CHECK(PKIX_PL_OID_Create
-                                (oidAscii, &pkixOID, plContext),
+                            PKIX_CHECK(PKIX_PL_OID_CreateBySECItem
+                                (&policyQualifier->qualifierID,
+                                 &pkixOID, plContext),
                                 PKIX_OIDCREATEFAILED);
 
                             /* create qualifier's ByteArray object */
@@ -250,7 +209,6 @@ pkix_pl_Cert_DecodePolicyInfo(
                                 plContext),
                                 PKIX_LISTAPPENDITEMFAILED);
 
-                            PKIX_FREE(oidAscii);
                             PKIX_DECREF(pkixOID);
                             PKIX_DECREF(qualifierArray);
                             PKIX_DECREF(certPolicyQualifier);
@@ -269,13 +227,8 @@ pkix_pl_Cert_DecodePolicyInfo(
                  * (The CERTPolicyInfo structure has an oid field, but it
                  * is of type SECOidTag. This function wants a SECItem.)
                  */
-
-                PKIX_CHECK(pkix_pl_oidBytes2Ascii
-                        (&(policyInfo->policyID), &oidAscii, plContext),
-                        PKIX_OIDBYTES2ASCIIFAILED);
-
-                PKIX_CHECK(PKIX_PL_OID_Create
-                        (oidAscii, &pkixOID, plContext),
+                PKIX_CHECK(PKIX_PL_OID_CreateBySECItem
+                        (&policyInfo->policyID, &pkixOID, plContext),
                         PKIX_OIDCREATEFAILED);
 
                 /* Create a CertPolicyInfo object */
@@ -288,7 +241,6 @@ pkix_pl_Cert_DecodePolicyInfo(
                         (infos, (PKIX_PL_Object *)certPolicyInfo, plContext),
                         PKIX_LISTAPPENDITEMFAILED);
 
-                PKIX_FREE(oidAscii);
                 PKIX_DECREF(pkixOID);
                 PKIX_DECREF(qualifiers);
                 PKIX_DECREF(certPolicyInfo);
@@ -313,7 +265,6 @@ cleanup:
             CERT_DestroyCertificatePoliciesExtension(certPol);
         }
 
-        PKIX_FREE(oidAscii);
         PKIX_DECREF(infos);
         PKIX_DECREF(pkixOID);
         PKIX_DECREF(qualifiers);
@@ -362,13 +313,10 @@ pkix_pl_Cert_DecodePolicyMapping(
         /* Allocated in the arena; freed in CERT_Destroy... */
         CERTCertificatePolicyMappings *certPolMaps = NULL;
         CERTPolicyMap **policyMaps = NULL;
-        CERTPolicyMap *policyMap = NULL;
 
         /* Holder for the return value */
         PKIX_List *maps = NULL;
 
-        char *issuerPolicyOIDAscii = NULL;
-        char *subjectPolicyOIDAscii = NULL;
         PKIX_PL_OID *issuerDomainOID = NULL;
         PKIX_PL_OID *subjectDomainOID = NULL;
         PKIX_PL_CertPolicyMap *certPolicyMap = NULL;
@@ -408,30 +356,18 @@ pkix_pl_Cert_DecodePolicyMapping(
          * building each CertPolicyMap object in turn
          */
         do {
-                policyMap = *policyMaps;
+                CERTPolicyMap *policyMap = *policyMaps;
 
                 /* create the OID for the issuer Domain Policy */
-
-                PKIX_CHECK(pkix_pl_oidBytes2Ascii
-                        (&(policyMap->issuerDomainPolicy),
-                        &issuerPolicyOIDAscii,
-                        plContext),
-                        PKIX_OIDBYTES2ASCIIFAILED);
-
-                PKIX_CHECK(PKIX_PL_OID_Create
-                        (issuerPolicyOIDAscii, &issuerDomainOID, plContext),
+                PKIX_CHECK(PKIX_PL_OID_CreateBySECItem
+                        (&policyMap->issuerDomainPolicy,
+                         &issuerDomainOID, plContext),
                         PKIX_OIDCREATEFAILED);
 
                 /* create the OID for the subject Domain Policy */
-
-                PKIX_CHECK(pkix_pl_oidBytes2Ascii
-                        (&(policyMap->subjectDomainPolicy),
-                        &subjectPolicyOIDAscii,
-                        plContext),
-                        PKIX_OIDBYTES2ASCIIFAILED);
-
-                PKIX_CHECK(PKIX_PL_OID_Create
-                        (subjectPolicyOIDAscii, &subjectDomainOID, plContext),
+                PKIX_CHECK(PKIX_PL_OID_CreateBySECItem
+                        (&policyMap->subjectDomainPolicy,
+                         &subjectDomainOID, plContext),
                         PKIX_OIDCREATEFAILED);
 
                 /* create the CertPolicyMap */
@@ -447,8 +383,6 @@ pkix_pl_Cert_DecodePolicyMapping(
                         (maps, (PKIX_PL_Object *)certPolicyMap, plContext),
                         PKIX_LISTAPPENDITEMFAILED);
 
-                PKIX_FREE(issuerPolicyOIDAscii);
-                PKIX_FREE(subjectPolicyOIDAscii);
                 PKIX_DECREF(issuerDomainOID);
                 PKIX_DECREF(subjectDomainOID);
                 PKIX_DECREF(certPolicyMap);
@@ -469,8 +403,6 @@ cleanup:
             CERT_DestroyPolicyMappingsExtension(certPolMaps);
         }
 
-        PKIX_FREE(issuerPolicyOIDAscii);
-        PKIX_FREE(subjectPolicyOIDAscii);
         PKIX_DECREF(maps);
         PKIX_DECREF(issuerDomainOID);
         PKIX_DECREF(subjectDomainOID);
@@ -1221,6 +1153,7 @@ pkix_pl_Cert_Destroy(
         PKIX_DECREF(cert->store);
         PKIX_DECREF(cert->authorityInfoAccess);
         PKIX_DECREF(cert->subjectInfoAccess);
+        PKIX_DECREF(cert->crldpList);
 
         if (cert->arenaNameConstraints){
                 /* This arena was allocated for SubjectAltNames */
@@ -1491,6 +1424,7 @@ pkix_pl_Cert_CreateWithNSSCert(
         cert->authorityInfoAccess = NULL;
         cert->subjectInfoAccess = NULL;
         cert->isUserTrustAnchor = PKIX_FALSE;
+        cert->crldpList = NULL;
 
         *pCert = cert;
 
@@ -1702,13 +1636,13 @@ PKIX_PL_Cert_GetVersion(
         void *plContext)
 {
         CERTCertificate *nssCert = NULL;
-        PKIX_UInt32 myVersion = 1;
+        PKIX_UInt32 myVersion = 0;  /* v1 */
 
         PKIX_ENTER(CERT, "PKIX_PL_Cert_GetVersion");
         PKIX_NULLCHECK_THREE(cert, cert->nssCert, pVersion);
 
         nssCert = cert->nssCert;
-        if (nssCert->version.data) {
+        if (nssCert->version.len != 0) {
                 myVersion = *(nssCert->version.data);
         }
 
@@ -2052,43 +1986,32 @@ PKIX_PL_Cert_GetSubjectPublicKeyAlgId(
         PKIX_PL_OID **pSubjKeyAlgId,
         void *plContext)
 {
-        CERTCertificate *nssCert = NULL;
         PKIX_PL_OID *pubKeyAlgId = NULL;
-        SECAlgorithmID algorithm;
-        SECItem algBytes;
-        char *asciiOID = NULL;
 
         PKIX_ENTER(CERT, "PKIX_PL_Cert_GetSubjectPublicKeyAlgId");
         PKIX_NULLCHECK_THREE(cert, cert->nssCert, pSubjKeyAlgId);
 
         /* if we don't have a cached copy from before, we create one */
         if (cert->publicKeyAlgId == NULL){
-
                 PKIX_OBJECT_LOCK(cert);
-
                 if (cert->publicKeyAlgId == NULL){
+                        CERTCertificate *nssCert = cert->nssCert;
+                        SECAlgorithmID *algorithm;
+                        SECItem *algBytes;
 
-                        nssCert = cert->nssCert;
-                        algorithm = nssCert->subjectPublicKeyInfo.algorithm;
-                        algBytes = algorithm.algorithm;
-
-                        PKIX_NULLCHECK_ONE(algBytes.data);
-                        if (algBytes.len == 0) {
-                                PKIX_ERROR_FATAL(PKIX_ALGORITHMBYTESLENGTH0);
+                        algorithm = &nssCert->subjectPublicKeyInfo.algorithm;
+                        algBytes = &algorithm->algorithm;
+                        if (!algBytes->data || !algBytes->len) {
+                            PKIX_ERROR_FATAL(PKIX_ALGORITHMBYTESLENGTH0);
                         }
-
-                        PKIX_CHECK(pkix_pl_oidBytes2Ascii
-                                    (&algBytes, &asciiOID, plContext),
-                                    PKIX_OIDBYTES2ASCIIFAILED);
-
-                        PKIX_CHECK(PKIX_PL_OID_Create
-                                    (asciiOID, &pubKeyAlgId, plContext),
+                        PKIX_CHECK(PKIX_PL_OID_CreateBySECItem
+                                    (algBytes, &pubKeyAlgId, plContext),
                                     PKIX_OIDCREATEFAILED);
 
                         /* save a cached copy in case it is asked for again */
                         cert->publicKeyAlgId = pubKeyAlgId;
+                        pubKeyAlgId = NULL;
                 }
-
                 PKIX_OBJECT_UNLOCK(cert);
         }
 
@@ -2096,7 +2019,7 @@ PKIX_PL_Cert_GetSubjectPublicKeyAlgId(
         *pSubjKeyAlgId = cert->publicKeyAlgId;
 
 cleanup:
-        PKIX_FREE(asciiOID);
+        PKIX_DECREF(pubKeyAlgId);
         PKIX_RETURN(CERT);
 }
 
@@ -2413,9 +2336,7 @@ PKIX_PL_Cert_GetExtendedKeyUsage(
         CERTCertificate *nssCert = NULL;
         PKIX_PL_OID *pkixOID = NULL;
         PKIX_List *oidsList = NULL;
-        char *oidAscii = NULL;
         SECItem **oids = NULL;
-        SECItem *oid = NULL;
         SECItem encodedExtKeyUsage;
         SECStatus rv;
 
@@ -2462,14 +2383,10 @@ PKIX_PL_Cert_GetExtendedKeyUsage(
                                     PKIX_LISTCREATEFAILED);
 
                         while (*oids){
-                                oid = *oids++;
+                                SECItem *oid = *oids++;
 
-                                PKIX_CHECK(pkix_pl_oidBytes2Ascii
-                                            (oid, &oidAscii, plContext),
-                                            PKIX_OIDBYTES2ASCIIFAILED);
-
-                                PKIX_CHECK(PKIX_PL_OID_Create
-                                            (oidAscii, &pkixOID, plContext),
+                                PKIX_CHECK(PKIX_PL_OID_CreateBySECItem
+                                            (oid, &pkixOID, plContext),
                                             PKIX_OIDCREATEFAILED);
 
                                 PKIX_CHECK(PKIX_List_AppendItem
@@ -2477,20 +2394,17 @@ PKIX_PL_Cert_GetExtendedKeyUsage(
                                             (PKIX_PL_Object *)pkixOID,
                                             plContext),
                                             PKIX_LISTAPPENDITEMFAILED);
-
-                                PKIX_FREE(oidAscii);
-
                                 PKIX_DECREF(pkixOID);
                         }
+
+                        PKIX_CHECK(PKIX_List_SetImmutable
+                                    (oidsList, plContext),
+                                    PKIX_LISTSETIMMUTABLEFAILED);
 
                         /* save a cached copy in case it is asked for again */
                         cert->extKeyUsages = oidsList;
                         oidsList = NULL;
                 }
-
-                PKIX_CHECK(PKIX_List_SetImmutable
-                            (cert->extKeyUsages, plContext),
-                            PKIX_LISTSETIMMUTABLEFAILED);
 
                 PKIX_OBJECT_UNLOCK(cert);
         }
@@ -2501,7 +2415,6 @@ PKIX_PL_Cert_GetExtendedKeyUsage(
 cleanup:
 	PKIX_OBJECT_UNLOCK(lockedObject);
 
-        PKIX_FREE(oidAscii);
         PKIX_DECREF(pkixOID);
         PKIX_DECREF(oidsList);
         CERT_DestroyOidSequence(extKeyUsage);
@@ -2943,6 +2856,9 @@ PKIX_PL_Cert_VerifySignature(
         status = CERT_VerifySignedDataWithPublicKey(tbsCert, nssPubKey, wincx);
 
         if (status != SECSuccess) {
+                if (PORT_GetError() != SEC_ERROR_CERT_SIGNATURE_ALGORITHM_DISABLED) {
+                        PORT_SetError(SEC_ERROR_BAD_SIGNATURE);
+                }
                 PKIX_ERROR(PKIX_SIGNATUREDIDNOTVERIFYWITHTHEPUBLICKEY);
         }
 
@@ -3037,6 +2953,62 @@ PKIX_PL_Cert_GetValidityNotAfter(
 
 cleanup:
         PKIX_RETURN(CERT);
+}
+
+/*
+ * FUNCTION: PKIX_PL_Cert_VerifyCertAndKeyType (see comments in pkix_pl_pki.h)
+ */
+PKIX_Error *
+PKIX_PL_Cert_VerifyCertAndKeyType(
+        PKIX_PL_Cert *cert,
+        PKIX_Boolean isChainCert,
+        void *plContext)
+{
+    PKIX_PL_CertBasicConstraints *basicConstraints = NULL;
+    SECCertificateUsage certificateUsage;
+    SECCertUsage certUsage = 0;
+    unsigned int requiredKeyUsage;
+    unsigned int requiredCertType;
+    unsigned int certType;
+    SECStatus rv = SECSuccess;
+    
+    PKIX_ENTER(CERT, "PKIX_PL_Cert_VerifyCertType");
+    PKIX_NULLCHECK_TWO(cert, plContext);
+    
+    certificateUsage = ((PKIX_PL_NssContext*)plContext)->certificateUsage;
+    
+    /* ensure we obtained a single usage bit only */
+    PORT_Assert(!(certificateUsage & (certificateUsage - 1)));
+    
+    /* convert SECertificateUsage (bit mask) to SECCertUsage (enum) */
+    while (0 != (certificateUsage = certificateUsage >> 1)) { certUsage++; }
+
+    /* check key usage and netscape cert type */
+    cert_GetCertType(cert->nssCert);
+    certType = cert->nssCert->nsCertType;
+    if (isChainCert ||
+        (certUsage != certUsageVerifyCA && certUsage != certUsageAnyCA)) {
+	rv = CERT_KeyUsageAndTypeForCertUsage(certUsage, isChainCert,
+					      &requiredKeyUsage,
+					      &requiredCertType);
+        if (rv == SECFailure) {
+            PKIX_ERROR(PKIX_UNSUPPORTEDCERTUSAGE);
+        }
+    } else {
+        /* use this key usage and cert type for certUsageAnyCA and
+         * certUsageVerifyCA. */
+	requiredKeyUsage = KU_KEY_CERT_SIGN;
+	requiredCertType = NS_CERT_TYPE_CA;
+    }
+    if (CERT_CheckKeyUsage(cert->nssCert, requiredKeyUsage) != SECSuccess) {
+        PKIX_ERROR(PKIX_CERTCHECKKEYUSAGEFAILED);
+    }
+    if (!(certType & requiredCertType)) {
+        PKIX_ERROR(PKIX_CERTCHECKCERTTYPEFAILED);
+    }
+cleanup:
+    PKIX_DECREF(basicConstraints);
+    PKIX_RETURN(CERT);
 }
 
 /*
@@ -3180,9 +3152,10 @@ PKIX_PL_Cert_CheckNameConstraints(
                 }
 
                 /* This NSS call returns both Subject and  Subject Alt Names */
-                PKIX_CERT_DEBUG("\t\tCalling CERT_GetCertificateNames\n");
-                nssSubjectNames = CERT_GetCertificateNames
-                        (cert->nssCert, arena);
+                PKIX_CERT_DEBUG
+                    ("\t\tCalling CERT_GetConstrainedCertificateNames\n");
+                nssSubjectNames = CERT_GetConstrainedCertificateNames
+                        (cert->nssCert, arena, PR_TRUE);
 
                 PKIX_CHECK(pkix_pl_CertNameConstraints_CheckNameSpaceNssNames
                         (nssSubjectNames,
@@ -3239,55 +3212,32 @@ cleanup:
 }
 
 /*
- * FUNCTION: PKIX_PL_Cert_IsCertTrusted
- * (see comments in pkix_pl_pki.h)
+ * Find out the state of the NSS trust bits for the requested usage.
+ * Returns SECFailure if the cert is explicitly distrusted.
+ * Returns SECSuccess if the cert can be used to form a chain (normal case),
+ *   or it is explicitly trusted. The trusted bool is set to true if it is
+ *   explicitly trusted.
  */
-PKIX_Error *
-PKIX_PL_Cert_IsCertTrusted(
-        PKIX_PL_Cert *cert,
-        PKIX_Boolean trustOnlyUserAnchors,
-        PKIX_Boolean *pTrusted,
-        void *plContext)
+static SECStatus
+pkix_pl_Cert_GetTrusted(void *plContext,
+                        PKIX_PL_Cert *cert,
+                        PKIX_Boolean *trusted,
+                        PKIX_Boolean isCA)
 {
-        PKIX_CertStore_CheckTrustCallback trustCallback = NULL;
-        SECCertUsage certUsage = 0;
-        PKIX_Boolean trusted = PKIX_FALSE;
-        SECStatus rv = SECFailure;
-        unsigned int requiredFlags;
-        SECTrustType trustType;
-        CERTCertTrust trust;
+        SECStatus rv;
         CERTCertificate *nssCert = NULL;
+        SECCertUsage certUsage = 0;
         SECCertificateUsage certificateUsage;
+        SECTrustType trustType;
+        unsigned int trustFlags;
+        unsigned int requiredFlags;
+        CERTCertTrust trust;
 
-        PKIX_ENTER(CERT, "pkix_pl_Cert_IsCertTrusted");
-        PKIX_NULLCHECK_TWO(cert, pTrusted);
+        *trusted = PKIX_FALSE;
 
-        if (trustOnlyUserAnchors) {
-            *pTrusted = cert->isUserTrustAnchor;
-            goto cleanup;
-        }
-
-        /* no key usage information and store is not trusted */
-        if (plContext == NULL || cert->store == NULL) {
-                *pTrusted = PKIX_FALSE;
-                goto cleanup;
-        }
-
-        if (cert->store) {
-                PKIX_CHECK(PKIX_CertStore_GetTrustCallback
-                        (cert->store, &trustCallback, plContext),
-                        PKIX_CERTSTOREGETTRUSTCALLBACKFAILED);
-
-                PKIX_CHECK_ONLY_FATAL(trustCallback
-                        (cert->store, cert, &trusted, plContext),
-                        PKIX_CHECKTRUSTCALLBACKFAILED);
-
-                if (PKIX_ERROR_RECEIVED || (trusted == PKIX_FALSE)) {
-
-                        *pTrusted = PKIX_FALSE;
-                        goto cleanup;
-                }
-
+        /* no key usage information  */
+        if (plContext == NULL) {
+                return SECSuccess;
         }
 
         certificateUsage = ((PKIX_PL_NssContext*)plContext)->certificateUsage;
@@ -3298,24 +3248,132 @@ PKIX_PL_Cert_IsCertTrusted(
         /* convert SECertificateUsage (bit mask) to SECCertUsage (enum) */
         while (0 != (certificateUsage = certificateUsage >> 1)) { certUsage++; }
 
-        rv = CERT_TrustFlagsForCACertUsage(certUsage, &requiredFlags, &trustType);
+        nssCert = cert->nssCert;
+
+        if (!isCA) {
+                PRBool prTrusted;
+                unsigned int failedFlags;
+                rv = cert_CheckLeafTrust(nssCert, certUsage,
+                                         &failedFlags, &prTrusted);
+                *trusted = (PKIX_Boolean) prTrusted;
+                return rv;
+        }
+        rv = CERT_TrustFlagsForCACertUsage(certUsage, &requiredFlags,
+                                           &trustType);
         if (rv != SECSuccess) {
+                return SECSuccess;
+        }
+
+        rv = CERT_GetCertTrust(nssCert, &trust);
+        if (rv != SECSuccess) {
+                return SECSuccess;
+        }
+        trustFlags = SEC_GET_TRUST_FLAGS(&trust, trustType);
+        /* normally trustTypeNone usages accept any of the given trust bits
+         * being on as acceptable. If any are distrusted (and none are trusted),
+         * then we will also distrust the cert */
+        if ((trustFlags == 0) && (trustType == trustTypeNone)) {
+                trustFlags = trust.sslFlags | trust.emailFlags |
+                             trust.objectSigningFlags;
+        }
+        if ((trustFlags & requiredFlags) == requiredFlags) {
+                *trusted = PKIX_TRUE;
+                return SECSuccess;
+        }
+        if ((trustFlags & CERTDB_TERMINAL_RECORD) &&
+            ((trustFlags & (CERTDB_VALID_CA|CERTDB_TRUSTED)) == 0)) {
+                return SECFailure;
+        }
+        return SECSuccess;
+}
+
+/*
+ * FUNCTION: PKIX_PL_Cert_IsCertTrusted
+ * (see comments in pkix_pl_pki.h)
+ */
+PKIX_Error *
+PKIX_PL_Cert_IsCertTrusted(
+        PKIX_PL_Cert *cert,
+        PKIX_PL_TrustAnchorMode trustAnchorMode,
+        PKIX_Boolean *pTrusted,
+        void *plContext)
+{
+        PKIX_CertStore_CheckTrustCallback trustCallback = NULL;
+        PKIX_Boolean trusted = PKIX_FALSE;
+        SECStatus rv = SECFailure;
+
+        PKIX_ENTER(CERT, "PKIX_PL_Cert_IsCertTrusted");
+        PKIX_NULLCHECK_TWO(cert, pTrusted);
+
+        /* Call GetTrusted first to see if we are going to distrust the
+         * certificate */
+        rv = pkix_pl_Cert_GetTrusted(plContext, cert, &trusted, PKIX_TRUE);
+        if (rv != SECSuccess) {
+                /* Failure means the cert is explicitly distrusted,
+                 * let the next level know not to use it. */
+                *pTrusted = PKIX_FALSE;
+                PKIX_ERROR(PKIX_CERTISCERTTRUSTEDFAILED);
+        }
+
+        if (trustAnchorMode == PKIX_PL_TrustAnchorMode_Exclusive ||
+            (trustAnchorMode == PKIX_PL_TrustAnchorMode_Additive &&
+             cert->isUserTrustAnchor)) {
+            /* Use the trust anchor's |trusted| value */
+            *pTrusted = cert->isUserTrustAnchor;
+            goto cleanup;
+        }
+
+        /* no key usage information or store is not trusted */
+        if (plContext == NULL || cert->store == NULL) {
                 *pTrusted = PKIX_FALSE;
                 goto cleanup;
         }
 
-        nssCert = cert->nssCert;
+        PKIX_CHECK(PKIX_CertStore_GetTrustCallback
+                (cert->store, &trustCallback, plContext),
+                PKIX_CERTSTOREGETTRUSTCALLBACKFAILED);
 
-        rv = CERT_GetCertTrust(nssCert, &trust);
-        if (rv == SECSuccess) {
-                unsigned int certFlags;
-                certFlags = SEC_GET_TRUST_FLAGS((&trust), trustType);
-                if ((certFlags & requiredFlags) == requiredFlags) {
-                        trusted = PKIX_TRUE;
-                }
+        PKIX_CHECK_ONLY_FATAL(trustCallback
+                (cert->store, cert, &trusted, plContext),
+                PKIX_CHECKTRUSTCALLBACKFAILED);
+
+        /* allow trust store to override if we can trust the trust
+         * bits */
+        if (PKIX_ERROR_RECEIVED || (trusted == PKIX_FALSE)) {
+                *pTrusted = PKIX_FALSE;
+                goto cleanup;
         }
 
         *pTrusted = trusted;
+
+cleanup:
+        PKIX_RETURN(CERT);
+}
+
+/*
+ * FUNCTION: PKIX_PL_Cert_IsLeafCertTrusted
+ * (see comments in pkix_pl_pki.h)
+ */
+PKIX_Error *
+PKIX_PL_Cert_IsLeafCertTrusted(
+        PKIX_PL_Cert *cert,
+        PKIX_Boolean *pTrusted,
+        void *plContext)
+{
+        SECStatus rv;
+
+        PKIX_ENTER(CERT, "PKIX_PL_Cert_IsLeafCertTrusted");
+        PKIX_NULLCHECK_TWO(cert, pTrusted);
+
+        *pTrusted = PKIX_FALSE;
+
+        rv = pkix_pl_Cert_GetTrusted(plContext, cert, pTrusted, PKIX_FALSE);
+        if (rv != SECSuccess) {
+                /* Failure means the cert is explicitly distrusted,
+                 * let the next level know not to use it. */
+                *pTrusted = PKIX_FALSE;
+                PKIX_ERROR(PKIX_CERTISCERTTRUSTEDFAILED);
+        }
 
 cleanup:
         PKIX_RETURN(CERT);
@@ -3578,6 +3636,61 @@ cleanup:
                 SECITEM_FreeItem(encodedSubjInfoAccess, PR_TRUE);
         }
         PKIX_RETURN(CERT);
+}
+
+/*
+ * FUNCTION: PKIX_PL_Cert_GetCrlDp
+ * (see comments in pkix_pl_pki.h)
+ */
+PKIX_Error *
+PKIX_PL_Cert_GetCrlDp(
+    PKIX_PL_Cert *cert,
+    PKIX_List **pDpList,
+    void *plContext)
+{
+    PKIX_UInt32 dpIndex = 0;
+    pkix_pl_CrlDp *dp = NULL; 
+    CERTCrlDistributionPoints *dpoints = NULL;
+
+    PKIX_ENTER(CERT, "PKIX_PL_Cert_GetCrlDp");
+    PKIX_NULLCHECK_THREE(cert, cert->nssCert, pDpList);
+                
+    /* if we don't have a cached copy from before, we create one */
+    if (cert->crldpList == NULL) {
+        PKIX_OBJECT_LOCK(cert);
+        if (cert->crldpList != NULL) {
+            goto cleanup;
+        }
+        PKIX_CHECK(PKIX_List_Create(&cert->crldpList, plContext),
+                   PKIX_LISTCREATEFAILED);
+        dpoints = CERT_FindCRLDistributionPoints(cert->nssCert);
+        if (!dpoints || !dpoints->distPoints) {
+            goto cleanup;
+        }
+        for (;dpoints->distPoints[dpIndex];dpIndex++) {
+            PKIX_CHECK(
+                pkix_pl_CrlDp_Create(dpoints->distPoints[dpIndex],
+                                     &cert->nssCert->issuer,
+                                     &dp, plContext),
+                PKIX_CRLDPCREATEFAILED);
+            /* Create crldp list in reverse order in attempt to get
+             * to the whole crl first. */
+            PKIX_CHECK(
+                PKIX_List_InsertItem(cert->crldpList, 0,
+                                     (PKIX_PL_Object*)dp,
+                                     plContext),
+                PKIX_LISTAPPENDITEMFAILED);
+            PKIX_DECREF(dp);
+        }
+    }
+cleanup:
+    PKIX_INCREF(cert->crldpList);
+    *pDpList = cert->crldpList;
+
+    PKIX_OBJECT_UNLOCK(lockedObject);
+    PKIX_DECREF(dp);
+
+    PKIX_RETURN(CERT);
 }
 
 /*

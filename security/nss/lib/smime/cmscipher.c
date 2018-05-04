@@ -1,43 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Encryption/decryption routines for CMS implementation, none of which are exported.
- *
- * $Id: cmscipher.c,v 1.12 2008/02/03 06:08:49 nelson%bolyard.com Exp $
  */
 
 #include "cmslocal.h"
@@ -85,9 +51,9 @@ NSS_CMSCipherContext_StartDecrypt(PK11SymKey *key, SECAlgorithmID *algid)
     NSSCMSCipherContext *cc;
     void *ciphercx;
     CK_MECHANISM_TYPE cryptoMechType;
-    SECItem *param;
     PK11SlotInfo *slot;
     SECOidTag algtag;
+    SECItem *param = NULL;
 
     algtag = SECOID_GetAlgorithmTag(algid);
 
@@ -101,6 +67,7 @@ NSS_CMSCipherContext_StartDecrypt(PK11SymKey *key, SECAlgorithmID *algid)
 
 	cryptoMechType = PK11_GetPBECryptoMechanism(algid, &param, pwitem);
 	if (cryptoMechType == CKM_INVALID_MECHANISM) {
+	    SECITEM_FreeItem(param,PR_TRUE);
 	    return NULL;
 	}
 
@@ -150,14 +117,14 @@ NSS_CMSCipherContext_StartDecrypt(PK11SymKey *key, SECAlgorithmID *algid)
  * have two simple cover functions which call it. 
  */
 NSSCMSCipherContext *
-NSS_CMSCipherContext_StartEncrypt(PRArenaPool *poolp, PK11SymKey *key, SECAlgorithmID *algid)
+NSS_CMSCipherContext_StartEncrypt(PLArenaPool *poolp, PK11SymKey *key, SECAlgorithmID *algid)
 {
     NSSCMSCipherContext *cc;
     void *ciphercx;
-    SECItem *param;
     SECStatus rv;
     CK_MECHANISM_TYPE cryptoMechType;
     PK11SlotInfo *slot;
+    SECItem *param = NULL;
     PRBool needToEncodeAlgid = PR_FALSE;
     SECOidTag algtag = SECOID_GetAlgorithmTag(algid);
 
@@ -171,6 +138,7 @@ NSS_CMSCipherContext_StartEncrypt(PRArenaPool *poolp, PK11SymKey *key, SECAlgori
 
 	cryptoMechType = PK11_GetPBECryptoMechanism(algid, &param, pwitem);
 	if (cryptoMechType == CKM_INVALID_MECHANISM) {
+	    SECITEM_FreeItem(param,PR_TRUE);
 	    return NULL;
 	}
     } else {

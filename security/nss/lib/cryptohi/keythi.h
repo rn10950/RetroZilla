@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef _KEYTHI_H_
 #define _KEYTHI_H_ 1
 
@@ -42,14 +9,30 @@
 #include "secmodt.h"
 #include "prclist.h"
 
+/*
+** RFC 4055 Section 1.2 specifies three different RSA key types.
+**
+** rsaKey maps to keys with SEC_OID_PKCS1_RSA_ENCRYPTION and can be used for
+** both encryption and signatures with old (PKCS #1 v1.5) and new (PKCS #1
+** v2.1) padding schemes.
+**
+** rsaPssKey maps to keys with SEC_OID_PKCS1_RSA_PSS_SIGNATURE and may only
+** be used for signatures with PSS padding (PKCS #1 v2.1).
+**
+** rsaOaepKey maps to keys with SEC_OID_PKCS1_RSA_OAEP_ENCRYPTION and may only
+** be used for encryption with OAEP padding (PKCS #1 v2.1).
+*/ 
+
 typedef enum { 
     nullKey = 0, 
     rsaKey = 1, 
     dsaKey = 2, 
-    fortezzaKey = 3,
+    fortezzaKey = 3, /* deprecated */
     dhKey = 4, 
-    keaKey = 5,
-    ecKey = 6
+    keaKey = 5, /* deprecated */
+    ecKey = 6,
+    rsaPssKey = 7,
+    rsaOaepKey = 8
 } KeyType;
 
 /*
@@ -58,6 +41,7 @@ typedef enum {
 
 SEC_BEGIN_PROTOS
 extern const SEC_ASN1Template SECKEY_RSAPublicKeyTemplate[];
+extern const SEC_ASN1Template SECKEY_RSAPSSParamsTemplate[];
 extern const SEC_ASN1Template SECKEY_DSAPublicKeyTemplate[];
 extern const SEC_ASN1Template SECKEY_DHPublicKeyTemplate[];
 extern const SEC_ASN1Template SECKEY_DHParamKeyTemplate[];
@@ -65,8 +49,9 @@ extern const SEC_ASN1Template SECKEY_PQGParamsTemplate[];
 extern const SEC_ASN1Template SECKEY_DSAPrivateKeyExportTemplate[];
 
 /* Windows DLL accessor functions */
-extern SEC_ASN1TemplateChooser NSS_Get_SECKEY_DSAPublicKeyTemplate;
-extern SEC_ASN1TemplateChooser NSS_Get_SECKEY_RSAPublicKeyTemplate;
+SEC_ASN1_CHOOSER_DECLARE(SECKEY_DSAPublicKeyTemplate)
+SEC_ASN1_CHOOSER_DECLARE(SECKEY_RSAPublicKeyTemplate)
+SEC_ASN1_CHOOSER_DECLARE(SECKEY_RSAPSSParamsTemplate)
 SEC_END_PROTOS
 
 
@@ -82,6 +67,16 @@ struct SECKEYRSAPublicKeyStr {
 };
 typedef struct SECKEYRSAPublicKeyStr SECKEYRSAPublicKey;
 
+/* 
+** RSA-PSS parameters
+*/
+struct SECKEYRSAPSSParamsStr {
+    SECAlgorithmID *hashAlg;
+    SECAlgorithmID *maskAlg;
+    SECItem saltLength;
+    SECItem trailerField;
+};
+typedef struct SECKEYRSAPSSParamsStr SECKEYRSAPSSParams;
 
 /*
 ** DSA Public Key and related structures
@@ -158,6 +153,8 @@ struct SECKEYFortezzaPublicKeyStr {
     SECKEYPQGParams keaParams;
 };
 typedef struct SECKEYFortezzaPublicKeyStr SECKEYFortezzaPublicKey;
+#define KEAprivilege KEApriviledge /* corrected spelling */
+#define DSSprivilege DSSpriviledge /* corrected spelling */
 
 struct SECKEYDiffPQGParamsStr {
     SECKEYPQGParams DiffKEAParams;
@@ -206,6 +203,7 @@ typedef struct SECKEYPublicKeyStr SECKEYPublicKey;
 #define SECKEY_Attributes_Cached 0x1    /* bit 0 states
                                            whether attributes are cached */
 #define SECKEY_CKA_PRIVATE (1U << 1)    /* bit 1 is the value of CKA_PRIVATE */
+#define SECKEY_CKA_ALWAYS_AUTHENTICATE (1U << 2)    
 
 #define SECKEY_ATTRIBUTES_CACHED(key) \
      (0 != (key->staticflags & SECKEY_Attributes_Cached))
@@ -216,7 +214,12 @@ typedef struct SECKEYPublicKeyStr SECKEYPublicKey;
 #define SECKEY_HAS_ATTRIBUTE_SET(key,attribute) \
     (0 != (key->staticflags & SECKEY_Attributes_Cached)) ? \
     (0 != (key->staticflags & SECKEY_##attribute)) : \
-    PK11_HasAttributeSet(key->pkcs11Slot,key->pkcs11ID,attribute)
+    PK11_HasAttributeSet(key->pkcs11Slot,key->pkcs11ID,attribute, PR_FALSE)
+
+#define SECKEY_HAS_ATTRIBUTE_SET_LOCK(key,attribute, haslock) \
+    (0 != (key->staticflags & SECKEY_Attributes_Cached)) ? \
+    (0 != (key->staticflags & SECKEY_##attribute)) : \
+    PK11_HasAttributeSet(key->pkcs11Slot,key->pkcs11ID,attribute, haslock)
 
 /*
 ** A generic key structure

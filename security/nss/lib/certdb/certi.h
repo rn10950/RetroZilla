@@ -1,42 +1,8 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * certi.h - private data structures for the certificate library
- *
- * $Id: certi.h,v 1.28 2009/03/17 07:30:11 nelson%bolyard.com Exp $
  */
 #ifndef _CERTI_H_
 #define _CERTI_H_
@@ -58,6 +24,8 @@ typedef struct CRLDPCacheStr CRLDPCache;
 typedef struct CRLIssuerCacheStr CRLIssuerCache;
 typedef struct CRLCacheStr CRLCache;
 typedef struct CachedCrlStr CachedCrl;
+typedef struct NamedCRLCacheStr NamedCRLCache;
+typedef struct NamedCRLCacheEntryStr NamedCRLCacheEntry;
 
 struct OpaqueCRLFieldsStr {
     PRBool partial;
@@ -75,7 +43,7 @@ struct PreAllocatorStr
     PRSize len;
     void* data;
     PRSize used;
-    PRArenaPool* arena;
+    PLArenaPool* arena;
     PRSize extra;
 };
 
@@ -102,6 +70,17 @@ typedef enum {
     CRL_OriginToken = 0,    /* CRL came from PKCS#11 token */
     CRL_OriginExplicit = 1  /* CRL was explicitly added to the cache, from RAM */
 } CRLOrigin;
+
+typedef enum {
+    dpcacheNoEntry = 0,             /* no entry found for this SN */
+    dpcacheFoundEntry = 1,          /* entry found for this SN */
+    dpcacheCallerError = 2,         /* invalid args */
+    dpcacheInvalidCacheError = 3,   /* CRL in cache may be bad DER */
+                                    /* or unverified */
+    dpcacheEmpty = 4,               /* no CRL in cache */
+    dpcacheLookupError = 5          /* internal error */
+} dpcacheStatus;
+
 
 struct CachedCrlStr {
     CERTSignedCrl* crl;
@@ -137,7 +116,7 @@ struct CRLDPCacheStr {
 #else
     PRLock* lock;
 #endif
-    CERTCertificate* issuer;    /* cert issuer 
+    CERTCertificate* issuer;    /* issuer cert
                                    XXX there may be multiple issuer certs,
                                        with different validity dates. Also
                                        need to deal with SKID/AKID . See
@@ -165,9 +144,9 @@ struct CRLDPCacheStr {
     /* cache invalidity bitflag */
     PRUint16 invalid;       /* this state will be set if either
              CRL_CACHE_INVALID_CRLS or CRL_CACHE_LAST_FETCH_FAILED is set.
-             In those cases, all certs are considered revoked as a
-             security precaution. The invalid state can only be cleared
-             during an update if all error states are cleared */
+             In those cases, all certs are considered to have unknown status.
+             The invalid state can only be cleared during an update if all
+             error states are cleared */
     PRBool refresh;        /* manual refresh from tokens has been forced */
     PRBool mustchoose;     /* trigger reselection algorithm, for case when
                               RAM CRL objects are dropped from the cache */
@@ -222,13 +201,20 @@ SECStatus ShutdownCRLCache(void);
 extern char * cert_GetCertificateEmailAddresses(CERTCertificate *cert);
 
 /*
- * These functions are used to map subjectKeyID extension values to certs.
+ * These functions are used to map subjectKeyID extension values to certs
+ * and to keep track of the checks for user certificates in each slot
  */
 SECStatus
 cert_CreateSubjectKeyIDHashTable(void);
 
 SECStatus
 cert_AddSubjectKeyIDMapping(SECItem *subjKeyID, CERTCertificate *cert);
+
+SECStatus
+cert_UpdateSubjectKeyIDSlotCheck(SECItem *slotid, int series);
+
+int
+cert_SubjectKeyIDSlotCheckSeries(SECItem *slotid);
 
 /*
  * Call this function to remove an entry from the mapping table.
@@ -246,36 +232,27 @@ cert_FindDERCertBySubjectKeyID(SECItem *subjKeyID);
 extern int cert_AVAOidTagToMaxLen(SECOidTag tag);
 
 /* Make an AVA, allocated from pool, from OID and DER encoded value */
-extern CERTAVA * CERT_CreateAVAFromRaw(PRArenaPool *pool, 
+extern CERTAVA * CERT_CreateAVAFromRaw(PLArenaPool *pool, 
                                const SECItem * OID, const SECItem * value);
 
 /* Make an AVA from binary input specified by SECItem */
-extern CERTAVA * CERT_CreateAVAFromSECItem(PRArenaPool *arena, SECOidTag kind, 
+extern CERTAVA * CERT_CreateAVAFromSECItem(PLArenaPool *arena, SECOidTag kind, 
                                            int valueType, SECItem *value);
 
 /*
  * get a DPCache object for the given issuer subject and dp
  * Automatically creates the cache object if it doesn't exist yet.
  */
-SECStatus AcquireDPCache(CERTCertificate* issuer, SECItem* subject,
-                         SECItem* dp, int64 t, void* wincx,
+SECStatus AcquireDPCache(CERTCertificate* issuer, const SECItem* subject,
+                         const SECItem* dp, PRTime t, void* wincx,
                          CRLDPCache** dpcache, PRBool* writeLocked);
 
 /* check if a particular SN is in the CRL cache and return its entry */
-SECStatus DPCache_Lookup(CRLDPCache* cache, SECItem* sn,
-                         CERTCrlEntry** returned);
+dpcacheStatus DPCache_Lookup(CRLDPCache* cache, const SECItem* sn,
+                             CERTCrlEntry** returned);
 
 /* release a DPCache object that was previously acquired */
 void ReleaseDPCache(CRLDPCache* dpcache, PRBool writeLocked);
-
-/* this function assumes the caller holds a lock on the DPCache */
-SECStatus DPCache_GetAllCRLs(CRLDPCache* dpc, PRArenaPool* arena,
-                             CERTSignedCrl*** crls, PRUint16* status);
-
-/* this function assumes the caller holds a lock on the DPCache */
-SECStatus DPCache_GetCRLEntry(CRLDPCache* cache, PRBool readlocked,
-                              CERTSignedCrl* crl, SECItem* sn,
-                              CERTCrlEntry** returned);
 
 /*
  * map Stan errors into NSS errors
@@ -283,6 +260,28 @@ SECStatus DPCache_GetCRLEntry(CRLDPCache* cache, PRBool readlocked,
  * PORT_SetError(); to the appropriate SEC_ERROR value.
  */
 void CERT_MapStanError();
+
+/* Like CERT_VerifyCert, except with an additional argument, flags. The
+ * flags are defined immediately below.
+ */
+SECStatus
+cert_VerifyCertWithFlags(CERTCertDBHandle *handle, CERTCertificate *cert,
+                         PRBool checkSig, SECCertUsage certUsage, PRTime t,
+                         PRUint32 flags, void *wincx, CERTVerifyLog *log);
+
+/* Use the default settings.
+ * cert_VerifyCertWithFlags(..., CERT_VERIFYCERT_USE_DEFAULTS, ...) is
+ * equivalent to CERT_VerifyCert(...);
+ */
+#define CERT_VERIFYCERT_USE_DEFAULTS 0
+
+/* Skip all the OCSP checks during certificate verification, regardless of
+ * the global OCSP settings. By default, certificate |cert| will have its
+ * revocation status checked via OCSP according to the global OCSP settings.
+ *
+ * OCSP checking is always skipped when certUsage is certUsageStatusResponder.
+ */
+#define CERT_VERIFYCERT_SKIP_OCSP 1
 
 /* Interface function for libpkix cert validation engine:
  * cert_verify wrapper. */
@@ -312,8 +311,93 @@ extern SECStatus cert_GetCertType(CERTCertificate *cert);
 extern PRUint32 cert_ComputeCertType(CERTCertificate *cert);
 
 void cert_AddToVerifyLog(CERTVerifyLog *log,CERTCertificate *cert,
-                         unsigned long errorCode, unsigned int depth,
+                         long errorCode, unsigned int depth,
                          void *arg);
+
+/* Insert a DER CRL into the CRL cache, and take ownership of it.
+ *
+ * cert_CacheCRLByGeneralName takes ownership of the memory in crl argument
+ * completely.  crl must be freeable by SECITEM_FreeItem. It will be freed
+ * immediately if it is rejected from the CRL cache, or later during cache
+ * updates when a new crl is available, or at shutdown time.
+ *
+ * canonicalizedName represents the source of the CRL, a GeneralName.
+ * The format of the encoding is not restricted, but all callers of
+ * cert_CacheCRLByGeneralName and cert_FindCRLByGeneralName must use
+ * the same encoding. To facilitate X.500 name matching, a canonicalized
+ * encoding of the GeneralName should be used, if available.
+ */
+ 
+SECStatus cert_CacheCRLByGeneralName(CERTCertDBHandle* dbhandle, SECItem* crl,
+                                     const SECItem* canonicalizedName);
+
+struct NamedCRLCacheStr {
+    PRLock* lock;
+    PLHashTable* entries;
+};
+
+/* NamedCRLCacheEntryStr is filled in by cert_CacheCRLByGeneralName,
+ * and read by cert_FindCRLByGeneralName */
+struct NamedCRLCacheEntryStr {
+    SECItem* canonicalizedName;
+    SECItem* crl;                   /* DER, kept only if CRL
+                                     * is successfully cached */
+    PRBool inCRLCache;
+    PRTime successfulInsertionTime; /* insertion time */
+    PRTime lastAttemptTime;         /* time of last call to
+                              cert_CacheCRLByGeneralName with this name */
+    PRBool badDER;      /* ASN.1 error */
+    PRBool dupe;        /* matching DER CRL already in CRL cache */
+    PRBool unsupported; /* IDP, delta, any other reason */
+};
+
+typedef enum {
+    certRevocationStatusRevoked = 0,
+    certRevocationStatusValid = 1,
+    certRevocationStatusUnknown = 2
+} CERTRevocationStatus;
+
+/* Returns detailed status of the cert(revStatus variable). Tells if
+ * issuer cache has OriginFetchedWithTimeout crl in it. */
+SECStatus
+cert_CheckCertRevocationStatus(CERTCertificate* cert, CERTCertificate* issuer,
+                               const SECItem* dp, PRTime t, void *wincx,
+                               CERTRevocationStatus *revStatus,
+                               CERTCRLEntryReasonCode *revReason);
+
+
+SECStatus cert_AcquireNamedCRLCache(NamedCRLCache** returned);
+
+/* cert_FindCRLByGeneralName must be called only while the named cache is
+ * acquired, and the entry is only valid until cache is released.
+ */
+SECStatus cert_FindCRLByGeneralName(NamedCRLCache* ncc,
+                                    const SECItem* canonicalizedName,
+                                    NamedCRLCacheEntry** retEntry);
+
+SECStatus cert_ReleaseNamedCRLCache(NamedCRLCache* ncc);
+
+/* This is private for now.  Maybe shoule be public. */
+CERTGeneralName *
+cert_GetSubjectAltNameList(const CERTCertificate *cert, PLArenaPool *arena);
+
+/* Count DNS names and IP addresses in a list of GeneralNames */
+PRUint32
+cert_CountDNSPatterns(CERTGeneralName *firstName);
+
+/*
+ * returns the trust status of the leaf certificate based on usage.
+ * If the leaf is explicitly untrusted, this function will fail and 
+ * failedFlags will be set to the trust bit value that lead to the failure.
+ * If the leaf is trusted, isTrusted is set to true and the function returns 
+ * SECSuccess. This function does not check if the cert is fit for a 
+ * particular usage.
+ */
+SECStatus
+cert_CheckLeafTrust(CERTCertificate *cert,
+                    SECCertUsage usage, 
+                    unsigned int *failedFlags,
+                    PRBool *isTrusted);
 
 #endif /* _CERTI_H_ */
 

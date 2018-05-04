@@ -1,46 +1,12 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Support routines for PKCS7 implementation, none of which are exported.
  * This file should only contain things that are needed by both the
  * encoding/creation side *and* the decoding/decryption side.  Anything
  * else should be static routines in the appropriate file.
- *
- * $Id: p7local.c,v 1.13 2008/05/30 03:39:46 nelson%bolyard.com Exp $
  */
 
 #include "p7local.h"
@@ -104,8 +70,8 @@ sec_PKCS7CreateDecryptObject (PK11SymKey *key, SECAlgorithmID *algid)
     SECOidTag algtag;
     void *ciphercx;
     CK_MECHANISM_TYPE cryptoMechType;
-    SECItem *param;
     PK11SlotInfo *slot;
+    SECItem *param = NULL;
 
     result = (struct sec_pkcs7_cipher_object*)
       PORT_ZAlloc (sizeof(struct sec_pkcs7_cipher_object));
@@ -127,6 +93,7 @@ sec_PKCS7CreateDecryptObject (PK11SymKey *key, SECAlgorithmID *algid)
 	cryptoMechType = PK11_GetPBECryptoMechanism(algid, &param, pwitem);
 	if (cryptoMechType == CKM_INVALID_MECHANISM) {
 	    PORT_Free(result);
+	    SECITEM_FreeItem(param,PR_TRUE);
 	    return NULL;
 	}
     } else {
@@ -173,16 +140,16 @@ sec_PKCS7CreateDecryptObject (PK11SymKey *key, SECAlgorithmID *algid)
  * have two simple cover functions which call it. 
  */
 sec_PKCS7CipherObject *
-sec_PKCS7CreateEncryptObject (PRArenaPool *poolp, PK11SymKey *key,
+sec_PKCS7CreateEncryptObject (PLArenaPool *poolp, PK11SymKey *key,
 			      SECOidTag algtag, SECAlgorithmID *algid)
 {
     sec_PKCS7CipherObject *result;
     void *ciphercx;
-    SECItem *param;
     SECStatus rv;
     CK_MECHANISM_TYPE cryptoMechType;
-    PRBool needToEncodeAlgid = PR_FALSE;
     PK11SlotInfo *slot;
+    SECItem *param = NULL;
+    PRBool needToEncodeAlgid = PR_FALSE;
 
     result = (struct sec_pkcs7_cipher_object*)
 	      PORT_ZAlloc (sizeof(struct sec_pkcs7_cipher_object));
@@ -202,6 +169,7 @@ sec_PKCS7CreateEncryptObject (PRArenaPool *poolp, PK11SymKey *key,
 	cryptoMechType = PK11_GetPBECryptoMechanism(algid, &param, pwitem);
 	if (cryptoMechType == CKM_INVALID_MECHANISM) {
 	    PORT_Free(result);
+	    SECITEM_FreeItem(param,PR_TRUE);
 	    return NULL;
 	}
     } else {
@@ -955,7 +923,7 @@ static const SEC_ASN1Template sec_pkcs7_set_of_attribute_template[] = {
  * do the reordering.)
  */
 SECItem *
-sec_PKCS7EncodeAttributes (PRArenaPool *poolp, SECItem *dest, void *src)
+sec_PKCS7EncodeAttributes (PLArenaPool *poolp, SECItem *dest, void *src)
 {
     return SEC_ASN1EncodeItem (poolp, dest, src,
 			       sec_pkcs7_set_of_attribute_template);
@@ -969,7 +937,7 @@ sec_PKCS7EncodeAttributes (PRArenaPool *poolp, SECItem *dest, void *src)
 SECStatus
 sec_PKCS7ReorderAttributes (SEC_PKCS7Attribute **attrs)
 {
-    PRArenaPool *poolp;
+    PLArenaPool *poolp;
     int num_attrs, i, pass, besti;
     unsigned int j;
     SECItem **enc_attrs;
@@ -1306,63 +1274,6 @@ static const SEC_ASN1Template SEC_PointerToPKCS7EncryptedDataTemplate[] = {
     { SEC_ASN1_POINTER, 0, SEC_PKCS7EncryptedDataTemplate }
 };
 
-const SEC_ASN1Template SEC_SMIMEKEAParamTemplateSkipjack[] = {
-	{ SEC_ASN1_SEQUENCE,
-	  0, NULL, sizeof(SEC_PKCS7SMIMEKEAParameters) },
-	{ SEC_ASN1_OCTET_STRING /* | SEC_ASN1_OPTIONAL */,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,originatorKEAKey) },
-	{ SEC_ASN1_OCTET_STRING,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,originatorRA) },
-	{ 0 }
-};
-
-const SEC_ASN1Template SEC_SMIMEKEAParamTemplateNoSkipjack[] = {
-	{ SEC_ASN1_SEQUENCE,
-	  0, NULL, sizeof(SEC_PKCS7SMIMEKEAParameters) },
-	{ SEC_ASN1_OCTET_STRING /* | SEC_ASN1_OPTIONAL */,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,originatorKEAKey) },
-	{ SEC_ASN1_OCTET_STRING,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,originatorRA) },
-	{ SEC_ASN1_OCTET_STRING  | SEC_ASN1_OPTIONAL ,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,nonSkipjackIV) },
-	{ 0 }
-};
-
-const SEC_ASN1Template SEC_SMIMEKEAParamTemplateAllParams[] = {
-	{ SEC_ASN1_SEQUENCE,
-	  0, NULL, sizeof(SEC_PKCS7SMIMEKEAParameters) },
-	{ SEC_ASN1_OCTET_STRING /* | SEC_ASN1_OPTIONAL */,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,originatorKEAKey) },
-	{ SEC_ASN1_OCTET_STRING,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,originatorRA) },
-	{ SEC_ASN1_OCTET_STRING  | SEC_ASN1_OPTIONAL ,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,nonSkipjackIV) },
-	{ SEC_ASN1_OCTET_STRING  | SEC_ASN1_OPTIONAL ,
-	  offsetof(SEC_PKCS7SMIMEKEAParameters,bulkKeySize) },
-	{ 0 }
-};
-
-const SEC_ASN1Template*
-sec_pkcs7_get_kea_template(SECKEATemplateSelector whichTemplate)
-{
-	const SEC_ASN1Template *returnVal = NULL;
-
-	switch(whichTemplate)
-	{
-	case SECKEAUsesNonSkipjack:
-		returnVal = SEC_SMIMEKEAParamTemplateNoSkipjack;
-		break;
-	case SECKEAUsesSkipjack:
-		returnVal = SEC_SMIMEKEAParamTemplateSkipjack;
-		break;
-	case SECKEAUsesNonSkipjackWithPaddedEncKey:
-	default:
-		returnVal = SEC_SMIMEKEAParamTemplateAllParams;
-		break;
-	}
-	return returnVal;
-}
-	
 static const SEC_ASN1Template *
 sec_pkcs7_choose_content_template(void *src_or_dest, PRBool encoding)
 {

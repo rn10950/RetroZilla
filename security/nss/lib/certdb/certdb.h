@@ -1,45 +1,13 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _CERTDB_H_
 #define _CERTDB_H_
 
 
 /* common flags for all types of certificates */
-#define CERTDB_VALID_PEER	(1<<0)
+#define CERTDB_TERMINAL_RECORD	(1<<0)
 #define CERTDB_TRUSTED		(1<<1)
 #define CERTDB_SEND_WARN	(1<<2)
 #define CERTDB_VALID_CA		(1<<3)
@@ -50,6 +18,24 @@
 #define CERTDB_INVISIBLE_CA	(1<<8) /* don't show in UI */
 #define CERTDB_GOVT_APPROVED_CA	(1<<9) /* can do strong crypto in export ver */
 
+/* old usage, to keep old programs compiling */
+/* On Windows, Mac, and Linux (and other gcc platforms), we can give compile
+ * time deprecation warnings when applications use the old CERTDB_VALID_PEER
+ * define */
+#if __GNUC__ > 3
+#if (__GNUC__ == 4) && (__GNUC_MINOR__ < 5)
+typedef unsigned int __CERTDB_VALID_PEER __attribute__((deprecated));
+#else
+typedef unsigned int __CERTDB_VALID_PEER __attribute__((deprecated
+    ("CERTDB_VALID_PEER is now CERTDB_TERMINAL_RECORD")));
+#endif
+#define CERTDB_VALID_PEER  ((__CERTDB_VALID_PEER) CERTDB_TERMINAL_RECORD)
+#else
+#ifdef _WIN32
+#pragma deprecated(CERTDB_VALID_PEER)
+#endif
+#define CERTDB_VALID_PEER  CERTDB_TERMINAL_RECORD 
+#endif
 
 SEC_BEGIN_PROTOS
 
@@ -63,7 +49,7 @@ CERTSignedCrl *
 SEC_FindCrlByDERCert(CERTCertDBHandle *handle, SECItem *derCrl, int type);
 
 PRBool
-SEC_CertNicknameConflict(char *nickname, SECItem *derSubject,
+SEC_CertNicknameConflict(const char *nickname, const SECItem *derSubject,
 			 CERTCertDBHandle *handle);
 CERTSignedCrl *
 SEC_NewCrl(CERTCertDBHandle *handle, char *url, SECItem *derCrl, int type);

@@ -1,43 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * CMS encryptedData methods.
- *
- * $Id: cmsencdata.c,v 1.11 2008/02/03 06:08:49 nelson%bolyard.com Exp $
  */
 
 #include "cmslocal.h"
@@ -181,6 +147,7 @@ NSS_CMSEncryptedData_Encode_BeforeData(NSSCMSEncryptedData *encd)
     NSSCMSContentInfo *cinfo;
     PK11SymKey *bulkkey;
     SECAlgorithmID *algid;
+    SECStatus rv;
 
     cinfo = &(encd->contentInfo);
 
@@ -192,12 +159,16 @@ NSS_CMSEncryptedData_Encode_BeforeData(NSSCMSEncryptedData *encd)
     if (algid == NULL)
 	return SECFailure;
 
+    rv = NSS_CMSContentInfo_Private_Init(cinfo);
+    if (rv != SECSuccess) {
+	return SECFailure;
+    }
     /* this may modify algid (with IVs generated in a token).
      * it is therefore essential that algid is a pointer to the "real" contentEncAlg,
      * not just to a copy */
-    cinfo->ciphcx = NSS_CMSCipherContext_StartEncrypt(encd->cmsg->poolp, bulkkey, algid);
+    cinfo->privateInfo->ciphcx = NSS_CMSCipherContext_StartEncrypt(encd->cmsg->poolp, bulkkey, algid);
     PK11_FreeSymKey(bulkkey);
-    if (cinfo->ciphcx == NULL)
+    if (cinfo->privateInfo->ciphcx == NULL)
 	return SECFailure;
 
     return SECSuccess;
@@ -209,9 +180,9 @@ NSS_CMSEncryptedData_Encode_BeforeData(NSSCMSEncryptedData *encd)
 SECStatus
 NSS_CMSEncryptedData_Encode_AfterData(NSSCMSEncryptedData *encd)
 {
-    if (encd->contentInfo.ciphcx) {
-	NSS_CMSCipherContext_Destroy(encd->contentInfo.ciphcx);
-	encd->contentInfo.ciphcx = NULL;
+    if (encd->contentInfo.privateInfo && encd->contentInfo.privateInfo->ciphcx) {
+	NSS_CMSCipherContext_Destroy(encd->contentInfo.privateInfo->ciphcx);
+	encd->contentInfo.privateInfo->ciphcx = NULL;
     }
 
     /* nothing to do after data */
@@ -244,8 +215,14 @@ NSS_CMSEncryptedData_Decode_BeforeData(NSSCMSEncryptedData *encd)
 
     NSS_CMSContentInfo_SetBulkKey(cinfo, bulkkey);
 
-    cinfo->ciphcx = NSS_CMSCipherContext_StartDecrypt(bulkkey, bulkalg);
-    if (cinfo->ciphcx == NULL)
+    rv = NSS_CMSContentInfo_Private_Init(cinfo);
+    if (rv != SECSuccess) {
+	goto loser;
+    }
+    rv = SECFailure;
+
+    cinfo->privateInfo->ciphcx = NSS_CMSCipherContext_StartDecrypt(bulkkey, bulkalg);
+    if (cinfo->privateInfo->ciphcx == NULL)
 	goto loser;		/* error has been set by NSS_CMSCipherContext_StartDecrypt */
 
 
@@ -264,9 +241,9 @@ loser:
 SECStatus
 NSS_CMSEncryptedData_Decode_AfterData(NSSCMSEncryptedData *encd)
 {
-    if (encd->contentInfo.ciphcx) {
-	NSS_CMSCipherContext_Destroy(encd->contentInfo.ciphcx);
-	encd->contentInfo.ciphcx = NULL;
+    if (encd->contentInfo.privateInfo && encd->contentInfo.privateInfo->ciphcx) {
+	NSS_CMSCipherContext_Destroy(encd->contentInfo.privateInfo->ciphcx);
+	encd->contentInfo.privateInfo->ciphcx = NULL;
     }
 
     return SECSuccess;

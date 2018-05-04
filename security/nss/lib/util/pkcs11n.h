@@ -1,46 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Stephen Henson <stephen.henson@gemplus.com>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _PKCS11N_H_
 #define _PKCS11N_H_
-
-#ifdef DEBUG
-static const char CKT_CVS_ID[] = "@(#) $RCSfile: pkcs11n.h,v $ $Revision: 1.19 $ $Date: 2009/03/25 05:21:03 $";
-#endif /* DEBUG */
 
 /*
  * pkcs11n.h
@@ -84,6 +47,10 @@ static const char CKT_CVS_ID[] = "@(#) $RCSfile: pkcs11n.h,v $ $Revision: 1.19 $
 #define CKK_NSS (CKK_VENDOR_DEFINED|NSSCK_VENDOR_NSS)
 
 #define CKK_NSS_PKCS8              (CKK_NSS + 1)
+
+#define CKK_NSS_JPAKE_ROUND1       (CKK_NSS + 2)
+#define CKK_NSS_JPAKE_ROUND2       (CKK_NSS + 3)
+
 /*
  * NSS-defined certificate types
  *
@@ -115,6 +82,15 @@ static const char CKT_CVS_ID[] = "@(#) $RCSfile: pkcs11n.h,v $ $Revision: 1.19 $
 #define CKA_NSS_PQG_SEED_BITS      (CKA_NSS +  23)
 #define CKA_NSS_MODULE_SPEC        (CKA_NSS +  24)
 #define CKA_NSS_OVERRIDE_EXTENSIONS (CKA_NSS +  25)
+
+#define CKA_NSS_JPAKE_SIGNERID     (CKA_NSS +  26)
+#define CKA_NSS_JPAKE_PEERID       (CKA_NSS +  27)
+#define CKA_NSS_JPAKE_GX1          (CKA_NSS +  28)
+#define CKA_NSS_JPAKE_GX2          (CKA_NSS +  29)
+#define CKA_NSS_JPAKE_GX3          (CKA_NSS +  30)
+#define CKA_NSS_JPAKE_GX4          (CKA_NSS +  31)
+#define CKA_NSS_JPAKE_X2           (CKA_NSS +  32)
+#define CKA_NSS_JPAKE_X2S          (CKA_NSS +  33)
 
 /*
  * Trust attributes:
@@ -149,7 +125,6 @@ static const char CKT_CVS_ID[] = "@(#) $RCSfile: pkcs11n.h,v $ $Revision: 1.19 $
 #define CKA_CERT_MD5_HASH		(CKA_TRUST + 101)
 
 /* NSS trust stuff */
-/* XXX fgmr new ones here-- step-up, etc. */
 
 /* HISTORICAL: define used to pass in the database key for DSA private keys */
 #define CKA_NETSCAPE_DB                 0xD5A0DB00L
@@ -167,6 +142,77 @@ static const char CKT_CVS_ID[] = "@(#) $RCSfile: pkcs11n.h,v $ $Revision: 1.19 $
 
 #define CKM_NSS_AES_KEY_WRAP      (CKM_NSS + 1)
 #define CKM_NSS_AES_KEY_WRAP_PAD  (CKM_NSS + 2)
+
+/* HKDF key derivation mechanisms. See CK_NSS_HKDFParams for documentation. */
+#define CKM_NSS_HKDF_SHA1         (CKM_NSS + 3)
+#define CKM_NSS_HKDF_SHA256       (CKM_NSS + 4)
+#define CKM_NSS_HKDF_SHA384       (CKM_NSS + 5)
+#define CKM_NSS_HKDF_SHA512       (CKM_NSS + 6)
+
+/* J-PAKE round 1 key generation mechanisms.
+ *
+ * Required template attributes: CKA_PRIME, CKA_SUBPRIME, CKA_BASE,
+ *                               CKA_NSS_JPAKE_SIGNERID
+ * Output key type: CKK_NSS_JPAKE_ROUND1
+ * Output key class: CKO_PRIVATE_KEY
+ * Parameter type: CK_NSS_JPAKERound1Params
+ *
+ */
+#define CKM_NSS_JPAKE_ROUND1_SHA1   (CKM_NSS + 7)
+#define CKM_NSS_JPAKE_ROUND1_SHA256 (CKM_NSS + 8)
+#define CKM_NSS_JPAKE_ROUND1_SHA384 (CKM_NSS + 9)
+#define CKM_NSS_JPAKE_ROUND1_SHA512 (CKM_NSS + 10)
+
+/* J-PAKE round 2 key derivation mechanisms.
+ * 
+ * Required template attributes: CKA_NSS_JPAKE_PEERID
+ * Input key type:  CKK_NSS_JPAKE_ROUND1
+ * Output key type: CKK_NSS_JPAKE_ROUND2
+ * Output key class: CKO_PRIVATE_KEY
+ * Parameter type: CK_NSS_JPAKERound2Params
+ */
+#define CKM_NSS_JPAKE_ROUND2_SHA1   (CKM_NSS + 11)
+#define CKM_NSS_JPAKE_ROUND2_SHA256 (CKM_NSS + 12)
+#define CKM_NSS_JPAKE_ROUND2_SHA384 (CKM_NSS + 13)
+#define CKM_NSS_JPAKE_ROUND2_SHA512 (CKM_NSS + 14)
+
+/* J-PAKE final key material derivation mechanisms 
+ *
+ * Input key type:  CKK_NSS_JPAKE_ROUND2
+ * Output key type: CKK_GENERIC_SECRET
+ * Output key class: CKO_SECRET_KEY
+ * Parameter type: CK_NSS_JPAKEFinalParams
+ *
+ * You must apply a KDF (e.g. CKM_NSS_HKDF_*) to resultant keying material 
+ * to get a key with uniformly distributed bits.
+ */
+#define CKM_NSS_JPAKE_FINAL_SHA1    (CKM_NSS + 15)
+#define CKM_NSS_JPAKE_FINAL_SHA256  (CKM_NSS + 16)
+#define CKM_NSS_JPAKE_FINAL_SHA384  (CKM_NSS + 17)
+#define CKM_NSS_JPAKE_FINAL_SHA512  (CKM_NSS + 18)
+
+/* Constant-time MAC mechanisms:
+ *
+ * These operations verify a padded, MAC-then-encrypt block of data in
+ * constant-time. Because of the order of operations, the padding bytes are not
+ * protected by the MAC. However, disclosing the value of the padding bytes
+ * gives an attacker the ability to decrypt ciphertexts. Such disclosure can be
+ * as subtle as taking slightly less time to perform the MAC when the padding
+ * is one byte longer. See https://www.isg.rhul.ac.uk/tls/
+ *
+ * CKM_NSS_HMAC_CONSTANT_TIME: performs an HMAC authentication.
+ * CKM_NSS_SSL3_MAC_CONSTANT_TIME: performs an authentication with SSLv3 MAC.
+ *
+ * Parameter type: CK_NSS_MAC_CONSTANT_TIME_PARAMS
+ */
+#define CKM_NSS_HMAC_CONSTANT_TIME      (CKM_NSS + 19)
+#define CKM_NSS_SSL3_MAC_CONSTANT_TIME  (CKM_NSS + 20)
+
+/* TLS 1.2 mechanisms */
+#define CKM_NSS_TLS_PRF_GENERAL_SHA256          (CKM_NSS + 21)
+#define CKM_NSS_TLS_MASTER_KEY_DERIVE_SHA256    (CKM_NSS + 22)
+#define CKM_NSS_TLS_KEY_AND_MAC_DERIVE_SHA256   (CKM_NSS + 23)
+#define CKM_NSS_TLS_MASTER_KEY_DERIVE_DH_SHA256 (CKM_NSS + 24)
 
 /*
  * HISTORICAL:
@@ -187,6 +233,54 @@ static const char CKT_CVS_ID[] = "@(#) $RCSfile: pkcs11n.h,v $ $Revision: 1.19 $
 
 #define CKM_TLS_PRF_GENERAL                     0x80000373UL
 
+typedef struct CK_NSS_JPAKEPublicValue {
+    CK_BYTE * pGX;
+    CK_ULONG ulGXLen;
+    CK_BYTE * pGV;
+    CK_ULONG ulGVLen;
+    CK_BYTE * pR;
+    CK_ULONG ulRLen;
+} CK_NSS_JPAKEPublicValue;
+
+typedef struct CK_NSS_JPAKERound1Params {
+    CK_NSS_JPAKEPublicValue gx1; /* out */
+    CK_NSS_JPAKEPublicValue gx2; /* out */
+} CK_NSS_JPAKERound1Params;
+
+typedef struct CK_NSS_JPAKERound2Params {
+    CK_BYTE * pSharedKey;        /* in */
+    CK_ULONG ulSharedKeyLen;     /* in */
+    CK_NSS_JPAKEPublicValue gx3; /* in */
+    CK_NSS_JPAKEPublicValue gx4; /* in */
+    CK_NSS_JPAKEPublicValue A;   /* out */
+} CK_NSS_JPAKERound2Params;
+
+typedef struct CK_NSS_JPAKEFinalParams {
+    CK_NSS_JPAKEPublicValue B; /* in */
+} CK_NSS_JPAKEFinalParams;
+
+/* macAlg: the MAC algorithm to use. This determines the hash function used in
+ *     the HMAC/SSLv3 MAC calculations.
+ * ulBodyTotalLen: the total length of the data, including padding bytes and
+ *     padding length.
+ * pHeader: points to a block of data that contains additional data to
+ *     authenticate. For TLS this includes the sequence number etc. For SSLv3,
+ *     this also includes the initial padding bytes.
+ *
+ * NOTE: the softoken's implementation of CKM_NSS_HMAC_CONSTANT_TIME and
+ * CKM_NSS_SSL3_MAC_CONSTANT_TIME requires that the sum of ulBodyTotalLen
+ * and ulHeaderLen be much smaller than 2^32 / 8 bytes because it uses an
+ * unsigned int variable to represent the length in bits. This should not
+ * be a problem because the SSL/TLS protocol limits the size of an SSL
+ * record to something considerably less than 2^32 bytes.
+ */
+typedef struct CK_NSS_MAC_CONSTANT_TIME_PARAMS {
+    CK_MECHANISM_TYPE macAlg;   /* in */
+    CK_ULONG ulBodyTotalLen;    /* in */
+    CK_BYTE * pHeader;          /* in */
+    CK_ULONG ulHeaderLen;       /* in */
+} CK_NSS_MAC_CONSTANT_TIME_PARAMS;
+
 /*
  * NSS-defined return values
  *
@@ -195,6 +289,33 @@ static const char CKT_CVS_ID[] = "@(#) $RCSfile: pkcs11n.h,v $ $Revision: 1.19 $
 
 #define CKR_NSS_CERTDB_FAILED      (CKR_NSS + 1)
 #define CKR_NSS_KEYDB_FAILED       (CKR_NSS + 2)
+
+/* Mandatory parameter for the CKM_NSS_HKDF_* key deriviation mechanisms.
+   See RFC 5869.
+   
+    bExtract: If set, HKDF-Extract will be applied to the input key. If
+              the optional salt is given, it is used; otherwise, the salt is
+              set to a sequence of zeros equal in length to the HMAC output.
+              If bExpand is not set, then the key template given to
+              C_DeriveKey must indicate an output key size less than or equal
+              to the output size of the HMAC.
+
+    bExpand:  If set, HKDF-Expand will be applied to the input key (if
+              bExtract is not set) or to the result of HKDF-Extract (if
+              bExtract is set). Any info given in the optional pInfo field will
+              be included in the calculation.
+
+    The size of the output key must be specified in the template passed to
+    C_DeriveKey.
+*/
+typedef struct CK_NSS_HKDFParams {
+    CK_BBOOL bExtract;
+    CK_BYTE_PTR pSalt;
+    CK_ULONG ulSaltLen;
+    CK_BBOOL bExpand;
+    CK_BYTE_PTR pInfo;
+    CK_ULONG ulInfoLen;
+} CK_NSS_HKDFParams;
 
 /*
  * Trust info
@@ -216,16 +337,71 @@ typedef CK_ULONG          CK_TRUST;
 /* If trust goes standard, these'll probably drop out of vendor space. */
 #define CKT_NSS_TRUSTED            (CKT_NSS + 1)
 #define CKT_NSS_TRUSTED_DELEGATOR  (CKT_NSS + 2)
-#define CKT_NSS_UNTRUSTED          (CKT_NSS + 3)
-#define CKT_NSS_MUST_VERIFY        (CKT_NSS + 4)
+#define CKT_NSS_MUST_VERIFY_TRUST  (CKT_NSS + 3)
+#define CKT_NSS_NOT_TRUSTED        (CKT_NSS + 10)
 #define CKT_NSS_TRUST_UNKNOWN      (CKT_NSS + 5) /* default */
 
 /* 
  * These may well remain NSS-specific; I'm only using them
  * to cache resolution data.
  */
-#define CKT_NSS_VALID              (CKT_NSS + 10)
 #define CKT_NSS_VALID_DELEGATOR    (CKT_NSS + 11)
+
+
+/*
+ * old definitions. They still exist, but the plain meaning of the
+ * labels have never been accurate to what was really implemented.
+ * The new labels correctly reflect what the values effectively mean.
+ */
+#if defined(__GNUC__) && (__GNUC__ > 3)
+/* make GCC warn when we use these #defines */
+/*
+ *  This is really painful because GCC doesn't allow us to mark random
+ *  #defines as deprecated. We can only mark the following:
+ *      functions, variables, and types.
+ *  const variables will create extra storage for everyone including this
+ *       header file, so it's undesirable.
+ *  functions could be inlined to prevent storage creation, but will fail
+ *       when constant values are expected (like switch statements).
+ *  enum types do not seem to pay attention to the deprecated attribute.
+ *
+ *  That leaves typedefs. We declare new types that we then deprecate, then
+ *  cast the resulting value to the deprecated type in the #define, thus
+ *  producting the warning when the #define is used.
+ */
+#if (__GNUC__  == 4) && (__GNUC_MINOR__ < 5)
+/* The mac doesn't like the friendlier deprecate messages. I'm assuming this
+ * is a gcc version issue rather than mac or ppc specific */
+typedef CK_TRUST __CKT_NSS_UNTRUSTED __attribute__((deprecated));
+typedef CK_TRUST __CKT_NSS_VALID __attribute__ ((deprecated));
+typedef CK_TRUST __CKT_NSS_MUST_VERIFY __attribute__((deprecated));
+#else
+/* when possible, get a full deprecation warning. This works on gcc 4.5
+ * it may work on earlier versions of gcc */
+typedef CK_TRUST __CKT_NSS_UNTRUSTED __attribute__((deprecated
+    ("CKT_NSS_UNTRUSTED really means CKT_NSS_MUST_VERIFY_TRUST")));
+typedef CK_TRUST __CKT_NSS_VALID __attribute__ ((deprecated
+    ("CKT_NSS_VALID really means CKT_NSS_NOT_TRUSTED")));
+typedef CK_TRUST __CKT_NSS_MUST_VERIFY __attribute__((deprecated
+    ("CKT_NSS_MUST_VERIFY really functions as CKT_NSS_TRUST_UNKNOWN")));
+#endif
+#define CKT_NSS_UNTRUSTED ((__CKT_NSS_UNTRUSTED)CKT_NSS_MUST_VERIFY_TRUST)
+#define CKT_NSS_VALID     ((__CKT_NSS_VALID) CKT_NSS_NOT_TRUSTED)
+/* keep the old value for compatibility reasons*/
+#define CKT_NSS_MUST_VERIFY ((__CKT_NSS_MUST_VERIFY)(CKT_NSS +4))
+#else
+#ifdef _WIN32
+/* This magic gets the windows compiler to give us a deprecation
+ * warning */
+#pragma deprecated(CKT_NSS_UNTRUSTED, CKT_NSS_MUST_VERIFY, CKT_NSS_VALID)
+#endif
+/* CKT_NSS_UNTRUSTED really means CKT_NSS_MUST_VERIFY_TRUST */
+#define CKT_NSS_UNTRUSTED          CKT_NSS_MUST_VERIFY_TRUST
+/* CKT_NSS_VALID really means CKT_NSS_NOT_TRUSTED */
+#define CKT_NSS_VALID              CKT_NSS_NOT_TRUSTED
+/* CKT_NSS_MUST_VERIFY was always treated as CKT_NSS_TRUST_UNKNOWN */
+#define CKT_NSS_MUST_VERIFY        (CKT_NSS + 4)  /*really means trust unknown*/
+#endif
 
 /* don't leave old programs in a lurch just yet, give them the old NETSCAPE
  * synonym */
@@ -253,6 +429,7 @@ typedef CK_ULONG          CK_TRUST;
 #define CKM_NETSCAPE_AES_KEY_WRAP_PAD	CKM_NSS_AES_KEY_WRAP_PAD
 #define CKR_NETSCAPE_CERTDB_FAILED      CKR_NSS_CERTDB_FAILED
 #define CKR_NETSCAPE_KEYDB_FAILED       CKR_NSS_KEYDB_FAILED
+
 #define CKT_NETSCAPE_TRUSTED            CKT_NSS_TRUSTED
 #define CKT_NETSCAPE_TRUSTED_DELEGATOR  CKT_NSS_TRUSTED_DELEGATOR
 #define CKT_NETSCAPE_UNTRUSTED          CKT_NSS_UNTRUSTED

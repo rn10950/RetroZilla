@@ -1,43 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * CMS ASN.1 templates
- *
- * $Id: cmsasn1.c,v 1.6 2004/04/25 15:03:15 gerv%gerv.net Exp $
  */
 
 #include "cmslocal.h"
@@ -257,10 +223,9 @@ static const SEC_ASN1Template NSSCMSRecipientIdentifierTemplate[] = {
     { SEC_ASN1_CHOICE,
 	  offsetof(NSSCMSRecipientIdentifier,identifierType), NULL,
 	  sizeof(NSSCMSRecipientIdentifier) },
-    { SEC_ASN1_EXPLICIT | SEC_ASN1_CONSTRUCTED | SEC_ASN1_CONTEXT_SPECIFIC |
-      SEC_ASN1_XTRN | 0,
+    { SEC_ASN1_POINTER | SEC_ASN1_CONTEXT_SPECIFIC | SEC_ASN1_XTRN | 0,
 	  offsetof(NSSCMSRecipientIdentifier,id.subjectKeyID),
-	  SEC_ASN1_SUB(SEC_PointerToOctetStringTemplate) ,
+	  SEC_ASN1_SUB(SEC_OctetStringTemplate) ,
 	  NSSCMSRecipientID_SubjectKeyID },
     { SEC_ASN1_POINTER | SEC_ASN1_XTRN,
 	  offsetof(NSSCMSRecipientIdentifier,id.issuerAndSN),
@@ -480,65 +445,19 @@ const SEC_ASN1Template NSS_PointerToCMSEncryptedDataTemplate[] = {
     { SEC_ASN1_POINTER, 0, NSSCMSEncryptedDataTemplate }
 };
 
-/* -----------------------------------------------------------------------------
- * FORTEZZA KEA
- */
-const SEC_ASN1Template NSS_SMIMEKEAParamTemplateSkipjack[] = {
-	{ SEC_ASN1_SEQUENCE,
-	  0, NULL, sizeof(NSSCMSSMIMEKEAParameters) },
-	{ SEC_ASN1_OCTET_STRING /* | SEC_ASN1_OPTIONAL */,
-	  offsetof(NSSCMSSMIMEKEAParameters,originatorKEAKey) },
-	{ SEC_ASN1_OCTET_STRING,
-	  offsetof(NSSCMSSMIMEKEAParameters,originatorRA) },
-	{ 0 }
+const SEC_ASN1Template NSSCMSGenericWrapperDataTemplate[] = {
+    { SEC_ASN1_INLINE,
+	  offsetof(NSSCMSGenericWrapperData,contentInfo),
+	  NSSCMSEncapsulatedContentInfoTemplate },
 };
 
-const SEC_ASN1Template NSS_SMIMEKEAParamTemplateNoSkipjack[] = {
-	{ SEC_ASN1_SEQUENCE,
-	  0, NULL, sizeof(NSSCMSSMIMEKEAParameters) },
-	{ SEC_ASN1_OCTET_STRING /* | SEC_ASN1_OPTIONAL */,
-	  offsetof(NSSCMSSMIMEKEAParameters,originatorKEAKey) },
-	{ SEC_ASN1_OCTET_STRING,
-	  offsetof(NSSCMSSMIMEKEAParameters,originatorRA) },
-	{ SEC_ASN1_OCTET_STRING  | SEC_ASN1_OPTIONAL ,
-	  offsetof(NSSCMSSMIMEKEAParameters,nonSkipjackIV) },
-	{ 0 }
+SEC_ASN1_CHOOSER_IMPLEMENT(NSSCMSGenericWrapperDataTemplate)
+
+const SEC_ASN1Template NSS_PointerToCMSGenericWrapperDataTemplate[] = {
+    { SEC_ASN1_POINTER, 0, NSSCMSGenericWrapperDataTemplate }
 };
 
-const SEC_ASN1Template NSS_SMIMEKEAParamTemplateAllParams[] = {
-	{ SEC_ASN1_SEQUENCE,
-	  0, NULL, sizeof(NSSCMSSMIMEKEAParameters) },
-	{ SEC_ASN1_OCTET_STRING /* | SEC_ASN1_OPTIONAL */,
-	  offsetof(NSSCMSSMIMEKEAParameters,originatorKEAKey) },
-	{ SEC_ASN1_OCTET_STRING,
-	  offsetof(NSSCMSSMIMEKEAParameters,originatorRA) },
-	{ SEC_ASN1_OCTET_STRING  | SEC_ASN1_OPTIONAL ,
-	  offsetof(NSSCMSSMIMEKEAParameters,nonSkipjackIV) },
-	{ SEC_ASN1_OCTET_STRING  | SEC_ASN1_OPTIONAL ,
-	  offsetof(NSSCMSSMIMEKEAParameters,bulkKeySize) },
-	{ 0 }
-};
-
-const SEC_ASN1Template *
-nss_cms_get_kea_template(NSSCMSKEATemplateSelector whichTemplate)
-{
-	const SEC_ASN1Template *returnVal = NULL;
-
-	switch(whichTemplate)
-	{
-	case NSSCMSKEAUsesNonSkipjack:
-		returnVal = NSS_SMIMEKEAParamTemplateNoSkipjack;
-		break;
-	case NSSCMSKEAUsesSkipjack:
-		returnVal = NSS_SMIMEKEAParamTemplateSkipjack;
-		break;
-	case NSSCMSKEAUsesNonSkipjackWithPaddedEncKey:
-	default:
-		returnVal = NSS_SMIMEKEAParamTemplateAllParams;
-		break;
-	}
-	return returnVal;
-}
+SEC_ASN1_CHOOSER_IMPLEMENT(NSS_PointerToCMSGenericWrapperDataTemplate)
 
 /* -----------------------------------------------------------------------------
  *
@@ -548,15 +467,17 @@ nss_cms_choose_content_template(void *src_or_dest, PRBool encoding)
 {
     const SEC_ASN1Template *theTemplate;
     NSSCMSContentInfo *cinfo;
+    SECOidTag type;
 
     PORT_Assert (src_or_dest != NULL);
     if (src_or_dest == NULL)
 	return NULL;
 
     cinfo = (NSSCMSContentInfo *)src_or_dest;
-    switch (NSS_CMSContentInfo_GetContentTypeTag(cinfo)) {
+    type = NSS_CMSContentInfo_GetContentTypeTag(cinfo);
+    switch (type) {
     default:
-	theTemplate = SEC_ASN1_GET(SEC_PointerToAnyTemplate);
+	theTemplate = NSS_CMSType_GetTemplate(type);
 	break;
     case SEC_OID_PKCS7_DATA:
 	theTemplate = SEC_ASN1_GET(SEC_PointerToOctetStringTemplate);

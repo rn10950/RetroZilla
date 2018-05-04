@@ -1,41 +1,8 @@
 /*
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: dsa.c,v 1.20 2009/03/29 16:51:58 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef FREEBL_NO_DEPEND
 #include "stubs.h"
@@ -52,25 +19,22 @@
 #include "blapi.h"
 #include "mpi.h"
 #include "secmpi.h"
+#include "pqg.h"
 
  /* XXX to be replaced by define in blapit.h */
 #define NSS_FREEBL_DSA_DEFAULT_CHUNKSIZE 2048
-
-#define FIPS_DSA_Q     160
-#define QSIZE      (FIPS_DSA_Q / PR_BITS_PER_BYTE)
 
 /*
  * FIPS 186-2 requires result from random output to be reduced mod q when 
  * generating random numbers for DSA. 
  *
- * Input: w, 2*QSIZE bytes
- *        q, DSA_SUBPRIME_LEN bytes
- * Output: xj, DSA_SUBPRIME_LEN bytes
+ * Input: w, 2*qLen bytes
+ *        q, qLen bytes
+ * Output: xj, qLen bytes
  */
-SECStatus
-FIPS186Change_ReduceModQForDSA(const PRUint8 *w,
-                               const PRUint8 *q,
-                               PRUint8 *xj)
+static SECStatus
+fips186Change_ReduceModQForDSA(const PRUint8 *w, const PRUint8 *q,
+                               unsigned int qLen, PRUint8 * xj)
 {
     mp_int W, Q, Xj;
     mp_err err;
@@ -86,15 +50,16 @@ FIPS186Change_ReduceModQForDSA(const PRUint8 *w,
     /*
      * Convert input arguments into MPI integers.
      */
-    CHECK_MPI_OK( mp_read_unsigned_octets(&W, w, 2*QSIZE) );
-    CHECK_MPI_OK( mp_read_unsigned_octets(&Q, q, DSA_SUBPRIME_LEN) );
+    CHECK_MPI_OK( mp_read_unsigned_octets(&W, w, 2*qLen) );
+    CHECK_MPI_OK( mp_read_unsigned_octets(&Q, q, qLen) );
+
     /*
      * Algorithm 1 of FIPS 186-2 Change Notice 1, Step 3.3
      *
      * xj = (w0 || w1) mod q
      */
     CHECK_MPI_OK( mp_mod(&W, &Q, &Xj) );
-    CHECK_MPI_OK( mp_to_fixlen_octets(&Xj, xj, DSA_SUBPRIME_LEN) );
+    CHECK_MPI_OK( mp_to_fixlen_octets(&Xj, xj, qLen) );
 cleanup:
     mp_clear(&W);
     mp_clear(&Q);
@@ -104,6 +69,17 @@ cleanup:
 	rv = SECFailure;
     }
     return rv;
+}
+
+/*
+ * FIPS 186-2 requires result from random output to be reduced mod q when 
+ * generating random numbers for DSA. 
+ */
+SECStatus
+FIPS186Change_ReduceModQForDSA(const unsigned char *w,
+                               const unsigned char *q,
+                               unsigned char *xj) {
+    return fips186Change_ReduceModQForDSA(w, q, DSA1_SUBPRIME_LEN, xj);
 }
 
 /*
@@ -137,24 +113,36 @@ FIPS186Change_GenerateX(PRUint8 *XKEY, const PRUint8 *XSEEDj,
 ** object.  In DSA mode, so there is a q.
 */
 static SECStatus 
-dsa_GenerateGlobalRandomBytes(void *dest, size_t len, const PRUint8 *q)
+dsa_GenerateGlobalRandomBytes(const SECItem * qItem, PRUint8 * dest,
+                              unsigned int * destLen, unsigned int maxDestLen)
 {
     SECStatus rv;
-    PRUint8 w[2*QSIZE];
+    SECItem w;
+    const PRUint8 * q = qItem->data;
+    unsigned int qLen = qItem->len;
 
-    PORT_Assert(q && len == DSA_SUBPRIME_LEN);
-    if (len != DSA_SUBPRIME_LEN) {
-	PORT_SetError(SEC_ERROR_OUTPUT_LEN);
-	return SECFailure;
-    }
     if (*q == 0) {
         ++q;
+        --qLen;
     }
-    rv = RNG_GenerateGlobalRandomBytes(w, 2*QSIZE);
-    if (rv != SECSuccess) {
-	return rv;
+    if (maxDestLen < qLen) {
+        /* This condition can occur when DSA_SignDigest is passed a group
+           with a subprime that is larger than DSA_MAX_SUBPRIME_LEN. */
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return SECFailure;
     }
-    FIPS186Change_ReduceModQForDSA(w, q, (PRUint8 *)dest);
+    w.data = NULL; /* otherwise SECITEM_AllocItem asserts */
+    if (!SECITEM_AllocItem(NULL, &w, 2*qLen)) {
+        return SECFailure;
+    }
+    *destLen = qLen;
+
+    rv = RNG_GenerateGlobalRandomBytes(w.data, w.len);
+    if (rv == SECSuccess) {
+        rv = fips186Change_ReduceModQForDSA(w.data, q, qLen, dest);
+    }
+
+    SECITEM_FreeItem(&w, PR_FALSE);
     return rv;
 }
 
@@ -163,17 +151,17 @@ static void translate_mpi_error(mp_err err)
     MP_TO_SEC_ERROR(err);
 }
 
-SECStatus 
-dsa_NewKey(const PQGParams *params, DSAPrivateKey **privKey, 
-           const unsigned char *xb)
+static SECStatus 
+dsa_NewKeyExtended(const PQGParams *params, const SECItem * seed,
+                   DSAPrivateKey **privKey)
 {
     mp_int p, g;
     mp_int x, y;
     mp_err err;
-    PRArenaPool *arena;
+    PLArenaPool *arena;
     DSAPrivateKey *key;
     /* Check args. */
-    if (!params || !privKey) {
+    if (!params || !privKey || !seed || !seed->data) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return SECFailure;
     }
@@ -208,10 +196,10 @@ dsa_NewKey(const PQGParams *params, DSAPrivateKey **privKey,
     /* Convert stored p, g, and received x into MPI integers. */
     SECITEM_TO_MPINT(params->prime, &p);
     SECITEM_TO_MPINT(params->base,  &g);
-    OCTETS_TO_MPINT(xb, &x, DSA_SUBPRIME_LEN);
+    OCTETS_TO_MPINT(seed->data, &x, seed->len);
     /* Store x in private key */
-    SECITEM_AllocItem(arena, &key->privateValue, DSA_SUBPRIME_LEN);
-    memcpy(key->privateValue.data, xb, DSA_SUBPRIME_LEN);
+    SECITEM_AllocItem(arena, &key->privateValue, seed->len);
+    PORT_Memcpy(key->privateValue.data, seed->data, seed->len);
     /* Compute public key y = g**x mod p */
     CHECK_MPI_OK( mp_exptmod(&g, &x, &p, &y) );
     /* Store y in public key */
@@ -232,6 +220,53 @@ cleanup:
     return SECSuccess;
 }
 
+SECStatus
+DSA_NewRandom(PLArenaPool * arena, const SECItem * q, SECItem * seed)
+{
+    int retries = 10;
+    unsigned int i;
+    PRBool good;
+
+    if (q == NULL || q->data == NULL || q->len == 0 ||
+        (q->data[0] == 0 && q->len == 1)) {
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return SECFailure;
+    }
+
+    if (!SECITEM_AllocItem(arena, seed, q->len)) {
+        return SECFailure;
+    }
+
+    do {
+	/* Generate seed bytes for x according to FIPS 186-1 appendix 3 */
+        if (dsa_GenerateGlobalRandomBytes(q, seed->data, &seed->len,
+                                          seed->len)) {
+            goto loser;
+        }
+	/* Disallow values of 0 and 1 for x. */
+	good = PR_FALSE;
+	for (i = 0; i < seed->len-1; i++) {
+	    if (seed->data[i] != 0) {
+		good = PR_TRUE;
+		break;
+	    }
+	}
+	if (!good && seed->data[i] > 1) {
+	    good = PR_TRUE;
+	}
+    } while (!good && --retries > 0);
+
+    if (!good) {
+	PORT_SetError(SEC_ERROR_NEED_RANDOM);
+loser:	if (arena != NULL) {
+            SECITEM_FreeItem(seed, PR_FALSE);
+        }
+	return SECFailure;
+    }
+
+    return SECSuccess;
+}
+
 /*
 ** Generate and return a new DSA public and private key pair,
 **	both of which are encoded into a single DSAPrivateKey struct.
@@ -241,49 +276,38 @@ cleanup:
 SECStatus 
 DSA_NewKey(const PQGParams *params, DSAPrivateKey **privKey)
 {
+    SECItem seed;
     SECStatus rv;
-    unsigned char seed[DSA_SUBPRIME_LEN];
-    int retries = 10;
-    int i;
-    PRBool good;
 
-    do {
-	/* Generate seed bytes for x according to FIPS 186-1 appendix 3 */
-	if (dsa_GenerateGlobalRandomBytes(seed, DSA_SUBPRIME_LEN,
-					  params->subPrime.data))
-	    return SECFailure;
-	/* Disallow values of 0 and 1 for x. */
-	good = PR_FALSE;
-	for (i = 0; i < DSA_SUBPRIME_LEN-1; i++) {
-	    if (seed[i] != 0) {
-		good = PR_TRUE;
-		break;
-	    }
-	}
-	if (!good && seed[i] > 1) {
-	    good = PR_TRUE;
-	}
-    } while (!good && --retries > 0);
-
-    if (!good) {
-	PORT_SetError(SEC_ERROR_NEED_RANDOM);
-	return SECFailure;
+    rv = PQG_Check(params);
+    if (rv != SECSuccess) {
+	return rv;
     }
+    seed.data = NULL;
 
-    /* Generate a new DSA key using random seed. */
-    rv = dsa_NewKey(params, privKey, seed);
+    rv = DSA_NewRandom(NULL, &params->subPrime, &seed);
+    if (rv == SECSuccess) {
+        if (seed.len != PQG_GetLength(&params->subPrime)) {
+            PORT_SetError(SEC_ERROR_INVALID_ARGS);
+            rv = SECFailure;
+        } else {
+            rv = dsa_NewKeyExtended(params, &seed, privKey);
+        }
+    }
+    SECITEM_FreeItem(&seed, PR_FALSE);
     return rv;
 }
 
-/* For FIPS compliance testing. Seed must be exactly 20 bytes long */
+/* For FIPS compliance testing. Seed must be exactly the size of subPrime  */
 SECStatus 
 DSA_NewKeyFromSeed(const PQGParams *params, 
                    const unsigned char *seed,
                    DSAPrivateKey **privKey)
 {
-    SECStatus rv;
-    rv = dsa_NewKey(params, privKey, seed);
-    return rv;
+    SECItem seedItem;
+    seedItem.data = (unsigned char*) seed;
+    seedItem.len = PQG_GetLength(&params->subPrime);
+    return dsa_NewKeyExtended(params, &seedItem, privKey);
 }
 
 static SECStatus 
@@ -295,15 +319,38 @@ dsa_SignDigest(DSAPrivateKey *key, SECItem *signature, const SECItem *digest,
     mp_int r, s;     /* tuple (r, s) is signature) */
     mp_err err   = MP_OKAY;
     SECStatus rv = SECSuccess;
+    unsigned int dsa_subprime_len, dsa_signature_len, offset;
+    SECItem localDigest;
+    unsigned char localDigestData[DSA_MAX_SUBPRIME_LEN];
+    
 
-    /* FIPS-compliance dictates that digest is a SHA1 hash. */
+    /* FIPS-compliance dictates that digest is a SHA hash. */
     /* Check args. */
-    if (!key || !signature || !digest ||
-        (signature->len < DSA_SIGNATURE_LEN) ||
-	(digest->len != SHA1_LENGTH)) {
+    if (!key || !signature || !digest) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return SECFailure;
     }
+
+    dsa_subprime_len = PQG_GetLength(&key->params.subPrime);
+    dsa_signature_len = dsa_subprime_len*2;
+    if ((signature->len < dsa_signature_len) ||
+	(digest->len > HASH_LENGTH_MAX)  ||
+	(digest->len < SHA1_LENGTH)) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    /* DSA accepts digests not equal to dsa_subprime_len, if the 
+     * digests are greater, then they are truncated to the size of 
+     * dsa_subprime_len, using the left most bits. If they are less
+     * then they are padded on the left.*/
+    PORT_Memset(localDigestData, 0, dsa_subprime_len);
+    offset = (digest->len < dsa_subprime_len) ? 
+			(dsa_subprime_len - digest->len) : 0;
+    PORT_Memcpy(localDigestData+offset, digest->data, 
+		dsa_subprime_len - offset);
+    localDigest.data = localDigestData;
+    localDigest.len = dsa_subprime_len;
 
     /* Initialize MPI integers. */
     MP_DIGITS(&p) = 0;
@@ -327,7 +374,7 @@ dsa_SignDigest(DSAPrivateKey *key, SECItem *signature, const SECItem *digest,
     SECITEM_TO_MPINT(key->params.subPrime, &q);
     SECITEM_TO_MPINT(key->params.base,     &g);
     SECITEM_TO_MPINT(key->privateValue,    &x);
-    OCTETS_TO_MPINT(kb, &k, DSA_SUBPRIME_LEN);
+    OCTETS_TO_MPINT(kb, &k, dsa_subprime_len);
     /*
     ** FIPS 186-1, Section 5, Step 1
     **
@@ -338,9 +385,9 @@ dsa_SignDigest(DSAPrivateKey *key, SECItem *signature, const SECItem *digest,
     /*                                  
     ** FIPS 186-1, Section 5, Step 2
     **
-    ** s = (k**-1 * (SHA1(M) + x*r)) mod q
+    ** s = (k**-1 * (HASH(M) + x*r)) mod q
     */
-    SECITEM_TO_MPINT(*digest, &s);         /* s = SHA1(M)     */
+    SECITEM_TO_MPINT(localDigest, &s);          /* s = HASH(M)     */
     CHECK_MPI_OK( mp_invmod(&k, &q, &k) );      /* k = k**-1 mod q */
     CHECK_MPI_OK( mp_mulmod(&x, &r, &q, &x) );  /* x = x * r mod q */
     CHECK_MPI_OK( mp_addmod(&s, &x, &q, &s) );  /* s = s + x mod q */
@@ -359,14 +406,15 @@ dsa_SignDigest(DSAPrivateKey *key, SECItem *signature, const SECItem *digest,
     **
     ** Signature is tuple (r, s)
     */
-    err = mp_to_fixlen_octets(&r, signature->data, DSA_SUBPRIME_LEN);
+    err = mp_to_fixlen_octets(&r, signature->data, dsa_subprime_len);
     if (err < 0) goto cleanup; 
-    err = mp_to_fixlen_octets(&s, signature->data + DSA_SUBPRIME_LEN, 
-                                  DSA_SUBPRIME_LEN);
+    err = mp_to_fixlen_octets(&s, signature->data + dsa_subprime_len, 
+                                  dsa_subprime_len);
     if (err < 0) goto cleanup; 
     err = MP_OKAY;
-    signature->len = DSA_SIGNATURE_LEN;
+    signature->len = dsa_signature_len;
 cleanup:
+    PORT_Memset(localDigestData, 0, DSA_MAX_SUBPRIME_LEN);
     mp_clear(&p);
     mp_clear(&q);
     mp_clear(&g);
@@ -392,19 +440,26 @@ DSA_SignDigest(DSAPrivateKey *key, SECItem *signature, const SECItem *digest)
 {
     SECStatus rv;
     int       retries = 10;
-    unsigned char kSeed[DSA_SUBPRIME_LEN];
-    int       i;
+    unsigned char kSeed[DSA_MAX_SUBPRIME_LEN];
+    unsigned int kSeedLen = 0;
+    unsigned int i;
+    unsigned int dsa_subprime_len = PQG_GetLength(&key->params.subPrime);
     PRBool    good;
 
     PORT_SetError(0);
     do {
-	rv = dsa_GenerateGlobalRandomBytes(kSeed, DSA_SUBPRIME_LEN, 
-					   key->params.subPrime.data);
+	rv = dsa_GenerateGlobalRandomBytes(&key->params.subPrime,
+                                           kSeed, &kSeedLen, sizeof kSeed);
 	if (rv != SECSuccess) 
 	    break;
+        if (kSeedLen != dsa_subprime_len) {
+            PORT_SetError(SEC_ERROR_INVALID_ARGS);
+            rv = SECFailure;
+            break;
+        }
 	/* Disallow a value of 0 for k. */
 	good = PR_FALSE;
-	for (i = 0; i < DSA_SUBPRIME_LEN; i++) {
+	for (i = 0; i < kSeedLen; i++) {
 	    if (kSeed[i] != 0) {
 		good = PR_TRUE;
 		break;
@@ -441,21 +496,44 @@ SECStatus
 DSA_VerifyDigest(DSAPublicKey *key, const SECItem *signature, 
                  const SECItem *digest)
 {
-    /* FIPS-compliance dictates that digest is a SHA1 hash. */
+    /* FIPS-compliance dictates that digest is a SHA hash. */
     mp_int p, q, g;      /* PQG parameters */
     mp_int r_, s_;       /* tuple (r', s') is received signature) */
     mp_int u1, u2, v, w; /* intermediate values used in verification */
     mp_int y;            /* public key */
     mp_err err;
+    int dsa_subprime_len, dsa_signature_len, offset;
+    SECItem localDigest;
+    unsigned char localDigestData[DSA_MAX_SUBPRIME_LEN];
     SECStatus verified = SECFailure;
 
     /* Check args. */
-    if (!key || !signature || !digest ||
-        (signature->len != DSA_SIGNATURE_LEN) ||
-	(digest->len != SHA1_LENGTH)) {
+    if (!key || !signature || !digest ) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return SECFailure;
     }
+
+    dsa_subprime_len = PQG_GetLength(&key->params.subPrime);
+    dsa_signature_len = dsa_subprime_len*2;
+    if ((signature->len != dsa_signature_len) ||
+	(digest->len > HASH_LENGTH_MAX)  ||
+	(digest->len < SHA1_LENGTH)) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    /* DSA accepts digests not equal to dsa_subprime_len, if the 
+     * digests are greater, than they are truncated to the size of 
+     * dsa_subprime_len, using the left most bits. If they are less
+     * then they are padded on the left.*/
+    PORT_Memset(localDigestData, 0, dsa_subprime_len);
+    offset = (digest->len < dsa_subprime_len) ? 
+			(dsa_subprime_len - digest->len) : 0;
+    PORT_Memcpy(localDigestData+offset, digest->data, 
+		dsa_subprime_len - offset);
+    localDigest.data = localDigestData;
+    localDigest.len = dsa_subprime_len;
+
     /* Initialize MPI integers. */
     MP_DIGITS(&p)  = 0;
     MP_DIGITS(&q)  = 0;
@@ -487,8 +565,8 @@ DSA_VerifyDigest(DSAPublicKey *key, const SECItem *signature,
     /*
     ** Convert received signature (r', s') into MPI integers.
     */
-    OCTETS_TO_MPINT(signature->data, &r_, DSA_SUBPRIME_LEN);
-    OCTETS_TO_MPINT(signature->data + DSA_SUBPRIME_LEN, &s_, DSA_SUBPRIME_LEN);
+    OCTETS_TO_MPINT(signature->data, &r_, dsa_subprime_len);
+    OCTETS_TO_MPINT(signature->data + dsa_subprime_len, &s_, dsa_subprime_len);
     /*
     ** Verify that 0 < r' < q and 0 < s' < q
     */
@@ -507,9 +585,9 @@ DSA_VerifyDigest(DSAPublicKey *key, const SECItem *signature,
     /*
     ** FIPS 186-1, Section 6, Step 2
     **
-    ** u1 = ((SHA1(M')) * w) mod q
+    ** u1 = ((Hash(M')) * w) mod q
     */
-    SECITEM_TO_MPINT(*digest, &u1);              /* u1 = SHA1(M')     */
+    SECITEM_TO_MPINT(localDigest, &u1);              /* u1 = HASH(M')     */
     CHECK_MPI_OK( mp_mulmod(&u1, &w, &q, &u1) ); /* u1 = u1 * w mod q */
     /*
     ** FIPS 186-1, Section 6, Step 3
