@@ -1,43 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * CMS recipientInfo methods.
- *
- * $Id: cmsrecinfo.c,v 1.20 2008/06/06 01:16:18 wtc%google.com Exp $
  */
 
 #include "cmslocal.h"
@@ -579,11 +545,6 @@ NSS_CMSRecipientInfo_UnwrapBulkKey(NSSCMSRecipientInfo *ri, int subIndex,
 	    /* get the symmetric (bulk) key by unwrapping it using our private key */
 	    bulkkey = NSS_CMSUtil_DecryptSymKey_RSA(privkey, enckey, bulkalgtag);
 	    break;
-	case SEC_OID_NETSCAPE_SMIME_KEA:
-	    /* FORTEZZA key exchange algorithm */
-	    /* the supplemental data is in the parameters of encalg */
-	    bulkkey = NSS_CMSUtil_DecryptSymKey_MISSI(privkey, enckey, encalg, bulkalgtag, ri->cmsg->pwfn_arg);
-	    break;
 	default:
 	    error = SEC_ERROR_UNSUPPORTED_KEYALG;
 	    goto loser;
@@ -604,6 +565,7 @@ NSS_CMSRecipientInfo_UnwrapBulkKey(NSSCMSRecipientInfo *ri, int subIndex,
 	    /* content encryption key using a Unwrap op */
 	    /* the derive operation has to generate the key using the algorithm in RFC2631 */
 	    error = SEC_ERROR_UNSUPPORTED_KEYALG;
+	    goto loser;
 	    break;
 	default:
 	    error = SEC_ERROR_UNSUPPORTED_KEYALG;
@@ -623,6 +585,7 @@ NSS_CMSRecipientInfo_UnwrapBulkKey(NSSCMSRecipientInfo *ri, int subIndex,
     return bulkkey;
 
 loser:
+    PORT_SetError(error);
     return NULL;
 }
 
@@ -701,7 +664,7 @@ SECStatus NSS_CMSRecipientInfo_GetCertAndKey(NSSCMSRecipientInfo *ri,
     return rv;
 }
 
-SECStatus NSS_CMSRecipientInfo_Encode(PRArenaPool* poolp,
+SECStatus NSS_CMSRecipientInfo_Encode(PLArenaPool* poolp,
                                       const NSSCMSRecipientInfo *src,
                                       SECItem* returned)
 {

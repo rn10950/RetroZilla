@@ -1,40 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *   Red Hat, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * This file defines the types in the libpkix API.
  * XXX Maybe we should specify the API version number in all API header files
@@ -218,6 +184,7 @@ typedef int PKIX_Boolean;
     TYPEMACRO(COMCERTSELPARAMS), \
     TYPEMACRO(COMCRLSELPARAMS), \
     TYPEMACRO(CRL), \
+    TYPEMACRO(CRLDP), \
     TYPEMACRO(CRLENTRY), \
     TYPEMACRO(CRLSELECTOR), \
     TYPEMACRO(DATE), \
@@ -310,6 +277,7 @@ typedef enum {     /* Now invoke all those TYPEMACROs to assign the numbers */
    ERRMACRO(COMCRLSELPARAMS), \
    ERRMACRO(CONTEXT), \
    ERRMACRO(CRL), \
+   ERRMACRO(CRLDP), \
    ERRMACRO(CRLENTRY), \
    ERRMACRO(CRLSELECTOR), \
    ERRMACRO(CRLCHECKER), \
@@ -371,6 +339,7 @@ typedef enum {     /* Now invoke all those ERRMACROs to assign the numbers */
 /* Define all the error numbers */
 typedef enum    {
 #include "pkix_errorstrings.h"
+, PKIX_NUMERRORCODES
 } PKIX_ERRORCODE;
 
 extern const char * const PKIX_ErrorText[];
@@ -473,31 +442,39 @@ PKIX_Error* PKIX_ALLOC_ERROR(void);
 /*
  * Define Certificate Extension hard-coded OID's
  */
-#define PKIX_CERTKEYUSAGE_OID                  "2.5.29.15"
-#define PKIX_CERTSUBJALTNAME_OID               "2.5.29.17"
-#define PKIX_BASICCONSTRAINTS_OID              "2.5.29.19"
-#define PKIX_CRLREASONCODE_OID                 "2.5.29.21"
-#define PKIX_NAMECONSTRAINTS_OID               "2.5.29.30"
-#define PKIX_CERTIFICATEPOLICIES_OID           "2.5.29.32"
-#define PKIX_CERTIFICATEPOLICIES_ANYPOLICY_OID "2.5.29.32.0"
-#define PKIX_POLICYMAPPINGS_OID                "2.5.29.33"
-#define PKIX_POLICYCONSTRAINTS_OID             "2.5.29.36"
-#define PKIX_EXTENDEDKEYUSAGE_OID              "2.5.29.37"
-#define PKIX_INHIBITANYPOLICY_OID              "2.5.29.54"
-#define PKIX_NSCERTTYPE_OID "2.16.840.1.113730.1.1"
+#define PKIX_UNKNOWN_OID                       SEC_OID_UNKNOWN
+#define PKIX_CERTKEYUSAGE_OID                  SEC_OID_X509_KEY_USAGE
+#define PKIX_CERTSUBJALTNAME_OID               SEC_OID_X509_SUBJECT_ALT_NAME
+#define PKIX_BASICCONSTRAINTS_OID              SEC_OID_X509_BASIC_CONSTRAINTS
+#define PKIX_CRLREASONCODE_OID                 SEC_OID_X509_REASON_CODE
+#define PKIX_NAMECONSTRAINTS_OID               SEC_OID_X509_NAME_CONSTRAINTS
+#define PKIX_CERTIFICATEPOLICIES_OID           SEC_OID_X509_CERTIFICATE_POLICIES
+#define PKIX_CERTIFICATEPOLICIES_ANYPOLICY_OID SEC_OID_X509_ANY_POLICY
+#define PKIX_POLICYMAPPINGS_OID                SEC_OID_X509_POLICY_MAPPINGS
+#define PKIX_POLICYCONSTRAINTS_OID             SEC_OID_X509_POLICY_CONSTRAINTS
+#define PKIX_EXTENDEDKEYUSAGE_OID              SEC_OID_X509_EXT_KEY_USAGE
+#define PKIX_INHIBITANYPOLICY_OID              SEC_OID_X509_INHIBIT_ANY_POLICY 
+#define PKIX_NSCERTTYPE_OID                    SEC_OID_NS_CERT_EXT_CERT_TYPE
+#define PKIX_KEY_USAGE_SERVER_AUTH_OID         SEC_OID_EXT_KEY_USAGE_SERVER_AUTH
+#define PKIX_KEY_USAGE_CLIENT_AUTH_OID         SEC_OID_EXT_KEY_USAGE_CLIENT_AUTH
+#define PKIX_KEY_USAGE_CODE_SIGN_OID           SEC_OID_EXT_KEY_USAGE_CODE_SIGN
+#define PKIX_KEY_USAGE_EMAIL_PROTECT_OID       SEC_OID_EXT_KEY_USAGE_EMAIL_PROTECT
+#define PKIX_KEY_USAGE_TIME_STAMP_OID          SEC_OID_EXT_KEY_USAGE_TIME_STAMP
+#define PKIX_KEY_USAGE_OCSP_RESPONDER_OID      SEC_OID_OCSP_RESPONDER
+
 
 /* Available revocation method types. */
 typedef enum PKIX_RevocationMethodTypeEnum {
     PKIX_RevocationMethod_CRL = 0,
     PKIX_RevocationMethod_OCSP,
-    PKIX_RevocationMethod_MAX,
+    PKIX_RevocationMethod_MAX
 } PKIX_RevocationMethodType;
 
 /* A set of statuses revocation checker operates on */
 typedef enum PKIX_RevocationStatusEnum {
     PKIX_RevStatus_NoInfo = 0,
     PKIX_RevStatus_Revoked,
-    PKIX_RevStatus_Success,
+    PKIX_RevStatus_Success
 } PKIX_RevocationStatus;
 
 

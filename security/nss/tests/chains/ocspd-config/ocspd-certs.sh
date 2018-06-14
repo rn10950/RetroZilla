@@ -31,9 +31,9 @@ convert_key()
 
     STATUS=0
     cat ${DATA_DIR}/${KEY_NAME}.key.tmp | while read LINE; do
-        echo "${LINE}" | grep "BEGIN RSA PRIVATE KEY" > /dev/null && STATUS=1
+        echo "${LINE}" | grep "BEGIN ENCRYPTED PRIVATE KEY" > /dev/null && STATUS=1
         [ ${STATUS} -eq 1 ] && echo "${LINE}"
-        echo "${LINE}" | grep "END RSA PRIVATE KEY" > /dev/null && break
+        echo "${LINE}" | grep "END ENCRYPTED PRIVATE KEY" > /dev/null && break
     done > ${DATA_DIR}/${KEY_NAME}.key
     
     rm ${DATA_DIR}/${KEY_NAME}.key.tmp
@@ -103,7 +103,14 @@ copy_cert OCSPEE13 OCSPCA1
 copy_cert OCSPEE14 OCSPCA1
 copy_cert OCSPEE15 OCSPCA1
 copy_cert OCSPEE21 OCSPCA2
+copy_cert OCSPEE22 OCSPCA2
+copy_cert OCSPEE23 OCSPCA2
 copy_cert OCSPEE31 OCSPCA3
+copy_cert OCSPEE32 OCSPCA3
+copy_cert OCSPEE33 OCSPCA3
 
+copy_key OCSPRoot
 copy_key OCSPCA1
+copy_key OCSPCA2
+copy_key OCSPCA3
 

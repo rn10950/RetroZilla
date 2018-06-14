@@ -1,46 +1,12 @@
 # 
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Netscape security libraries.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1994-2000
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#   Dr Vipul Gupta <vipul.gupta@sun.com> and
-#   Douglas Stebila <douglas@stebila.ca>, Sun Microsystems Laboratories
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # NOTE: any ifdefs in this file must be defined on the gmake command line
 # (if anywhere).  They cannot come from Makefile or config.mk 
 
-CORE_DEPTH = ../../..
+CORE_DEPTH = ../..
 
 MODULE = nss
 
@@ -70,13 +36,6 @@ ifneq (,$(findstring _,$(LIBRARY_NAME)))
   LIBRARY_VERSION := _$(LIBRARY_VERSION)
 endif
 
-ifdef FREEBL_NO_DEPEND
-LOWHASH_SRCS = stubs.c nsslowhash.c
-LOWHASH_EXPORTS = nsslowhash.h
-MAPFILE_SOURCE = freebl_hash.def
-else
-MAPFILE_SOURCE = freebl.def
-endif
 MAPFILE = $(OBJDIR)/$(LIBRARY_NAME).def
 
 SOFTOKEN_LIBRARY_VERSION = 3
@@ -91,14 +50,13 @@ EXPORTS = \
 	blapit.h \
 	shsign.h \
 	ecl-exp.h \
-	hasht.h \
-	sechash.h \
 	$(LOWHASH_EXPORTS) \
 	$(NULL)
 
 PRIVATE_EXPORTS = \
 	alghmac.h \
 	blapi.h \
+	hmacct.h \
 	secmpi.h \
 	secrng.h \
 	ec.h \
@@ -114,11 +72,12 @@ ECL_HDRS = ecl-exp.h ecl.h ec2.h ecp.h ecl-priv.h
 ifdef NSS_ENABLE_ECC
 ECL_SRCS = ecl.c ecl_curve.c ecl_mult.c ecl_gf.c \
 	ecp_aff.c ecp_jac.c ecp_mont.c \
-	ec_naf.c ecp_jm.c
+	ec_naf.c ecp_jm.c ecp_256.c ecp_384.c ecp_521.c \
+	ecp_256_32.c
 ifdef NSS_ECC_MORE_THAN_SUITE_B
 ECL_SRCS += ec2_aff.c ec2_mont.c ec2_proj.c \
 	ec2_163.c ec2_193.c ec2_233.c \
-	ecp_192.c ecp_224.c ecp_256.c ecp_384.c ecp_521.c 
+	ecp_192.c ecp_224.c
 endif
 else
 ECL_SRCS = $(NULL)
@@ -142,6 +101,10 @@ CSRCS = \
 	desblapi.c \
 	des.c \
 	drbg.c \
+	cts.c \
+	ctr.c \
+	gcm.c \
+	hmacct.c \
 	rijndael.c \
 	aeskeywrap.c \
 	camellia.c \
@@ -150,13 +113,17 @@ CSRCS = \
 	pqg.c \
 	dsa.c \
 	rsa.c \
+	rsapkcs.c \
 	shvfy.c \
 	tlsprfalg.c \
 	seed.c \
+	jpake.c \
 	$(MPI_SRCS) \
 	$(MPCPU_SRCS) \
 	$(ECL_SRCS) \
+	$(STUBS_SRCS) \
 	$(LOWHASH_SRCS) \
+	$(EXTRA_SRCS) \
 	$(NULL)
 
 ALL_CSRCS := $(CSRCS)

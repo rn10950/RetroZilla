@@ -1,49 +1,16 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * secport.h - portability interfaces for security libraries
- *
- * $Id: secport.h,v 1.19 2009/02/27 00:15:03 nelson%bolyard.com Exp $
  */
 
 #ifndef _SECPORT_H_
 #define _SECPORT_H_
 
 #include "utilrename.h"
+#include "prlink.h"
 
 /*
  * define XP_WIN, XP_BEOS, or XP_UNIX, in case they are not defined
@@ -56,10 +23,6 @@
 #if defined(_WIN32) || defined(WIN32)
 # ifndef XP_WIN32
 # define XP_WIN32
-# endif
-#else
-# ifndef XP_WIN16
-# define XP_WIN16
 # endif
 #endif
 #endif
@@ -76,20 +39,11 @@
 # endif
 #endif
 
-#if defined(_WIN32_WCE)
-#include <windef.h>
-#include <types.h>
-#else
 #include <sys/types.h>
-#endif
 
 #include <ctype.h>
 #include <string.h>
-#if defined(_WIN32_WCE)
-#include <stdlib.h>	/* WinCE puts some stddef symbols here. */
-#else
 #include <stddef.h>
-#endif
 #include <stdlib.h>
 #include "prtypes.h"
 #include "prlog.h"	/* for PR_ASSERT */
@@ -151,6 +105,16 @@ SEC_END_PROTOS
 /* Please, keep these defines sorted alphabetically.  Thanks! */
 
 #define PORT_Atoi(buff)	(int)strtol(buff, NULL, 10)
+
+/* Returns a UTF-8 encoded constant error string for err.
+ * Returns NULL if initialization of the error tables fails
+ * due to insufficient memory.
+ *
+ * This string must not be modified by the application.
+ */
+#define PORT_ErrorToString(err) PR_ErrorToString((err), PR_LANGUAGE_I_DEFAULT)
+
+#define PORT_ErrorToName PR_ErrorToName
 
 #define PORT_Memcmp 	memcmp
 #define PORT_Memcpy 	memcpy
@@ -243,6 +207,43 @@ sec_port_iso88591_utf8_conversion_function
 );
 
 extern int NSS_PutEnv(const char * envVarName, const char * envValue);
+
+extern int NSS_SecureMemcmp(const void *a, const void *b, size_t n);
+
+/*
+ * Load a shared library called "newShLibName" in the same directory as
+ * a shared library that is already loaded, called existingShLibName.
+ * A pointer to a static function in that shared library,
+ * staticShLibFunc, is required.
+ *
+ * existingShLibName:
+ *   The file name of the shared library that shall be used as the 
+ *   "reference library". The loader will attempt to load the requested
+ *   library from the same directory as the reference library.
+ *
+ * staticShLibFunc:
+ *   Pointer to a static function in the "reference library".
+ *
+ * newShLibName:
+ *   The simple file name of the new shared library to be loaded.
+ *
+ * We use PR_GetLibraryFilePathname to get the pathname of the loaded 
+ * shared lib that contains this function, and then do a
+ * PR_LoadLibraryWithFlags with an absolute pathname for the shared
+ * library to be loaded.
+ *
+ * On Windows, the "alternate search path" strategy is employed, if available.
+ * On Unix, if existingShLibName is a symbolic link, and no link exists for the
+ * new library, the original link will be resolved, and the new library loaded
+ * from the resolved location.
+ *
+ * If the new shared library is not found in the same location as the reference
+ * library, it will then be loaded from the normal system library path.
+ */
+PRLibrary *
+PORT_LoadLibraryFromOrigin(const char* existingShLibName,
+                 PRFuncPtr staticShLibFunc,
+                 const char *newShLibName);
 
 SEC_END_PROTOS
 

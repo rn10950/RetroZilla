@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef _SECOIDT_H_
 #define _SECOIDT_H_
@@ -42,8 +9,6 @@
 
 /*
  * secoidt.h - public data structures for ASN.1 OID functions
- *
- * $Id: secoidt.h,v 1.29 2009/03/13 02:59:03 nelson%bolyard.com Exp $
  */
 
 #include "secitem.h"
@@ -274,6 +239,9 @@ typedef enum {
     SEC_OID_X942_DIFFIE_HELMAN_KEY = 174,
 
     /* Netscape other name types */
+    /* SEC_OID_NETSCAPE_NICKNAME is an otherName field of type IA5String
+     * in the subjectAltName certificate extension.  NSS dropped support
+     * for SEC_OID_NETSCAPE_NICKNAME in NSS 3.13. */
     SEC_OID_NETSCAPE_NICKNAME = 175,
 
     /* Cert Server OIDS */
@@ -447,6 +415,33 @@ typedef enum {
     SEC_OID_ISO_SHA1_WITH_RSA_SIGNATURE     = 301,
 
     SEC_OID_SEED_CBC			    = 302,
+
+    SEC_OID_X509_ANY_POLICY                 = 303,
+
+    SEC_OID_PKCS1_RSA_OAEP_ENCRYPTION       = 304,
+    SEC_OID_PKCS1_MGF1                      = 305,
+    SEC_OID_PKCS1_PSPECIFIED                = 306,
+    SEC_OID_PKCS1_RSA_PSS_SIGNATURE         = 307,
+    SEC_OID_PKCS1_SHA224_WITH_RSA_ENCRYPTION = 308,
+
+    SEC_OID_SHA224                          = 309,
+
+    SEC_OID_EV_INCORPORATION_LOCALITY       = 310,
+    SEC_OID_EV_INCORPORATION_STATE          = 311,
+    SEC_OID_EV_INCORPORATION_COUNTRY        = 312,
+    SEC_OID_BUSINESS_CATEGORY               = 313,
+
+    SEC_OID_NIST_DSA_SIGNATURE_WITH_SHA224_DIGEST     = 314,
+    SEC_OID_NIST_DSA_SIGNATURE_WITH_SHA256_DIGEST     = 315,
+
+    /* Microsoft Trust List Signing
+     * szOID_KP_CTL_USAGE_SIGNING 
+     * where KP stands for Key Purpose
+     */
+    SEC_OID_MS_EXT_KEY_USAGE_CTL_SIGNING    = 316,
+
+    /* The 'name' attribute type in X.520 */
+    SEC_OID_AVA_NAME                        = 317,
 
     SEC_OID_TOTAL
 } SECOidTag;

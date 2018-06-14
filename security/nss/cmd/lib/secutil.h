@@ -1,43 +1,12 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #ifndef _SEC_UTIL_H_
 #define _SEC_UTIL_H_
 
 #include "seccomon.h"
 #include "secitem.h"
+#include "secport.h"
 #include "prerror.h"
 #include "base64.h"
 #include "key.h"
@@ -46,12 +15,19 @@
 #include "secder.h"
 #include <stdio.h>
 
+#include "basicutil.h"
+#include "sslerr.h"
+#include "sslt.h"
+
+
 #define SEC_CT_PRIVATE_KEY		"private-key"
 #define SEC_CT_PUBLIC_KEY		"public-key"
 #define SEC_CT_CERTIFICATE		"certificate"
 #define SEC_CT_CERTIFICATE_REQUEST	"certificate-request"
+#define SEC_CT_CERTIFICATE_ID           "certificate-identity"
 #define SEC_CT_PKCS7			"pkcs7"
 #define SEC_CT_CRL			"crl"
+#define SEC_CT_NAME			"name"
 
 #define NS_CERTREQ_HEADER "-----BEGIN NEW CERTIFICATE REQUEST-----"
 #define NS_CERTREQ_TRAILER "-----END NEW CERTIFICATE REQUEST-----"
@@ -62,12 +38,8 @@
 #define NS_CRL_HEADER  "-----BEGIN CRL-----"
 #define NS_CRL_TRAILER "-----END CRL-----"
 
-#ifdef SECUTIL_NEW
-typedef int (*SECU_PPFunc)(PRFileDesc *out, SECItem *item, 
-                           char *msg, int level);
-#else
-typedef int (*SECU_PPFunc)(FILE *out, SECItem *item, char *msg, int level);
-#endif
+#define SECU_Strerror PORT_ErrorToString
+
 
 typedef struct {
     enum {
@@ -164,14 +136,8 @@ SECU_GetClientAuthData(void *arg, PRFileDesc *fd,
 		       struct CERTCertificateStr **pRetCert,
 		       struct SECKEYPrivateKeyStr **pRetKey);
 
-/* print out an error message */
-extern void SECU_PrintError(char *progName, char *msg, ...);
-
-/* print out a system error message */
-extern void SECU_PrintSystemError(char *progName, char *msg, ...);
-
-/* Return informative error string */
-extern const char * SECU_Strerror(PRErrorCode errNum);
+extern PRBool SECU_GetWrapEnabled(void);
+extern void SECU_EnableWrap(PRBool enable);
 
 /* revalidate the cert and print information about cert verification
  * failure at time == now */
@@ -192,54 +158,46 @@ extern void
 SECU_displayVerifyLog(FILE *outfile, CERTVerifyLog *log,
                       PRBool verbose);
 
-/* Read the contents of a file into a SECItem */
-extern SECStatus SECU_FileToItem(SECItem *dst, PRFileDesc *src);
-extern SECStatus SECU_TextFileToItem(SECItem *dst, PRFileDesc *src);
-
 /* Read in a DER from a file, may be ascii  */
 extern SECStatus 
-SECU_ReadDERFromFile(SECItem *der, PRFileDesc *inFile, PRBool ascii);
-
-/* Indent based on "level" */
-extern void SECU_Indent(FILE *out, int level);
+SECU_ReadDERFromFile(SECItem *der, PRFileDesc *inFile, PRBool ascii,
+		     PRBool warnOnPrivateKeyInAsciiFile);
 
 /* Print integer value and hex */
-extern void SECU_PrintInteger(FILE *out, SECItem *i, char *m, int level);
+extern void SECU_PrintInteger(FILE *out, const SECItem *i, const char *m,
+                              int level);
 
 /* Print ObjectIdentifier symbolically */
-extern SECOidTag SECU_PrintObjectID(FILE *out, SECItem *oid, char *m, int level);
+extern SECOidTag SECU_PrintObjectID(FILE *out, const SECItem *oid,
+                                    const char *m, int level);
 
 /* Print AlgorithmIdentifier symbolically */
 extern void SECU_PrintAlgorithmID(FILE *out, SECAlgorithmID *a, char *m,
 				  int level);
-
-/* Print SECItem as hex */
-extern void SECU_PrintAsHex(FILE *out, SECItem *i, const char *m, int level);
-
-/* dump a buffer in hex and ASCII */
-extern void SECU_PrintBuf(FILE *out, const char *msg, const void *vp, int len);
 
 /*
  * Format and print the UTC Time "t".  If the tag message "m" is not NULL,
  * do indent formatting based on "level" and add a newline afterward;
  * otherwise just print the formatted time string only.
  */
-extern void SECU_PrintUTCTime(FILE *out, SECItem *t, char *m, int level);
+extern void SECU_PrintUTCTime(FILE *out, const SECItem *t, const char *m,
+                              int level);
 
 /*
  * Format and print the Generalized Time "t".  If the tag message "m"
  * is not NULL, * do indent formatting based on "level" and add a newline
  * afterward; otherwise just print the formatted time string only.
  */
-extern void SECU_PrintGeneralizedTime(FILE *out, SECItem *t, char *m,
-				      int level);
+extern void SECU_PrintGeneralizedTime(FILE *out, const SECItem *t,
+                                      const char *m, int level);
 
 /*
  * Format and print the UTC or Generalized Time "t".  If the tag message
  * "m" is not NULL, do indent formatting based on "level" and add a newline
  * afterward; otherwise just print the formatted time string only.
  */
-extern void SECU_PrintTimeChoice(FILE *out, SECItem *t, char *m, int level);
+extern void SECU_PrintTimeChoice(FILE *out, const SECItem *t, const char *m,
+                                 int level);
 
 /* callback for listing certs through pkcs11 */
 extern SECStatus SECU_PrintCertNickname(CERTCertListNode* cert, void *data);
@@ -257,14 +215,18 @@ extern int SECU_PrintCertificateRequest(FILE *out, SECItem *der, char *m,
 	int level);
 
 /* Dump contents of certificate */
-extern int SECU_PrintCertificate(FILE *out, SECItem *der, char *m, int level);
+extern int SECU_PrintCertificate(FILE *out, const SECItem *der, const char *m,
+                                 int level);
+
+extern int SECU_PrintDumpDerIssuerAndSerial(FILE *out, SECItem *der, char *m,
+                                 int level);
+
+/* Dump contents of a DER certificate name (issuer or subject) */
+extern int SECU_PrintDERName(FILE *out, SECItem *der, const char *m, int level);
 
 /* print trust flags on a cert */
 extern void SECU_PrintTrustFlags(FILE *out, CERTCertTrust *trust, char *m, 
                                  int level);
-
-/* Dump contents of an RSA public key */
-extern int SECU_PrintRSAPublicKey(FILE *out, SECItem *der, char *m, int level);
 
 extern int SECU_PrintSubjectPublicKeyInfo(FILE *out, SECItem *der, char *m, 
                                           int level);
@@ -273,6 +235,12 @@ extern int SECU_PrintSubjectPublicKeyInfo(FILE *out, SECItem *der, char *m,
 /* Dump contents of private key */
 extern int SECU_PrintPrivateKey(FILE *out, SECItem *der, char *m, int level);
 #endif
+
+/* Dump contents of an RSA public key */
+extern void SECU_PrintRSAPublicKey(FILE *out, SECKEYPublicKey *pk, char *m, int level);
+
+/* Dump contents of a DSA public key */
+extern void SECU_PrintDSAPublicKey(FILE *out, SECKEYPublicKey *pk, char *m, int level);
 
 /* Print the MD5 and SHA1 fingerprints of a cert */
 extern int SECU_PrintFingerprints(FILE *out, SECItem *derCert, char *m,
@@ -289,6 +257,10 @@ extern SECStatus SECU_PKCS11Init(PRBool readOnly);
 extern int SECU_PrintSignedData(FILE *out, SECItem *der, const char *m, 
                                 int level, SECU_PPFunc inner);
 
+/* Dump contents of signed data, excluding the signature */
+extern int SECU_PrintSignedContent(FILE *out, SECItem *der, char *m, int level,
+                                   SECU_PPFunc inner);
+
 /* Print cert data and its trust flags */
 extern SECStatus SEC_PrintCertificateAndTrust(CERTCertificate *cert,
                                               const char *label,
@@ -299,8 +271,9 @@ extern int SECU_PrintCrl(FILE *out, SECItem *der, char *m, int level);
 extern void
 SECU_PrintCRLInfo(FILE *out, CERTCrl *crl, char *m, int level);
 
-extern void SECU_PrintString(FILE *out, SECItem *si, char *m, int level);
-extern void SECU_PrintAny(FILE *out, SECItem *i, char *m, int level);
+extern void SECU_PrintString(FILE *out, const SECItem *si, const char *m,
+                             int level);
+extern void SECU_PrintAny(FILE *out, const SECItem *i, const char *m, int level);
 
 extern void SECU_PrintPolicy(FILE *out, SECItem *value, char *msg, int level);
 extern void SECU_PrintPrivKeyUsagePeriodExtension(FILE *out, SECItem *value,
@@ -309,8 +282,12 @@ extern void SECU_PrintPrivKeyUsagePeriodExtension(FILE *out, SECItem *value,
 extern void SECU_PrintExtensions(FILE *out, CERTCertExtension **extensions,
 				 char *msg, int level);
 
-extern void SECU_PrintName(FILE *out, CERTName *name, char *msg, int level);
-extern void SECU_PrintRDN(FILE *out, CERTRDN *rdn, char *msg, int level);
+extern void SECU_PrintNameQuotesOptional(FILE *out, CERTName *name, 
+					 const char *msg, int level, 
+					 PRBool quotes);
+extern void SECU_PrintName(FILE *out, CERTName *name, const char *msg,
+                           int level);
+extern void SECU_PrintRDN(FILE *out, CERTRDN *rdn, const char *msg, int level);
 
 #ifdef SECU_GetPassword
 /* Convert a High public Key to a Low public Key */
@@ -319,12 +296,12 @@ extern SECKEYLowPublicKey *SECU_ConvHighToLow(SECKEYPublicKey *pubHighKey);
 
 extern char *SECU_GetModulePassword(PK11SlotInfo *slot, PRBool retry, void *arg);
 
-extern SECStatus DER_PrettyPrint(FILE *out, SECItem *it, PRBool raw);
-extern void SEC_Init(void);
+extern SECStatus DER_PrettyPrint(FILE *out, const SECItem *it, PRBool raw);
 
 extern char *SECU_SECModDBName(void);
 
-extern void SECU_PrintPRandOSError(char *progName);
+/* Fetch and register an oid if it hasn't been done already */
+extern void SECU_cert_fetchOID(SECOidTag *data, const SECOidData *src);
 
 extern SECStatus SECU_RegisterDynamicOids(void);
 
@@ -350,7 +327,7 @@ extern SECStatus SECU_StoreCRL(PK11SlotInfo *slot, SECItem *derCrl,
 ** 	"len" the amount of data to sign
 ** 	"pk" the private key to encrypt with
 */
-extern SECStatus SECU_DerSignDataCRL(PRArenaPool *arena, CERTSignedData *sd,
+extern SECStatus SECU_DerSignDataCRL(PLArenaPool *arena, CERTSignedData *sd,
                                      unsigned char *buf, int len,
                                      SECKEYPrivateKey *pk, SECOidTag algID);
 
@@ -367,14 +344,14 @@ SECU_SignAndEncodeCRL(CERTCertificate *issuer, CERTSignedCrl *signCrl,
                       SECOidTag hashAlgTag, SignAndEncodeFuncExitStat *resCode);
 
 extern SECStatus
-SECU_CopyCRL(PRArenaPool *destArena, CERTCrl *destCrl, CERTCrl *srcCrl);
+SECU_CopyCRL(PLArenaPool *destArena, CERTCrl *destCrl, CERTCrl *srcCrl);
 
 /*
 ** Finds the crl Authority Key Id extension. Returns NULL if no such extension
 ** was found.
 */
 CERTAuthKeyID *
-SECU_FindCRLAuthKeyIDExten (PRArenaPool *arena, CERTSignedCrl *crl);
+SECU_FindCRLAuthKeyIDExten (PLArenaPool *arena, CERTSignedCrl *crl);
 
 /*
  * Find the issuer of a crl. Cert usage should be checked before signing a crl.
@@ -386,12 +363,12 @@ SECU_FindCrlIssuer(CERTCertDBHandle *dbHandle, SECItem* subject,
 
 /* call back function used in encoding of an extension. Called from
  * SECU_EncodeAndAddExtensionValue */
-typedef SECStatus (* EXTEN_EXT_VALUE_ENCODER) (PRArenaPool *extHandleArena,
+typedef SECStatus (* EXTEN_EXT_VALUE_ENCODER) (PLArenaPool *extHandleArena,
                                                void *value, SECItem *encodedValue);
 
 /* Encodes and adds extensions to the CRL or CRL entries. */
 SECStatus 
-SECU_EncodeAndAddExtensionValue(PRArenaPool *arena, void *extHandle, 
+SECU_EncodeAndAddExtensionValue(PLArenaPool *arena, void *extHandle, 
                                 void *value, PRBool criticality, int extenType, 
                                 EXTEN_EXT_VALUE_ENCODER EncodeValueFn);
 
@@ -404,37 +381,32 @@ SECU_SECItemToHex(const SECItem * item, char * dst);
 SECStatus
 SECU_SECItemHexStringToBinary(SECItem* srcdest);
 
-/*
+/* Parse a version range string, with "min" and "max" version numbers,
+ * separated by colon (":"), and return the result in vr and v2.
  *
- *  Utilities for parsing security tools command lines 
+ * Both min and max values are optional.
+ * The following syntax is used to specify the enabled protocol versions:
+ * A string with only a max value is expected as ":{max}",
+ * and all implemented versions less than or equal to max will be enabled.
+ * A string with only a min value is expected as "{min}:",
+ * and all implemented versions greater than or equal to min will be enabled.
+ * A string consisting of a colon only means "all versions enabled".
  *
+ * Because output parameter type SSLVersionRange doesn't allow to set
+ * version 2 values, we use a separate boolean output parameter
+ * to return whether SSL 2 is enabled.
+ *
+ * In order to avoid a link dependency from libsectool to libssl,
+ * the caller must provide the desired default values for the min/max values,
+ * by providing defaultEnableSSL2 and defaultVersionRange
+ * (which can be obtained from libssl by calling SSL_VersionRangeGetSupported).
  */
-
-/*  A single command flag  */
-typedef struct {
-    char flag;
-    PRBool needsArg;
-    char *arg;
-    PRBool activated;
-    char *longform;
-} secuCommandFlag;
-
-/*  A full array of command/option flags  */
-typedef struct
-{
-    int numCommands;
-    int numOptions;
-
-    secuCommandFlag *commands;
-    secuCommandFlag *options;
-} secuCommand;
-
-/*  fill the "arg" and "activated" fields for each flag  */
-SECStatus 
-SECU_ParseCommandLine(int argc, char **argv, char *progName,
-		      const secuCommand *cmd);
-char *
-SECU_GetOptionArg(const secuCommand *cmd, int optionNum);
+SECStatus
+SECU_ParseSSLVersionRangeString(const char *input,
+                                const SSLVersionRange defaultVersionRange,
+                                const PRBool defaultEnableSSL2,
+                                SSLVersionRange *vrange,
+                                PRBool *enableSSL2);
 
 /*
  *
@@ -442,18 +414,18 @@ SECU_GetOptionArg(const secuCommand *cmd, int optionNum);
  *
  */
 
-/* Return informative error string */
-char *SECU_ErrorString(int16 err);
-
-/* Return informative error string. Does not call XP_GetString */
-char *SECU_ErrorStringRaw(int16 err);
-
 void printflags(char *trusts, unsigned int flags);
 
 #if !defined(XP_UNIX) && !defined(XP_OS2)
 extern int ffs(unsigned int i);
 #endif
 
+/* Finds certificate by searching it in the DB or by examinig file
+ * in the local directory. */
+CERTCertificate*
+SECU_FindCertByNicknameOrFilename(CERTCertDBHandle *handle,
+                                  char *name, PRBool ascii,
+                                  void *pwarg);
 #include "secerr.h"
 #include "sslerr.h"
 

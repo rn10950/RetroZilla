@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2007
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /* 
  *  The following code handles the storage of PKCS 11 modules used by the
  * NSS. For the rest of NSS, only one kind of database handle exists:
@@ -55,12 +23,10 @@
 #include "pkcs11i.h"
 #include "sdb.h"
 #include "prprf.h" 
-#include "secmodt.h"
-#include "sftkpars.h"
+#include "secasn1.h"
 #include "pratom.h"
 #include "blapi.h"
 #include "secoid.h"
-#include "sechash.h"
 #include "lowpbe.h"
 #include "secdert.h"
 #include "prsystem.h"
@@ -482,7 +448,7 @@ sftkdb_SignAttribute(PLArenaPool *arena, SECItem *passKey,
     signValue.value.len = hmacLength;
     RNG_GenerateGlobalRandomBytes(saltData,prfLength);
 
-    /* initialize our pkcs5 paramter */
+    /* initialize our pkcs5 parameter */
     param = nsspkcs5_NewParam(signValue.alg, &signValue.salt, 1);
     if (param == NULL) {
 	rv = SECFailure;
@@ -610,13 +576,13 @@ sftkdb_FreeUpdatePasswordKey(SFTKDBHandle *handle)
 {
     SECItem *key = NULL;
 
-    /* if we're a cert db, we don't have one */
-    if (handle->type == SFTK_CERTDB_TYPE) {
+    /* don't have one */
+    if (!handle) {
 	return;
     }
 
-    /* don't have one */
-    if (!handle) {
+    /* if we're a cert db, we don't have one */
+    if (handle->type == SFTK_CERTDB_TYPE) {
 	return;
     }
 
@@ -686,6 +652,16 @@ sftkdb_HasPasswordSet(SFTKDBHandle *keydb)
     value.data = valueData;
     value.len = sizeof(valueData);
     crv = (*db->sdb_GetMetaData)(db, "password", &salt, &value);
+
+    /* If no password is set, we can update right away */
+    if (((keydb->db->sdb_flags & SDB_RDONLY) == 0) && keydb->update 
+	&& crv != CKR_OK) {
+	/* update the peer certdb if it exists */
+	if (keydb->peerDB) {
+	    sftkdb_Update(keydb->peerDB, NULL);
+	}
+	sftkdb_Update(keydb, NULL);
+    }
     return (crv == CKR_OK) ? SECSuccess : SECFailure;
 }
 

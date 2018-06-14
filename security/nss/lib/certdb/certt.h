@@ -1,42 +1,8 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * certt.h - public data structures for the certificate library
- *
- * $Id: certt.h,v 1.49 2009/03/21 01:40:34 nelson%bolyard.com Exp $
  */
 #ifndef _CERTT_H_
 #define _CERTT_H_
@@ -253,7 +219,7 @@ struct CERTCertificateStr {
     unsigned int rawKeyUsage;	/* value of the key usage extension */
     PRBool keyUsagePresent;	/* was the key usage extension present */
     PRUint32 nsCertType;	/* value of the ns cert type extension */
-				/* must be 32-bit for PR_AtomicSet */
+				/* must be 32-bit for PR_ATOMIC_SET */
 
     /* these values can be set by the application to bypass certain checks
      * or to keep the cert in memory for an entire session.
@@ -376,6 +342,7 @@ struct CERTCertListStr {
 };
 
 #define CERT_LIST_HEAD(l) ((CERTCertListNode *)PR_LIST_HEAD(&l->list))
+#define CERT_LIST_TAIL(l) ((CERTCertListNode *)PR_LIST_TAIL(&l->list))
 #define CERT_LIST_NEXT(n) ((CERTCertListNode *)n->links.next)
 #define CERT_LIST_END(n,l) (((void *)n) == ((void *)&l->list))
 #define CERT_LIST_EMPTY(l) CERT_LIST_END(CERT_LIST_HEAD(l), l)
@@ -583,6 +550,11 @@ struct CERTIssuerAndSNStr {
 					 KU_KEY_CERT_SIGN | \
 					 KU_CRL_SIGN | \
 					 KU_ENCIPHER_ONLY)
+
+/* This value will not occur in certs.  It is used internally for the case
+ * when either digital signature or non-repudiation is the correct value.
+ */
+#define KU_DIGITAL_SIGNATURE_OR_NON_REPUDIATION (0x2000)
 
 /* This value will not occur in certs.  It is used internally for the case
  * when the key type is not know ahead of time and either key agreement or
@@ -882,6 +854,40 @@ typedef struct {
     SECItem inhibitMappingSkipCerts;
 } CERTCertificatePolicyConstraints;
 
+/*
+ * These types are for the validate chain callback param.
+ *
+ * CERTChainVerifyCallback is an application-supplied callback that can be used
+ * to augment libpkix's certificate chain validation with additional
+ * application-specific checks. It may be called multiple times if there are
+ * multiple potentially-valid paths for the certificate being validated. This
+ * callback is called before revocation checking is done on the certificates in
+ * the given chain.
+ *
+ * - isValidChainArg contains the application-provided opaque argument
+ * - currentChain is the currently validated chain. It is ordered with the leaf
+ *   certificate at the head and the trust anchor at the tail.
+ *
+ * The callback should set *chainOK = PR_TRUE and return SECSuccess if the
+ * certificate chain is acceptable. It should set *chainOK = PR_FALSE and
+ * return SECSuccess if the chain is unacceptable, to indicate that the given
+ * chain is bad and path building should continue. It should return SECFailure
+ * to indicate an fatal error that will cause path validation to fail
+ * immediately.
+ */
+typedef SECStatus (*CERTChainVerifyCallbackFunc)
+                                             (void *isChainValidArg,
+                                              const CERTCertList *currentChain,
+                                              PRBool *chainOK);
+
+/*
+ * Note: If extending this structure, it will be necessary to change the
+ * associated CERTValParamInType
+ */
+typedef struct {
+    CERTChainVerifyCallbackFunc isChainValid;
+    void *isChainValidArg;
+} CERTChainVerifyCallback;
 
 /*
  * these types are for the CERT_PKIX* Verification functions
@@ -911,7 +917,8 @@ typedef enum {
    cert_pi_policyOID       = 4, /* validate certificate for policy OID.
 				 * Specified in value.array.oids. Cert must
 				 * be good for at least one OID in order
-				 * to validate. Default is no policyOID */
+				 * to validate. Default is that the user is not
+				 * concerned about certificate policy. */
    cert_pi_policyFlags     = 5, /* flags for each policy specified in policyOID.
 				 * Specified in value.scalar.ul. Policy flags
 				 * apply to all specified oids. 
@@ -940,12 +947,33 @@ typedef enum {
    cert_pi_certStores      = 10,/* Bitmask of Cert Store flags (see below)
 				 * Set in value.scalar.ui */
    cert_pi_trustAnchors    = 11,/* Specify the list of trusted roots to 
-				 * validate against. If the list in NULL all
-				 * default trusted roots are used.
+				 * validate against. 
+				 * The default set of trusted roots, these are
+				 * root CA certs from libnssckbi.so or CA
+				 * certs trusted by user, are used in any of
+				 * the following cases:
+				 *      * when the parameter is not set.
+				 *      * when the list of trust anchors is empty.
+				 * Note that this handling can be further altered by altering the
+				 * cert_pi_useOnlyTrustAnchors flag
 				 * Specified in value.pointer.chain */
    cert_pi_useAIACertFetch = 12, /* Enables cert fetching using AIA extension.
-				 * Default is off.
-                                     * Value is in value.scalar.b */
+				 * In NSS 3.12.1 or later. Default is off.
+				 * Value is in value.scalar.b */
+   cert_pi_chainVerifyCallback = 13,
+                                /* The callback container for doing extra
+                                 * validation on the currently calculated chain.
+                                 * Value is in value.pointer.chainVerifyCallback */
+   cert_pi_useOnlyTrustAnchors = 14,/* If true, disables trusting any
+				 * certificates other than the ones passed in via cert_pi_trustAnchors.
+				 * If false, then the certificates specified via cert_pi_trustAnchors
+				 * will be combined with the pre-existing trusted roots, but only for
+				 * the certificate validation being performed.
+				 * If no value has been supplied via cert_pi_trustAnchors, this has no
+				 * effect.
+				 * The default value is true, meaning if this is not supplied, only
+				 * trust anchors supplied via cert_pi_trustAnchors are trusted.
+				 * Specified in value.scalar.b */
    cert_pi_max                  /* SPECIAL: signifies maximum allowed value,
 				 *  can increase in future releases */
 } CERTValParamInType;
@@ -1014,8 +1042,8 @@ typedef enum {
  * Whether or not to use a method for revocation testing.
  * If set to "do not test", then all other flags are ignored.
  */
-#define CERT_REV_M_DO_NOT_TEST_USING_THIS_METHOD     0L
-#define CERT_REV_M_TEST_USING_THIS_METHOD            1L
+#define CERT_REV_M_DO_NOT_TEST_USING_THIS_METHOD     0UL
+#define CERT_REV_M_TEST_USING_THIS_METHOD            1UL
 
 /*
  * Whether or not NSS is allowed to attempt to fetch fresh information
@@ -1023,8 +1051,8 @@ typedef enum {
  * (Although fetching will never happen if fresh information for the
  *           method is already locally available.)
  */
-#define CERT_REV_M_ALLOW_NETWORK_FETCHING            0L
-#define CERT_REV_M_FORBID_NETWORK_FETCHING           2L
+#define CERT_REV_M_ALLOW_NETWORK_FETCHING            0UL
+#define CERT_REV_M_FORBID_NETWORK_FETCHING           2UL
 
 /*
  * Example for an implicit default source:
@@ -1038,8 +1066,8 @@ typedef enum {
  *          then we continue to use what's available (or not available) 
  *          in the certs.
  */ 
-#define CERT_REV_M_ALLOW_IMPLICIT_DEFAULT_SOURCE     0L
-#define CERT_REV_M_IGNORE_IMPLICIT_DEFAULT_SOURCE    4L
+#define CERT_REV_M_ALLOW_IMPLICIT_DEFAULT_SOURCE     0UL
+#define CERT_REV_M_IGNORE_IMPLICIT_DEFAULT_SOURCE    4UL
 
 /*
  * Defines the behavior if no fresh information is available,
@@ -1053,8 +1081,8 @@ typedef enum {
  *          We still require that fresh information is available.
  *          Other flags define what happens on missing fresh info.
  */
-#define CERT_REV_M_SKIP_TEST_ON_MISSING_SOURCE       0L
-#define CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE    8L
+#define CERT_REV_M_SKIP_TEST_ON_MISSING_SOURCE       0UL
+#define CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE    8UL
 
 /*
  * Defines the behavior if we are unable to obtain fresh information.
@@ -1063,8 +1091,8 @@ typedef enum {
  * FAIL means:
  *      Return "cert revoked".
  */
-#define CERT_REV_M_IGNORE_MISSING_FRESH_INFO         0L
-#define CERT_REV_M_FAIL_ON_MISSING_FRESH_INFO        16L
+#define CERT_REV_M_IGNORE_MISSING_FRESH_INFO         0UL
+#define CERT_REV_M_FAIL_ON_MISSING_FRESH_INFO        16UL
 
 /*
  * What should happen if we were able to find fresh information using
@@ -1076,8 +1104,13 @@ typedef enum {
  *                  We will continue and test the next allowed
  *                  specified method.
  */
-#define CERT_REV_M_STOP_TESTING_ON_FRESH_INFO        0L
-#define CERT_REV_M_CONTINUE_TESTING_ON_FRESH_INFO    32L
+#define CERT_REV_M_STOP_TESTING_ON_FRESH_INFO        0UL
+#define CERT_REV_M_CONTINUE_TESTING_ON_FRESH_INFO    32UL
+
+/* When this flag is used, libpkix will never attempt to use the GET HTTP
+ * method for OCSP requests; it will always use POST.
+ */
+#define CERT_REV_M_FORCE_POST_METHOD_FOR_OCSP 64UL
 
 /*
  * The following flags are supposed to be used to control bits in
@@ -1098,8 +1131,8 @@ typedef enum {
  *      which are already locally available. Only after that is done
  *      consider to fetch from the network (as allowed by other flags).
  */
-#define CERT_REV_MI_TEST_EACH_METHOD_SEPARATELY       0L
-#define CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST  1L
+#define CERT_REV_MI_TEST_EACH_METHOD_SEPARATELY       0UL
+#define CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST  1UL
 
 /*
  * Use this flag to specify that it's necessary that fresh information
@@ -1111,9 +1144,11 @@ typedef enum {
  *     After the individual tests have been executed, we must have
  *     been able to find fresh information using at least one method.
  *     If we were unable to find fresh info, it's a failure.
+ *     This setting overrides the CERT_REV_M_FAIL_ON_MISSING_FRESH_INFO
+ *     flag on all methods.
  */
-#define CERT_REV_MI_NO_OVERALL_INFO_REQUIREMENT       0L
-#define CERT_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE 2L
+#define CERT_REV_MI_NO_OVERALL_INFO_REQUIREMENT       0UL
+#define CERT_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE 2UL
 
 
 typedef struct {
@@ -1185,6 +1220,7 @@ typedef struct CERTValParamInValueStr {
         const CERTCertificate* cert;
         const CERTCertList *chain;
         const CERTRevocationFlags *revocation;
+        const CERTChainVerifyCallback *chainVerifyCallback;
     } pointer;
     union {
         const PRInt32  *pi;

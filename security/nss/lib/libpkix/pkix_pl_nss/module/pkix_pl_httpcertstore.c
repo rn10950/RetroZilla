@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_pl_httpcertstore.c
  *
@@ -460,13 +427,14 @@ pkix_pl_HttpCertStore_ProcessCrlResponse(
         PKIX_List **pCrlList,
         void *plContext)
 {
-        PRArenaPool *arena = NULL;
-        SECItem *encodedResponse = NULL;
+        SECItem encodedResponse;
         PRInt16 compareVal = 0;
         PKIX_List *crls = NULL;
+        SECItem *derCrlCopy = NULL;
+        CERTSignedCrl *nssCrl = NULL;
+        PKIX_PL_CRL *crl = NULL;
 
-        PKIX_ENTER
-                (HTTPCERTSTORECONTEXT,
+        PKIX_ENTER(HTTPCERTSTORECONTEXT,
                 "pkix_pl_HttpCertStore_ProcessCrlResponse");
         PKIX_NULLCHECK_ONE(pCrlList);
 
@@ -484,42 +452,47 @@ pkix_pl_HttpCertStore_ProcessCrlResponse(
         if (compareVal != 0) {
                 PKIX_ERROR(PKIX_CONTENTTYPENOTPKIXCRL);
         }
+        encodedResponse.type = siBuffer;
+        encodedResponse.data = (void*)responseData;
+        encodedResponse.len = responseDataLen;
 
-        /* Make a SECItem of the response data */
-        arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-        if (arena == NULL) {
-                PKIX_ERROR(PKIX_OUTOFMEMORY);
+        derCrlCopy = SECITEM_DupItem(&encodedResponse);
+        if (!derCrlCopy) {
+            PKIX_ERROR(PKIX_ALLOCERROR);
         }
-
-        if (responseData == NULL) {
-                PKIX_ERROR(PKIX_NORESPONSEDATAINHTTPRESPONSE);
+        /* crl will be based on derCrlCopy, but will not own the der. */
+        nssCrl =
+            CERT_DecodeDERCrlWithFlags(NULL, derCrlCopy, SEC_CRL_TYPE,
+                                       CRL_DECODE_DONT_COPY_DER |
+                                       CRL_DECODE_SKIP_ENTRIES);
+        if (!nssCrl) {
+            PKIX_ERROR(PKIX_FAILEDTODECODECRL);
         }
-
-        encodedResponse = SECITEM_AllocItem(arena, NULL, responseDataLen);
-        if (encodedResponse == NULL) {
-                PKIX_ERROR(PKIX_OUTOFMEMORY);
-        }
-
-        PORT_Memcpy(encodedResponse->data, responseData, responseDataLen);
-
+        /* pkix crls own the der. */
+        PKIX_CHECK(
+            pkix_pl_CRL_CreateWithSignedCRL(nssCrl, derCrlCopy, NULL,
+                                            &crl, plContext),
+            PKIX_CRLCREATEWITHSIGNEDCRLFAILED);
+        /* Left control over memory pointed by derCrlCopy and
+         * nssCrl to pkix crl. */
+        derCrlCopy = NULL;
+        nssCrl = NULL;
         PKIX_CHECK(PKIX_List_Create(&crls, plContext),
-                PKIX_LISTCREATEFAILED);
-
-        PKIX_CHECK(pkix_pl_CRL_CreateToList
-                (encodedResponse, crls, plContext),
-                PKIX_CRLCREATETOLISTFAILED);
-
+                   PKIX_LISTCREATEFAILED);
+        PKIX_CHECK(PKIX_List_AppendItem
+                   (crls, (PKIX_PL_Object *) crl, plContext),
+                   PKIX_LISTAPPENDITEMFAILED);
         *pCrlList = crls;
-
+        crls = NULL;
 cleanup:
-        if (PKIX_ERROR_RECEIVED) {
-                PKIX_DECREF(crls);
+        if (derCrlCopy) {
+            SECITEM_FreeItem(derCrlCopy, PR_TRUE);
         }
-
-        if (arena != NULL) {
-                PKIX_PL_NSSCALL(CERTSTORE, PORT_FreeArena, (arena, PR_FALSE));
+        if (nssCrl) {
+            SEC_DestroyCrl(nssCrl);
         }
-
+        PKIX_DECREF(crl);
+        PKIX_DECREF(crls);
 
         PKIX_RETURN(HTTPCERTSTORECONTEXT);
 }
@@ -590,6 +563,7 @@ PKIX_Error *
 pkix_pl_HttpCertStore_GetCert(
         PKIX_CertStore *store,
         PKIX_CertSelector *selector,
+        PKIX_VerifyNode *verifyNode,
         void **pNBIOContext,
         PKIX_List **pCertList,
         void *plContext)
@@ -668,6 +642,7 @@ PKIX_Error *
 pkix_pl_HttpCertStore_GetCertContinue(
         PKIX_CertStore *store,
         PKIX_CertSelector *selector,
+        PKIX_VerifyNode *verifyNode,
         void **pNBIOContext,
         PKIX_List **pCertList,
         void *plContext)
@@ -1125,6 +1100,7 @@ portnum = 2001;
                 (&domainString, plContext, formatString, hostString, portnum),
                 PKIX_STRINGCREATEFAILED);
 
+#ifdef PKIX_SOCKETCACHE
         /* Is this domainName already in cache? */
         PKIX_CHECK(PKIX_PL_HashTable_Lookup
                 (httpSocketCache,
@@ -1132,7 +1108,7 @@ portnum = 2001;
                 (PKIX_PL_Object **)&socket,
                 plContext),
                 PKIX_HASHTABLELOOKUPFAILED);
-
+#endif
         if (socket == NULL) {
 
                 /* No, create a connection (and cache it) */
@@ -1146,13 +1122,14 @@ portnum = 2001;
                         plContext),
                         PKIX_SOCKETCREATEBYHOSTANDPORTFAILED);
 
+#ifdef PKIX_SOCKETCACHE
                 PKIX_CHECK(PKIX_PL_HashTable_Add
                         (httpSocketCache,
                         (PKIX_PL_Object *)domainString,
                         (PKIX_PL_Object *)socket,
                         plContext),
                         PKIX_HASHTABLEADDFAILED);
-
+#endif 
         }
 
         *pSocket = socket;

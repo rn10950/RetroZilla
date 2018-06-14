@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 /*
  * Merge the source token into the target token.
  */
@@ -52,7 +56,7 @@ pk11_setAttributes(PK11SlotInfo *slot, CK_OBJECT_HANDLE id,
  * if target object is not given, create it.
  */
 static SECStatus
-pk11_copyAttributes(PRArenaPool *arena, 
+pk11_copyAttributes(PLArenaPool *arena,
 	PK11SlotInfo *targetSlot, CK_OBJECT_HANDLE targetID,
 	PK11SlotInfo *sourceSlot, CK_OBJECT_HANDLE sourceID,
 	CK_ATTRIBUTE *copyTemplate, CK_ULONG copyTemplateCount)
@@ -78,7 +82,7 @@ pk11_copyAttributes(PRArenaPool *arena,
  * look for a matching object across tokens.
  */
 static SECStatus
-pk11_matchAcrossTokens(PRArenaPool *arena, PK11SlotInfo *targetSlot, 
+pk11_matchAcrossTokens(PLArenaPool *arena, PK11SlotInfo *targetSlot,
 		       PK11SlotInfo *sourceSlot,
 		       CK_ATTRIBUTE *template, CK_ULONG tsize, 
 		       CK_OBJECT_HANDLE id, CK_OBJECT_HANDLE *peer)
@@ -165,15 +169,15 @@ pk11_getPrivateKeyUsage(PK11SlotInfo *slot, CK_OBJECT_HANDLE id)
 {
     unsigned int usage = 0;
 
-    if ((PK11_HasAttributeSet(slot, id, CKA_UNWRAP) || 
-			PK11_HasAttributeSet(slot,id, CKA_DECRYPT))) {
+    if ((PK11_HasAttributeSet(slot, id, CKA_UNWRAP,PR_FALSE) || 
+			PK11_HasAttributeSet(slot,id, CKA_DECRYPT,PR_FALSE))) {
 	usage |= KU_KEY_ENCIPHERMENT;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_DERIVE)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_DERIVE, PR_FALSE)) {
 	usage |= KU_KEY_AGREEMENT;
     }
-    if ((PK11_HasAttributeSet(slot, id, CKA_SIGN_RECOVER) || 
-			PK11_HasAttributeSet(slot, id, CKA_SIGN))) {
+    if ((PK11_HasAttributeSet(slot, id, CKA_SIGN_RECOVER, PR_FALSE) || 
+			PK11_HasAttributeSet(slot, id, CKA_SIGN, PR_FALSE))) {
 	usage |= KU_DIGITAL_SIGNATURE;
     }
     return usage;
@@ -198,7 +202,7 @@ pk11_mergePrivateKey(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
     SECItem nickItem;
     SECItem pwitem;
     SECItem publicValue;
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
     SECStatus rv = SECSuccess;
     unsigned int keyUsage;
     unsigned char randomData[SHA1_LENGTH];
@@ -321,13 +325,13 @@ done:
  *   1) the single byte overflows. On overflow we increment the next byte up 
  *    and so forth until we have overflowed the entire CKA_ID.
  *   2) If we overflow the entire CKA_ID we expand it by one byte.
- *   3) the CKA_ID is non-existant, we create a new one with one byte.
+ *   3) the CKA_ID is non-existent, we create a new one with one byte.
  *    This means no matter what CKA_ID is passed, the result of this function 
  *    is always a new CKA_ID, and this function will never return the same 
  *    CKA_ID the it has returned in the passed.
  */
 static SECStatus
-pk11_incrementID(PRArenaPool *arena, CK_ATTRIBUTE *ptemplate)
+pk11_incrementID(PLArenaPool *arena, CK_ATTRIBUTE *ptemplate)
 {
     unsigned char *buf = ptemplate->pValue;
     CK_ULONG len = ptemplate->ulValueLen;
@@ -369,31 +373,31 @@ pk11_getSecretKeyFlags(PK11SlotInfo *slot, CK_OBJECT_HANDLE id)
 {
     CK_FLAGS flags = 0;
 
-    if (PK11_HasAttributeSet(slot, id, CKA_UNWRAP)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_UNWRAP, PR_FALSE)) {
 	flags |= CKF_UNWRAP;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_WRAP)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_WRAP, PR_FALSE)) {
 	flags |= CKF_WRAP;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_ENCRYPT)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_ENCRYPT, PR_FALSE)) {
 	flags |= CKF_ENCRYPT;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_DECRYPT)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_DECRYPT, PR_FALSE)) {
 	flags |= CKF_DECRYPT;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_DERIVE)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_DERIVE, PR_FALSE)) {
 	flags |= CKF_DERIVE;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_SIGN)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_SIGN, PR_FALSE)) {
 	flags |= CKF_SIGN;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_SIGN_RECOVER)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_SIGN_RECOVER, PR_FALSE)) {
 	flags |= CKF_SIGN_RECOVER;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_VERIFY)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_VERIFY, PR_FALSE)) {
 	flags |= CKF_VERIFY;
     }
-    if (PK11_HasAttributeSet(slot, id, CKA_VERIFY_RECOVER)) {
+    if (PK11_HasAttributeSet(slot, id, CKA_VERIFY_RECOVER, PR_FALSE)) {
 	flags |= CKF_VERIFY_RECOVER;
     }
     return flags;
@@ -425,10 +429,11 @@ pk11_mergeSecretKey(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
     SECItem *sourceOutput = NULL;
     SECItem *targetOutput = NULL;
     SECItem *param = NULL;
+    int blockSize;
     SECItem input;
     CK_OBJECT_HANDLE targetKeyID;
     CK_FLAGS flags;
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
     SECStatus rv = SECSuccess;
     CK_MECHANISM_TYPE keyMechType, cryptoMechType;
     CK_KEY_TYPE sourceKeyType, targetKeyType;
@@ -487,11 +492,12 @@ pk11_mergeSecretKey(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
 
     /* set up the input test */
     input.data = (unsigned char *)testString;
-    input.len = PK11_GetBlockSize(cryptoMechType, NULL);
-    if (input.len < 0) {
+    blockSize = PK11_GetBlockSize(cryptoMechType, NULL);
+    if (blockSize < 0) {
 	rv = SECFailure;
 	goto done;
     }
+    input.len = blockSize;
     if (input.len == 0) {
 	input.len = sizeof (testString);
     }
@@ -601,7 +607,7 @@ pk11_mergePublicKey(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
 {
     SECKEYPublicKey *sourceKey = NULL;
     CK_OBJECT_HANDLE targetKeyID;
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
     SECStatus rv = SECSuccess;
     CK_ATTRIBUTE pubTemplate[] = {
 	{ CKA_ID, NULL, 0 },
@@ -681,7 +687,6 @@ pk11_IncrementNickname(char *nickname)
 {
     char *newNickname = NULL;
     int end;
-    PRBool needCarry;
     int digit;
     int len = strlen(nickname);
 
@@ -741,7 +746,7 @@ pk11_mergeCert(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
     CK_OBJECT_HANDLE targetCertID = CK_INVALID_HANDLE;
     char *nickname = NULL;
     SECStatus rv = SECSuccess;
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
     CK_ATTRIBUTE sourceCKAID = {CKA_ID, NULL, 0};
     CK_ATTRIBUTE targetCKAID = {CKA_ID, NULL, 0};
     SECStatus lrv = SECSuccess;
@@ -877,7 +882,7 @@ pk11_mergeCrl(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
 		CK_OBJECT_HANDLE id, void *targetPwArg, void *sourcePwArg)
 {
     CK_OBJECT_HANDLE targetCrlID;
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
     SECStatus rv = SECSuccess;
     CK_ATTRIBUTE crlTemplate[] = {
 	{ CKA_SUBJECT, NULL, 0 },
@@ -939,7 +944,7 @@ pk11_mergeSmime(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
 		CK_OBJECT_HANDLE id, void *targetPwArg, void *sourcePwArg)
 {
     CK_OBJECT_HANDLE targetSmimeID;
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
     SECStatus rv = SECSuccess;
     CK_ATTRIBUTE smimeTemplate[] = {
 	{ CKA_SUBJECT, NULL, 0 },
@@ -1038,13 +1043,11 @@ pk11_mergeTrustEntry(CK_ATTRIBUTE *target, CK_ATTRIBUTE *source)
      * actual trust of the cert (CKT_MUST_VERIFY, CKT_NSS_VALID,
      * CKT_NSS_VALID_DELEGATOR).
      */
-    if ((sourceTrust == CKT_NSS_MUST_VERIFY) 
-	|| (sourceTrust == CKT_NSS_VALID)
+    if ((sourceTrust == CKT_NSS_MUST_VERIFY_TRUST) 
 	|| (sourceTrust == CKT_NSS_VALID_DELEGATOR)) {
 	return USE_TARGET;
     }
-    if ((targetTrust == CKT_NSS_MUST_VERIFY) 
-	|| (targetTrust == CKT_NSS_VALID)
+    if ((targetTrust == CKT_NSS_MUST_VERIFY_TRUST) 
 	|| (targetTrust == CKT_NSS_VALID_DELEGATOR)) {
 	/* source overrites the target */
 	return USE_SOURCE;
@@ -1061,7 +1064,7 @@ pk11_mergeTrust(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
 		CK_OBJECT_HANDLE id, void *targetPwArg, void *sourcePwArg)
 {
     CK_OBJECT_HANDLE targetTrustID;
-    PRArenaPool *arena = NULL;
+    PLArenaPool *arena = NULL;
     SECStatus rv = SECSuccess;
     int error = 0;
     CK_ATTRIBUTE trustTemplate[] = {
@@ -1112,7 +1115,7 @@ pk11_mergeTrust(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
 	CK_ULONG trustAttrsCount = 
 		sizeof(trustAttrs)/sizeof(trustAttrs[0]);
 
-	int i;
+	CK_ULONG i;
 	CK_ATTRIBUTE targetTemplate, sourceTemplate;
 
 	/* existing trust record, merge the two together */
@@ -1225,7 +1228,7 @@ pk11_mergeObject(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
 }
 
 PK11MergeLogNode *
-pk11_newMergeLogNode(PRArenaPool *arena, 
+pk11_newMergeLogNode(PLArenaPool *arena,
 		     PK11SlotInfo *slot, CK_OBJECT_HANDLE id, int error)
 {
     PK11MergeLogNode *newLog;
@@ -1389,7 +1392,7 @@ loser:
 PK11MergeLog *
 PK11_CreateMergeLog(void)
 {
-    PRArenaPool *arena;
+    PLArenaPool *arena;
     PK11MergeLog *log;
 
     arena = PORT_NewArena( DER_DEFAULT_CHUNKSIZE);

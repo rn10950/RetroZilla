@@ -1,43 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- * Portions created by Red Hat, Inc, are Copyright (C) 2005
- *
- * Contributor(s):
- *   Bob Relyea (rrelyea@redhat.com)
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-#ifdef DEBUG
-static const char CVS_ID[] = "@(#) $RCSfile: cobject.c,v $ $Revision: 1.5 $ $Date: 2009/02/25 18:37:49 $";
-#endif /* DEBUG */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "ckcapi.h"
 #include "nssbase.h"
@@ -137,13 +100,13 @@ static const NSSItem ckcapi_emptyItem = {
 /*
  * unwrap a single DER value
  */
-char *
+unsigned char *
 nss_ckcapi_DERUnwrap
 (
-  char *src, 
-  int size, 
-  int *outSize, 
-  char **next
+  unsigned char *src, 
+  unsigned int size, 
+  unsigned int *outSize, 
+  unsigned char **next
 )
 {
   unsigned char *start = src;
@@ -159,11 +122,11 @@ nss_ckcapi_DERUnwrap
   if (size < 2) {
     return start;
   }
-  src ++ ; /* skip the tag -- should check it against an expected value! */
+  src++; /* skip the tag -- should check it against an expected value! */
   len = (unsigned) *src++;
   if (len & 0x80) {
-    int count = len & 0x7f;
-    len =0;
+    unsigned int count = len & 0x7f;
+    len = 0;
 
     if (count+2 > size) {
       return start;
@@ -172,7 +135,7 @@ nss_ckcapi_DERUnwrap
       len = (len << 8) | (unsigned) *src++;
     }
   }
-  if (len + (src-start) > (unsigned int)size) {
+  if (len + (src-start) > size) {
     return start;
   }
   if (next) {
@@ -360,7 +323,8 @@ nss_ckcapi_GetStringAttribute
 }
 
 /*
- * Return the size in bytes of a wide string
+ * Return the size in bytes of a wide string, including the terminating null
+ * character
  */
 int
 nss_ckcapi_WideSize
@@ -374,8 +338,153 @@ nss_ckcapi_WideSize
     return 0;
   }
   size = wcslen(wide)+1;
-  return size*2;
+  return size*sizeof(WCHAR);
 }
+
+/*** UTF16<-->UTF-8 functions minicking WideCharToMultiByte/MultiByteToWideChar ***/
+int utf8GetMaskIndex(unsigned char n) {
+  if((unsigned char)(n + 2) < 0xc2) return 1; // 00~10111111, fe, ff
+  if(n < 0xe0)                      return 2; // 110xxxxx
+  if(n < 0xf0)                      return 3; // 1110xxxx
+  if(n < 0xf8)                      return 4; // 11110xxx
+  if(n < 0xfc)                      return 5; // 111110xx
+                                    return 6; // 1111110x
+}
+
+int wc2Utf8Len(wchar_t ** n, int *len) {
+  wchar_t *ch = *n, ch2;
+  int qch;
+  if((0xD800 <= *ch && *ch <= 0xDBFF) && *len) {
+    ch2 = *(ch + 1);
+    if(0xDC00 <= ch2 && ch2 <= 0xDFFF) {
+	  qch = 0x10000 + (((*ch - 0xD800) & 0x3ff) << 10) + ((ch2 - 0xDC00) & 0x3ff);
+	  (*n)++;
+	  (*len)--;
+	}
+  }
+  else
+    qch = (int) *ch;
+
+  if (qch <= 0x7f)           return 1;
+  else if (qch <= 0x7ff)     return 2;
+  else if (qch <= 0xffff)    return 3;
+  else if (qch <= 0x1fffff)  return 4;
+  else if (qch <= 0x3ffffff) return 5;
+  else                       return 6;
+}
+
+int Utf8ToWideChar(unsigned int unused1, unsigned long unused2, char *sb, int ss, wchar_t * wb, int ws) {
+  static const unsigned char utf8mask[] = { 0, 0xff, 0x1f, 0x0f, 0x07, 0x03, 0x01 };
+  char *p = (char *)(sb);
+  char *e = (char *)(sb + ss);
+  wchar_t *w = wb;
+  int cnt = 0, t, qch;
+
+  if (ss < 1) {
+    ss = lstrlenA(sb);
+    e = (char *)(sb + ss);
+  }
+
+  if (wb && ws) {
+    for (; p < e; ++w) {
+	  t = utf8GetMaskIndex(*p);
+	  qch = (*p++ & utf8mask[t]);
+	  while(p < e && --t)
+	    qch <<= 6, qch |= (*p++) & 0x3f;
+	  if(qch < 0x10000) {
+	    if(cnt <= ws)
+		  *w = (wchar_t) qch;
+	    cnt++;
+	  } else {
+	    if (cnt + 2 <= ws) {
+		  *w++ = (wchar_t) (0xD800 + (((qch - 0x10000) >> 10) & 0x3ff)),
+		    *w = (wchar_t) (0xDC00 + (((qch - 0x10000)) & 0x3ff));
+		}
+	    cnt += 2;
+	  }
+	}
+    return (cnt <= ws) ? cnt : ws;
+  } else {
+    for (t; p < e;) {
+	  t = utf8GetMaskIndex(*p);
+	  qch = (*p++ & utf8mask[t]);
+	  while (p < e && --t)
+	    qch <<= 6, qch |= (*p++) & 0x3f;
+	  if (qch < 0x10000)
+	    cnt++;
+	  else
+	    cnt += 2;
+	}
+    return cnt;
+  }
+}
+
+int WideCharToUtf8(unsigned int unused1, unsigned long unused2, wchar_t * wb, int ws, char *sb, int ss) {
+  wchar_t *p = (wchar_t *)(wb);
+  wchar_t *e = (wchar_t *)(wb + ws);
+  wchar_t *oldp;
+  char *s = sb;
+  int cnt = 0, qch, t;
+
+  if (ws < 1) {
+    ws = lstrlenW(wb);
+    e = (wchar_t *)(wb + ws);
+  }
+
+  if (sb && ss) {
+    for (t; p < e; ++p) {
+	  oldp = p;
+	  t = wc2Utf8Len(&p, &ws);
+
+	  if (p != oldp) { /* unicode surrogates encountered */
+	    qch = 0x10000 + (((*oldp - 0xD800) & 0x3ff) << 10) + ((*p - 0xDC00) & 0x3ff);
+	  } else
+	    qch = *p;
+
+	  if (qch <= 0x7f)
+	    *s++ = (char) (qch),
+	    cnt++;
+	  else if (qch <= 0x7ff)
+	    *s++ = 0xc0 | (char) (qch >> 6),
+	    *s++ = 0x80 | (char) (qch & 0x3f),
+	    cnt += 2;
+	  else if (qch <= 0xffff)
+	    *s++ = 0xe0 | (char) (qch >> 12),
+	    *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+	    *s++ = 0x80 | (char) (qch & 0x3f),
+	    cnt += 3;
+	  else if (qch <= 0x1fffff)
+	    *s++ = 0xf0 | (char) (qch >> 18),
+	    *s++ = 0x80 | (char) ((qch >> 12) & 0x3f),
+	    *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+	    *s++ = 0x80 | (char) (qch & 0x3f),
+	    cnt += 4;
+	  else if (qch <= 0x3ffffff)
+	    *s++ = 0xf8 | (char) (qch >> 24),
+	    *s++ = 0x80 | (char) ((qch >> 18) & 0x3f),
+	    *s++ = 0x80 | (char) ((qch >> 12) & 0x3f),
+	    *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+	    *s++ = 0x80 | (char) (qch & 0x3f),
+	    cnt += 5;
+	  else
+	    *s++ = 0xfc | (char) (qch >> 30),
+	    *s++ = 0x80 | (char) ((qch >> 24) & 0x3f),
+	    *s++ = 0x80 | (char) ((qch >> 18) & 0x3f),
+	    *s++ = 0x80 | (char) ((qch >> 12) & 0x3f),
+	    *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+	    *s++ = 0x80 | (char) (qch & 0x3f),
+	    cnt += 6;
+	}
+      return (cnt <= ss) ? cnt : ss;
+  } else {
+    for (t; p < e; ++p) {
+	  t = wc2Utf8Len(&p, &ws);
+	  cnt += t;
+	}
+    return cnt;
+  }
+}
+/*** UTF16<-->UTF-8 functions ends ***/
 
 /*
  * Covert a Unicode wide character string to a UTF8 string
@@ -386,7 +495,6 @@ nss_ckcapi_WideToUTF8
   LPCWSTR wide 
 )
 {
-  DWORD len;
   DWORD size;
   char *buf;
 
@@ -394,14 +502,12 @@ nss_ckcapi_WideToUTF8
     return (char *)NULL;
   }
 
-  len = nss_ckcapi_WideSize(wide);
-
-  size = WideCharToMultiByte(CP_UTF8, 0, wide, len, NULL, 0, NULL, 0);
+  size = WideCharToUtf8(CP_UTF8, 0, wide, -1, NULL, 0, NULL);
   if (size == 0) {
     return (char *)NULL;
   }
   buf = nss_ZNEWARRAY(NULL, char, size);
-  size = WideCharToMultiByte(CP_UTF8, 0, wide, len, buf, size, NULL, 0);
+  size = WideCharToUtf8(CP_UTF8, 0, wide, -1, buf, size, NULL);
   if (size == 0) {
     nss_ZFreeIf(buf);
     return (char *)NULL;
@@ -418,20 +524,20 @@ nss_ckcapi_WideDup
   LPCWSTR wide
 )
 {
-  DWORD len = nss_ckcapi_WideSize(wide);
+  DWORD len;
   LPWSTR buf;
 
   if ((LPWSTR)NULL == wide) {
     return (LPWSTR)NULL;
   }
 
-  len = nss_ckcapi_WideSize(wide);
+  len = wcslen(wide)+1;
 
-  buf = (LPWSTR) nss_ZNEWARRAY(NULL, char, len);
+  buf = nss_ZNEWARRAY(NULL, WCHAR, len);
   if ((LPWSTR) NULL == buf) {
     return buf;
   }
-  nsslibc_memcpy(buf, wide, len);
+  nsslibc_memcpy(buf, wide, len*sizeof(WCHAR));
   return buf;
 }
 
@@ -445,21 +551,18 @@ nss_ckcapi_UTF8ToWide
 )
 {
   DWORD size;
-  DWORD len = strlen(buf)+1;
   LPWSTR wide;
 
   if ((char *)NULL == buf) {
     return (LPWSTR) NULL;
   }
     
-  len = strlen(buf)+1;
-
-  size = MultiByteToWideChar(CP_UTF8, 0, buf, len, NULL, 0);
+  size = Utf8ToWideChar(CP_UTF8, 0, buf, -1, NULL, 0);
   if (size == 0) {
     return (LPWSTR) NULL;
   }
   wide = nss_ZNEWARRAY(NULL, WCHAR, size);
-  size = MultiByteToWideChar(CP_UTF8, 0, buf, len, wide, size);
+  size = Utf8ToWideChar(CP_UTF8, 0, buf, -1, wide, size);
   if (size == 0) {
     nss_ZFreeIf(wide);
     return (LPWSTR) NULL;
@@ -572,10 +675,12 @@ ckcapi_CertPopulateModulusExponent
 {
   ckcapiKeyParams *kp = &io->u.cert.key;
   PCCERT_CONTEXT certContext = io->u.cert.certContext;
-  char *pkData = certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.pbData;
-  CK_ULONG size= certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.cbData;
-  CK_ULONG newSize;
-  char *ptr, *newptr;
+  unsigned char *pkData =
+      certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.pbData;
+  unsigned int size=
+      certContext->pCertInfo->SubjectPublicKeyInfo.PublicKey.cbData;
+  unsigned int newSize;
+  unsigned char *ptr, *newptr;
 
   /* find the start of the modulus -- this will not give good results if
    * the key isn't an rsa key! */
@@ -1420,7 +1525,6 @@ ckcapi_mdObject_Destroy
       goto loser;
     }
     rc = CertDeleteCertificateFromStore(certContext);
-    CertFreeCertificateContext(certContext);
   } else {
     char *provName = NULL;
     char *containerName = NULL;
@@ -2299,7 +2403,7 @@ nss_ckcapi_CreateObject
 )
 {
   CK_OBJECT_CLASS objClass;
-  ckcapiInternalObject *io;
+  ckcapiInternalObject *io = NULL;
   CK_BBOOL isToken;
 
   /*

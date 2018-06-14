@@ -1,42 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-
-#ifdef DEBUG
-static const char CVS_ID[] = "@(#) $RCSfile: arena.c,v $ $Revision: 1.12 $ $Date: 2008/05/13 01:22:35 $";
-#endif /* DEBUG */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * arena.c
@@ -66,6 +30,9 @@ static const char CVS_ID[] = "@(#) $RCSfile: arena.c,v $ $Revision: 1.12 $ $Date
  *
  *  NSSArena_Create  -- constructor
  *  NSSArena_Destroy
+ *  NSS_ZAlloc
+ *  NSS_ZRealloc
+ *  NSS_ZFreeIf
  *
  * The nonpublic methods relating to this type are:
  *
@@ -737,7 +704,7 @@ nss_arena_unmark_release
     nss_arena_call_destructor_chain(arenaMark->next_destructor);
 #endif /* ARENA_DESTRUCTOR_LIST */
 
-    PR_ARENA_RELEASE(&arena->pool, inner_mark);
+    PL_ARENA_RELEASE(&arena->pool, inner_mark);
     /* No error return */
   }
 
@@ -830,7 +797,7 @@ nss_zalloc_arena_locked
   void *rv;
   struct pointer_header *h;
   PRUint32 my_size = size + sizeof(struct pointer_header);
-  PR_ARENA_ALLOCATE(p, &arena->pool, my_size);
+  PL_ARENA_ALLOCATE(p, &arena->pool, my_size);
   if( (void *)NULL == p ) {
     nss_SetError(NSS_ERROR_NO_MEMORY);
     return (void *)NULL;
@@ -846,6 +813,39 @@ nss_zalloc_arena_locked
   rv = (void *)((char *)h + sizeof(struct pointer_header));
   (void)nsslibc_memset(rv, 0, size);
   return rv;
+}
+
+/*
+ * NSS_ZAlloc
+ *
+ * This routine allocates and zeroes a section of memory of the 
+ * size, and returns to the caller a pointer to that memory.  If
+ * the optional arena argument is non-null, the memory will be
+ * obtained from that arena; otherwise, the memory will be obtained
+ * from the heap.  This routine may return NULL upon error, in
+ * which case it will have set an error upon the error stack.  The
+ * value specified for size may be zero; in which case a valid 
+ * zero-length block of memory will be allocated.  This block may
+ * be expanded by calling NSS_ZRealloc.
+ *
+ * The error may be one of the following values:
+ *  NSS_ERROR_INVALID_ARENA
+ *  NSS_ERROR_NO_MEMORY
+ *  NSS_ERROR_ARENA_MARKED_BY_ANOTHER_THREAD
+ *
+ * Return value:
+ *  NULL upon error
+ *  A pointer to the new segment of zeroed memory
+ */
+
+NSS_IMPLEMENT void *
+NSS_ZAlloc
+(
+  NSSArena *arenaOpt,
+  PRUint32 size
+)
+{
+  return nss_ZAlloc(arenaOpt, size);
 }
 
 /*
@@ -935,6 +935,32 @@ nss_ZAlloc
 }
 
 /*
+ * NSS_ZFreeIf
+ *
+ * If the specified pointer is non-null, then the region of memory 
+ * to which it points -- which must have been allocated with 
+ * NSS_ZAlloc -- will be zeroed and released.  This routine 
+ * returns a PRStatus value; if successful, it will return PR_SUCCESS.
+ * If unsuccessful, it will set an error on the error stack and return 
+ * PR_FAILURE.
+ *
+ * The error may be one of the following values:
+ *  NSS_ERROR_INVALID_POINTER
+ *
+ * Return value:
+ *  PR_SUCCESS
+ *  PR_FAILURE
+ */
+NSS_IMPLEMENT PRStatus
+NSS_ZFreeIf
+(
+  void *pointer
+)
+{
+   return nss_ZFreeIf(pointer);
+}
+
+/*
  * nss_ZFreeIf
  *
  * If the specified pointer is non-null, then the region of memory 
@@ -1000,6 +1026,36 @@ nss_ZFreeIf
 }
 
 /*
+ * NSS_ZRealloc
+ *
+ * This routine reallocates a block of memory obtained by calling
+ * nss_ZAlloc or nss_ZRealloc.  The portion of memory 
+ * between the new and old sizes -- which is either being newly
+ * obtained or released -- is in either case zeroed.  This routine 
+ * may return NULL upon failure, in which case it will have placed 
+ * an error on the error stack.
+ *
+ * The error may be one of the following values:
+ *  NSS_ERROR_INVALID_POINTER
+ *  NSS_ERROR_NO_MEMORY
+ *  NSS_ERROR_ARENA_MARKED_BY_ANOTHER_THREAD
+ *
+ * Return value:
+ *  NULL upon error
+ *  A pointer to the replacement segment of memory
+ */
+
+NSS_EXTERN void *
+NSS_ZRealloc
+(
+  void *pointer,
+  PRUint32 newSize
+)
+{
+    return nss_ZRealloc(pointer, newSize);
+}
+
+/*
  * nss_ZRealloc
  *
  * This routine reallocates a block of memory obtained by calling
@@ -1026,6 +1082,7 @@ nss_ZRealloc
   PRUint32 newSize
 )
 {
+  NSSArena *arena;
   struct pointer_header *h, *new_h;
   PRUint32 my_newSize = newSize + sizeof(struct pointer_header);
   void *rv;
@@ -1051,7 +1108,8 @@ nss_ZRealloc
     return pointer;
   }
 
-  if( (NSSArena *)NULL == h->arena ) {
+  arena = h->arena;
+  if (!arena) {
     /* Heap */
     new_h = (struct pointer_header *)PR_Calloc(1, my_newSize);
     if( (struct pointer_header *)NULL == new_h ) {
@@ -1080,22 +1138,22 @@ nss_ZRealloc
     void *p;
     /* Arena */
 #ifdef NSSDEBUG
-    if( PR_SUCCESS != nssArena_verifyPointer(h->arena) ) {
+    if (PR_SUCCESS != nssArena_verifyPointer(arena)) {
       return (void *)NULL;
     }
 #endif /* NSSDEBUG */
 
-    if( (PRLock *)NULL == h->arena->lock ) {
+    if (!arena->lock) {
       /* Just got destroyed.. so this pointer is invalid */
       nss_SetError(NSS_ERROR_INVALID_POINTER);
       return (void *)NULL;
     }
-    PR_Lock(h->arena->lock);
+    PR_Lock(arena->lock);
 
 #ifdef ARENA_THREADMARK
-    if( (PRThread *)NULL != h->arena->marking_thread ) {
-      if( PR_GetCurrentThread() != h->arena->marking_thread ) {
-        PR_Unlock(h->arena->lock);
+    if (arena->marking_thread) {
+      if (PR_GetCurrentThread() != arena->marking_thread) {
+        PR_Unlock(arena->lock);
         nss_SetError(NSS_ERROR_ARENA_MARKED_BY_ANOTHER_THREAD);
         return (void *)NULL;
       }
@@ -1117,19 +1175,19 @@ nss_ZRealloc
        */
       char *extra = &((char *)pointer)[ newSize ];
       (void)nsslibc_memset(extra, 0, (h->size - newSize));
-      PR_Unlock(h->arena->lock);
+      PR_Unlock(arena->lock);
       return pointer;
     }
 
-    PR_ARENA_ALLOCATE(p, &h->arena->pool, my_newSize);
+    PL_ARENA_ALLOCATE(p, &arena->pool, my_newSize);
     if( (void *)NULL == p ) {
-      PR_Unlock(h->arena->lock);
+      PR_Unlock(arena->lock);
       nss_SetError(NSS_ERROR_NO_MEMORY);
       return (void *)NULL;
     }
 
     new_h = (struct pointer_header *)p;
-    new_h->arena = h->arena;
+    new_h->arena = arena;
     new_h->size = newSize;
     rv = (void *)((char *)new_h + sizeof(struct pointer_header));
     if (rv != pointer) {
@@ -1139,7 +1197,7 @@ nss_ZRealloc
     (void)nsslibc_memset(&((char *)rv)[ h->size ], 0, (newSize - h->size));
     h->arena = (NSSArena *)NULL;
     h->size = 0;
-    PR_Unlock(new_h->arena->lock);
+    PR_Unlock(arena->lock);
     return rv;
   }
   /*NOTREACHED*/

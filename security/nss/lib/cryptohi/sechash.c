@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 #include "sechash.h"
 #include "secoidt.h"
 #include "secerr.h"
@@ -89,6 +57,11 @@ md5_NewContext(void) {
 static void *
 sha1_NewContext(void) {
 	return (void *) PK11_CreateDigestContext(SEC_OID_SHA1);
+}
+
+static void *
+sha224_NewContext(void) {
+	return (void *) PK11_CreateDigestContext(SEC_OID_SHA224);
 }
 
 static void *
@@ -184,6 +157,17 @@ const SECHashObject SECHashObjects[] = {
     SHA512_BLOCK_LENGTH,
     HASH_AlgSHA512
   },
+  { SHA224_LENGTH,
+    (void * (*)(void)) sha224_NewContext,
+    (void * (*)(void *)) PK11_CloneContext,
+    (void (*)(void *, PRBool)) PK11_DestroyContext,
+    (void (*)(void *)) PK11_DigestBegin,
+    (void (*)(void *, const unsigned char *, unsigned int)) PK11_DigestOp,
+    (void (*)(void *, unsigned char *, unsigned int *, unsigned int))
+							PK11_DigestFinal,
+    SHA224_BLOCK_LENGTH,
+    HASH_AlgSHA224
+  },
 };
 
 const SECHashObject * 
@@ -201,6 +185,7 @@ HASH_GetHashTypeByOidTag(SECOidTag hashOid)
     case SEC_OID_MD2:	 ht = HASH_AlgMD2;    break;
     case SEC_OID_MD5:	 ht = HASH_AlgMD5;    break;
     case SEC_OID_SHA1:	 ht = HASH_AlgSHA1;   break;
+    case SEC_OID_SHA224: ht = HASH_AlgSHA224; break;
     case SEC_OID_SHA256: ht = HASH_AlgSHA256; break;
     case SEC_OID_SHA384: ht = HASH_AlgSHA384; break;
     case SEC_OID_SHA512: ht = HASH_AlgSHA512; break;
@@ -220,6 +205,7 @@ HASH_GetHashOidTagByHMACOidTag(SECOidTag hmacOid)
     /* no oid exists for HMAC_MD2 */
     /* NSS does not define a oid for HMAC_MD4 */
     case SEC_OID_HMAC_SHA1:   hashOid = SEC_OID_SHA1;   break;
+    case SEC_OID_HMAC_SHA224: hashOid = SEC_OID_SHA224; break;
     case SEC_OID_HMAC_SHA256: hashOid = SEC_OID_SHA256; break;
     case SEC_OID_HMAC_SHA384: hashOid = SEC_OID_SHA384; break;
     case SEC_OID_HMAC_SHA512: hashOid = SEC_OID_SHA512; break;
@@ -235,10 +221,11 @@ HASH_GetHMACOidTagByHashOidTag(SECOidTag hashOid)
 {
     SECOidTag hmacOid = SEC_OID_UNKNOWN;
 
-    switch(hmacOid) {
+    switch(hashOid) {
     /* no oid exists for HMAC_MD2 */
     /* NSS does not define a oid for HMAC_MD4 */
     case SEC_OID_SHA1:   hmacOid = SEC_OID_HMAC_SHA1;   break;
+    case SEC_OID_SHA224: hmacOid = SEC_OID_HMAC_SHA224; break;
     case SEC_OID_SHA256: hmacOid = SEC_OID_HMAC_SHA256; break;
     case SEC_OID_SHA384: hmacOid = SEC_OID_HMAC_SHA384; break;
     case SEC_OID_SHA512: hmacOid = SEC_OID_HMAC_SHA512; break;
@@ -292,7 +279,7 @@ HASH_ResultLenContext(HASHContext *context)
 SECStatus
 HASH_HashBuf(HASH_HashType type,
 	     unsigned char *dest,
-	     unsigned char *src,
+	     const unsigned char *src,
 	     PRUint32 src_len)
 {
     HASHContext *cx;

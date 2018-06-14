@@ -1,4 +1,15 @@
 #!/bin/sh
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# arguments:
+# 1: full path to DIST/OBJDIR (parent dir of "lib")
+# 2: full path to shlibsign executable (DIST/OBJDIR/bin)
+# 3: OS_TARGET
+# 4: full path to DIST/OBJDIR/lib
+# 5: full path to library that is to be signed
+
 case "${3}" in
 WIN*)
     if echo "${PATH}" | grep -c \; >/dev/null; then
@@ -18,29 +29,11 @@ WIN*)
         PATH=${ARG1}/lib:${ARG1}/bin:${ARG4}:${PATH}
     fi
     export PATH
-    echo ${2}/shlibsign -v -i ${5}
-    ${2}/shlibsign -v -i ${5}
-    ;;
-OpenVMS)
-    temp="tmp$$.tmp"
-    temp2="tmp$$.tmp2"
-    cd ${1}/lib
-    vmsdir=`dcl show default`
-    ls *.so > $temp
-    sed -e "s/\([^\.]*\)\.so/\$ define\/job \1 ${vmsdir}\1.so/" $temp > $temp2
-    echo '$ define/job getipnodebyname xxx' >> $temp2
-    echo '$ define/job vms_null_dl_name sys$share:decc$shr' >> $temp2
-    dcl @$temp2
-    echo ${2}/shlibsign -v -i ${5}
-    ${2}/shlibsign -v -i ${5}
-    sed -e "s/\([^\.]*\)\.so/\$ deass\/job \1/" $temp > $temp2
-    echo '$ deass/job getipnodebyname' >> $temp2
-    echo '$ deass/job vms_null_dl_name' >> $temp2
-    dcl @$temp2
-    rm $temp $temp2
+    echo "${2}"/shlibsign -v -i "${5}"
+    "${2}"/shlibsign -v -i "${5}"
     ;;
 *)
-    LIBPATH=`(cd ${1}/lib; pwd)`:`(cd ${4}; pwd)`:$LIBPATH
+    LIBPATH=`(cd "${1}"/lib; pwd)`:`(cd "${4}"; pwd)`:$LIBPATH
     export LIBPATH
     SHLIB_PATH=${1}/lib:${4}:$SHLIB_PATH
     export SHLIB_PATH
@@ -52,7 +45,7 @@ OpenVMS)
     export LIBRARY_PATH
     ADDON_PATH=${1}/lib:${4}:$ADDON_PATH
     export ADDON_PATH
-    echo ${2}/shlibsign -v -i ${5}
-    ${2}/shlibsign -v -i ${5}
+    echo "${2}"/shlibsign -v -i "${5}"
+    "${2}"/shlibsign -v -i "${5}"
     ;;
 esac

@@ -1,44 +1,10 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * Support for DEcoding ASN.1 data based on BER/DER (Basic/Distinguished
  * Encoding Rules).
- *
- * $Id: secasn1d.c,v 1.38 2007/10/12 01:44:51 julien.pierre.boogz%sun.com Exp $
  */
 
 /* #define DEBUG_ASN1D_STATES 1 */
@@ -306,8 +272,8 @@ typedef struct sec_asn1d_state_struct {
  * SEC_ASN1DecoderFinish().
  */
 struct sec_DecoderContext_struct {
-    PRArenaPool *our_pool;		/* for our internal allocs */
-    PRArenaPool *their_pool;		/* for destination structure allocs */
+    PLArenaPool *our_pool;		/* for our internal allocs */
+    PLArenaPool *their_pool;		/* for destination structure allocs */
 #ifdef SEC_ASN1D_FREE_ON_ERROR		/*
 					 * XXX see comment below (by same
 					 * ifdef) that explains why this
@@ -338,7 +304,7 @@ struct sec_DecoderContext_struct {
  * XXX this is a fairly generic function that may belong elsewhere
  */
 static void *
-sec_asn1d_alloc (PRArenaPool *poolp, unsigned long len)
+sec_asn1d_alloc (PLArenaPool *poolp, unsigned long len)
 {
     void *thing;
 
@@ -362,7 +328,7 @@ sec_asn1d_alloc (PRArenaPool *poolp, unsigned long len)
  * XXX this is a fairly generic function that may belong elsewhere
  */
 static void *
-sec_asn1d_zalloc (PRArenaPool *poolp, unsigned long len)
+sec_asn1d_zalloc (PLArenaPool *poolp, unsigned long len)
 {
     void *thing;
 
@@ -990,7 +956,7 @@ static void
 sec_asn1d_prepare_for_contents (sec_asn1d_state *state)
 {
     SECItem *item;
-    PRArenaPool *poolp;
+    PLArenaPool *poolp;
     unsigned long alloc_len;
 
 #ifdef DEBUG_ASN1D_STATES
@@ -2086,11 +2052,7 @@ sec_asn1d_concat_substrings (sec_asn1d_state *state)
 	}
 
 	if (is_bit_string) {
-#ifdef XP_WIN16		/* win16 compiler gets an internal error otherwise */
-	    alloc_len = (((long)item_len + 7) / 8);
-#else
 	    alloc_len = ((item_len + 7) >> 3);
-#endif
 	} else {
 	    /*
 	     * Add 2 for the end-of-contents octets of an indefinite-length
@@ -2810,6 +2772,7 @@ SEC_ASN1DecoderUpdate (SEC_ASN1DecoderContext *cx,
 	if (cx->their_pool != NULL) {
 	    PORT_Assert (cx->their_mark != NULL);
 	    PORT_ArenaRelease (cx->their_pool, cx->their_mark);
+	    cx->their_mark = NULL;
 	}
 #endif
 	return SECFailure;
@@ -2856,10 +2819,10 @@ SEC_ASN1DecoderFinish (SEC_ASN1DecoderContext *cx)
 
 
 SEC_ASN1DecoderContext *
-SEC_ASN1DecoderStart (PRArenaPool *their_pool, void *dest,
+SEC_ASN1DecoderStart (PLArenaPool *their_pool, void *dest,
 		      const SEC_ASN1Template *theTemplate)
 {
-    PRArenaPool *our_pool;
+    PLArenaPool *our_pool;
     SEC_ASN1DecoderContext *cx;
 
     our_pool = PORT_NewArena (SEC_ASN1_DEFAULT_ARENA_SIZE);
@@ -2948,7 +2911,7 @@ SEC_ASN1DecoderAbort(SEC_ASN1DecoderContext *cx, int error)
 
 
 SECStatus
-SEC_ASN1Decode (PRArenaPool *poolp, void *dest,
+SEC_ASN1Decode (PLArenaPool *poolp, void *dest,
 		const SEC_ASN1Template *theTemplate,
 		const char *buf, long len)
 {
@@ -2970,7 +2933,7 @@ SEC_ASN1Decode (PRArenaPool *poolp, void *dest,
 
 
 SECStatus
-SEC_ASN1DecodeItem (PRArenaPool *poolp, void *dest,
+SEC_ASN1DecodeItem (PLArenaPool *poolp, void *dest,
 		    const SEC_ASN1Template *theTemplate,
 		    const SECItem *src)
 {

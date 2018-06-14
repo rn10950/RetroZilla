@@ -1,40 +1,8 @@
-#! /bin/sh  
+#! /bin/bash  
 #
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Netscape security libraries.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1994-2000
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ########################################################################
 #
@@ -69,9 +37,11 @@ cipher_init()
 
   CIPHERDIR=${HOSTDIR}/cipher
   CIPHERTESTDIR=${QADIR}/../cmd/bltest
+  GCMTESTDIR=${QADIR}/../cmd/pk11gcmtest
   D_CIPHER="Cipher.$version"
 
   CIPHER_TXT=${QADIR}/cipher/cipher.txt
+  GCM_TXT=${QADIR}/cipher/gcm.txt
 
   mkdir -p ${CIPHERDIR}
 
@@ -102,7 +72,7 @@ cipher_main()
              while [ $outOff -lt 8 ]
              do
                  echo "bltest -T -m $PARAM -d $CIPHERTESTDIR -1 $inOff -2 $outOff"
-                 ${PROFTOOL} ${BINDIR}/bltest -T -m $PARAM -d $CIPHERTESTDIR -1 $inOff -2 $outOff
+                 ${PROFTOOL} ${BINDIR}/bltest${PROG_SUFFIX} -T -m $PARAM -d $CIPHERTESTDIR -1 $inOff -2 $outOff
                  if [ $? -ne 0 ]; then
                      failedStr="$failedStr[$inOff:$outOff]"
                  fi
@@ -120,6 +90,23 @@ cipher_main()
   done < ${CIPHER_TXT}
 }
 
+############################## cipher_gcm #############################
+# local shell function to test NSS AES GCM
+########################################################################
+cipher_gcm()
+{
+  while read EXP_RET INPUT_FILE TESTNAME
+  do
+      if [ -n "$EXP_RET" -a "$EXP_RET" != "#" ] ; then
+          TESTNAME=`echo $TESTNAME | sed -e "s/_/ /g"`
+          echo "$SCRIPTNAME: $TESTNAME --------------------------------"
+          echo "pk11gcmtest aes kat gcm $GCMTESTDIR/tests/$INPUT_FILE"
+          ${PROFTOOL} ${BINDIR}/pk11gcmtest aes kat gcm $GCMTESTDIR/tests/$INPUT_FILE
+          html_msg $? $EXP_RET "$TESTNAME"
+      fi
+  done < ${GCM_TXT}
+}
+
 ############################## cipher_cleanup ############################
 # local shell function to finish this script (no exit since it might be
 # sourced)
@@ -133,6 +120,15 @@ cipher_cleanup()
 
 ################## main #################################################
 
+# When building without softoken, bltest isn't built. It was already
+# built and the cipher suite run as part of an nss-softoken build. 
+if [ ! -x ${DIST}/${OBJDIR}/bin/bltest${PROG_SUFFIX} ]; then
+    echo "bltest not built, skipping this test." >> ${LOGFILE}
+    res = 0
+    html_msg $res $EXP_RET "$TESTNAME"
+    return 0
+fi
 cipher_init
 cipher_main
+cipher_gcm
 cipher_cleanup

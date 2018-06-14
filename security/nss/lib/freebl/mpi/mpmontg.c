@@ -1,46 +1,10 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Sheueling Chang Shantz <sheueling.chang@sun.com>,
- *   Stephen Fung <stephen.fung@sun.com>, and
- *   Douglas Stebila <douglas@stebila.ca> of Sun Laboratories.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: mpmontg.c,v 1.20 2006/08/29 02:41:38 nelson%bolyard.com Exp $ */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /* This file implements moduluar exponentiation using Montgomery's
  * method for modular reduction.  This file implements the method
- * described as "Improvement 1" in the paper "A Cryptogrpahic Library for
+ * described as "Improvement 2" in the paper "A Cryptogrpahic Library for
  * the Motorola DSP56000" by Stephen R. Dusse' and Burton S. Kaliski Jr.
  * published in "Advances in Cryptology: Proceedings of EUROCRYPT '90"
  * "Lecture Notes in Computer Science" volume 473, 1991, pg 230-244,
@@ -70,19 +34,15 @@
 
 #define MAX_ODD_INTS    32   /* 2 ** (WINDOW_BITS - 1) */
 
-#if defined(_WIN32_WCE)
-#define ABORT  res = MP_UNDEF; goto CLEANUP
-#else
-#define ABORT abort()
-#endif
-
-/* computes T = REDC(T), 2^b == R */
+/*! computes T = REDC(T), 2^b == R 
+    \param T < RN
+*/
 mp_err s_mp_redc(mp_int *T, mp_mont_modulus *mmm)
 {
   mp_err res;
   mp_size i;
 
-  i = MP_USED(T) + MP_USED(&mmm->N) + 2;
+  i = (MP_USED(&mmm->N) << 1) + 1;
   MP_CHECKOK( s_mp_pad(T, i) );
   for (i = 0; i < MP_USED(&mmm->N); ++i ) {
     mp_digit m_i = MP_DIGIT(T, i) * mmm->n0prime;
@@ -92,7 +52,7 @@ mp_err s_mp_redc(mp_int *T, mp_mont_modulus *mmm)
   s_mp_clamp(T);
 
   /* T /= R */
-  s_mp_div_2d(T, mmm->b); 
+  s_mp_rshd( T, MP_USED(&mmm->N) );
 
   if ((res = s_mp_cmp(T, &mmm->N)) >= 0) {
     /* T = T - N */
@@ -109,14 +69,20 @@ CLEANUP:
   return res;
 }
 
-#if !defined(MP_ASSEMBLY_MUL_MONT) && !defined(MP_MONT_USE_MP_MUL)
+#if !defined(MP_MONT_USE_MP_MUL)
+
+/*! c <- REDC( a * b ) mod N
+    \param a < N  i.e. "reduced"
+    \param b < N  i.e. "reduced"
+    \param mmm modulus N and n0' of N
+*/
 mp_err s_mp_mul_mont(const mp_int *a, const mp_int *b, mp_int *c, 
 	           mp_mont_modulus *mmm)
 {
   mp_digit *pb;
   mp_digit m_i;
   mp_err   res;
-  mp_size  ib;
+  mp_size  ib; /* "index b": index of current digit of B */
   mp_size  useda, usedb;
 
   ARGCHK(a != NULL && b != NULL && c != NULL, MP_BADARG);
@@ -128,7 +94,7 @@ mp_err s_mp_mul_mont(const mp_int *a, const mp_int *b, mp_int *c,
   }
 
   MP_USED(c) = 1; MP_DIGIT(c, 0) = 0;
-  ib = MP_USED(a) + MP_MAX(MP_USED(b), MP_USED(&mmm->N)) + 2;
+  ib = (MP_USED(&mmm->N) << 1) + 1;
   if((res = s_mp_pad(c, ib)) != MP_OKAY)
     goto CLEANUP;
 
@@ -157,7 +123,7 @@ mp_err s_mp_mul_mont(const mp_int *a, const mp_int *b, mp_int *c,
     }
   }
   s_mp_clamp(c);
-  s_mp_div_2d(c, mmm->b); 
+  s_mp_rshd( c, MP_USED(&mmm->N) ); /* c /= R */
   if (s_mp_cmp(c, &mmm->N) >= 0) {
     MP_CHECKOK( s_mp_sub(c, &mmm->N) );
   }
@@ -174,7 +140,8 @@ mp_err s_mp_to_mont(const mp_int *x, mp_mont_modulus *mmm, mp_int *xMont)
   mp_err res;
 
   /* xMont = x * R mod N   where  N is modulus */
-  MP_CHECKOK( mpl_lsh(x, xMont, mmm->b) );  		/* xMont = x << b */
+  MP_CHECKOK( mp_copy( x, xMont ) );
+  MP_CHECKOK( s_mp_lshd( xMont, MP_USED(&mmm->N) ) );	/* xMont = x << b */
   MP_CHECKOK( mp_div(xMont, &mmm->N, 0, xMont) );	/*         mod N */
 CLEANUP:
   return res;
@@ -283,7 +250,7 @@ mp_err mp_exptmod_f(const mp_int *   montBase,
       } else if (smallExp & 1) {
 	SQR; MUL(0); 
       } else {
-	ABORT;
+	abort();
       }
     } else if (window_bits == 4) {
       if (!smallExp) {
@@ -297,7 +264,7 @@ mp_err mp_exptmod_f(const mp_int *   montBase,
       } else if (smallExp & 8) {
 	SQR; MUL(smallExp/16); SQR; SQR; SQR; 
       } else {
-	ABORT;
+	abort();
       }
     } else if (window_bits == 5) {
       if (!smallExp) {
@@ -313,7 +280,7 @@ mp_err mp_exptmod_f(const mp_int *   montBase,
       } else if (smallExp & 0x10) {
 	SQR; MUL(smallExp/32); SQR; SQR; SQR; SQR;
       } else {
-	ABORT;
+	abort();
       }
     } else if (window_bits == 6) {
       if (!smallExp) {
@@ -331,10 +298,10 @@ mp_err mp_exptmod_f(const mp_int *   montBase,
       } else if (smallExp & 0x20) {
 	SQR; MUL(smallExp/64); SQR; SQR; SQR; SQR; SQR; 
       } else {
-	ABORT;
+	abort();
       }
     } else {
-      ABORT;
+      abort();
     }
   }
 
@@ -431,7 +398,7 @@ mp_err mp_exptmod_i(const mp_int *   montBase,
       } else if (smallExp & 1) {
 	SQR(pa1,pa2); MUL(0,pa2,pa1);
       } else {
-	ABORT;
+	abort();
       }
     } else if (window_bits == 4) {
       if (!smallExp) {
@@ -449,7 +416,7 @@ mp_err mp_exptmod_i(const mp_int *   montBase,
 	SQR(pa1,pa2); MUL(smallExp/16,pa2,pa1); SQR(pa1,pa2); 
 	SQR(pa2,pa1); SQR(pa1,pa2); SWAPPA;
       } else {
-	ABORT;
+	abort();
       }
     } else if (window_bits == 5) {
       if (!smallExp) {
@@ -471,7 +438,7 @@ mp_err mp_exptmod_i(const mp_int *   montBase,
 	SQR(pa1,pa2); MUL(smallExp/32,pa2,pa1); SQR(pa1,pa2); 
 	SQR(pa2,pa1); SQR(pa1,pa2); SQR(pa2,pa1);
       } else {
-	ABORT;
+	abort();
       }
     } else if (window_bits == 6) {
       if (!smallExp) {
@@ -497,10 +464,10 @@ mp_err mp_exptmod_i(const mp_int *   montBase,
 	SQR(pa1,pa2); MUL(smallExp/64,pa2,pa1); SQR(pa1,pa2); 
 	SQR(pa2,pa1); SQR(pa1,pa2); SQR(pa2,pa1); SQR(pa1,pa2); SWAPPA;
       } else {
-	ABORT;
+	abort();
       }
     } else {
-      ABORT;
+      abort();
     }
   }
 
@@ -659,9 +626,9 @@ typedef unsigned int mp_weave_word;
  * mp_digits where each digit is stored in big endian order.
  * 
  * since we need to interleave on a byte by byte basis, we need to collect 
- * several mpi structures together into a single uint32 before we write. We
- * also need to make sure the uint32 is arranged so that the first value of 
- * the first array winds up in b[0]. This means construction of that uint32
+ * several mpi structures together into a single PRUint32 before we write. We
+ * also need to make sure the PRUint32 is arranged so that the first value of
+ * the first array winds up in b[0]. This means construction of that PRUint32
  * is endian specific (even though the layout of the mp_digits in the array 
  * is always big endian).
  *
@@ -1039,7 +1006,7 @@ mp_err mp_exptmod_safe_i(const mp_int *   montBase,
 	} else if (smallExp & 1) {
 	    SQR(pa1,pa2); MUL_NOWEAVE(montBase,pa2,pa1);
 	} else {
-	    ABORT;
+	    abort();
 	}
 	break;
     case 6:
@@ -1054,7 +1021,7 @@ mp_err mp_exptmod_safe_i(const mp_int *   montBase,
 	SQR(pa1,pa2); MUL(smallExp,pa2,pa1);
 	break;
     default:
-	ABORT; /* could do a loop? */
+	abort(); /* could do a loop? */
     }
   }
 
@@ -1109,9 +1076,6 @@ mp_err mp_exptmod(const mp_int *inBase, const mp_int *exponent,
   MP_CHECKOK( mp_init_size(&montBase, 2 * nLen + 2) );
 
   mmm.N = *modulus;			/* a copy of the mp_int struct */
-  i = mpl_significant_bits(modulus);
-  i += MP_DIGIT_BIT - 1;
-  mmm.b = i - i % MP_DIGIT_BIT;
 
   /* compute n0', given n0, n0' = -(n0 ** -1) mod MP_RADIX
   **		where n0 = least significant mp_digit of N, the modulus.

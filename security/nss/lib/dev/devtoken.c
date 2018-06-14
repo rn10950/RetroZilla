@@ -1,46 +1,8 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef DEBUG
-static const char CVS_ID[] = "@(#) $RCSfile: devtoken.c,v $ $Revision: 1.51 $ $Date: 2008/09/30 04:09:02 $";
-#endif /* DEBUG */
-
-#ifndef NSSCKEPV_H
-#include "nssckepv.h"
-#endif /* NSSCKEPV_H */
+#include "pkcs11.h"
 
 #ifndef DEVM_H
 #include "devm.h"
@@ -67,7 +29,7 @@ nssToken_Destroy (
 )
 {
     if (tok) {
-	if (PR_AtomicDecrement(&tok->base.refCount) == 0) {
+	if (PR_ATOMIC_DECREMENT(&tok->base.refCount) == 0) {
 	    PZ_DestroyLock(tok->base.lock);
 	    nssTokenObjectCache_Destroy(tok->cache);
 	    /* The token holds the first/last reference to the slot.
@@ -101,7 +63,7 @@ nssToken_AddRef (
   NSSToken *tok
 )
 {
-    PR_AtomicIncrement(&tok->base.refCount);
+    PR_ATOMIC_INCREMENT(&tok->base.refCount);
     return tok;
 }
 
@@ -431,6 +393,13 @@ find_objects_by_template (
     CK_OBJECT_CLASS objclass = (CK_OBJECT_CLASS)-1;
     nssCryptokiObject **objects = NULL;
     PRUint32 i;
+
+    if (!token) {
+    	PORT_SetError(SEC_ERROR_NO_TOKEN);
+	if (statusOpt) 
+	    *statusOpt = PR_FAILURE;
+	return NULL;
+    }
     for (i=0; i<otsize; i++) {
 	if (obj_template[i].type == CKA_CLASS) {
 	    objclass = *(CK_OBJECT_CLASS *)obj_template[i].pValue;
@@ -491,6 +460,10 @@ nssToken_ImportCertificate (
     nssTokenSearchType searchType;
     nssCryptokiObject *rvObject = NULL;
 
+    if (!tok) {
+    	PORT_SetError(SEC_ERROR_NO_TOKEN);
+	return NULL;
+    }
     if (certType == NSSCertificateType_PKIX) {
 	cert_type = CKC_X_509;
     } else {
@@ -513,7 +486,7 @@ nssToken_ImportCertificate (
     NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_SUBJECT,           subject);
     NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_SERIAL_NUMBER,     serial);
     if (email) {
-	NSS_CK_SET_ATTRIBUTE_UTF8(attr, CKA_NETSCAPE_EMAIL,    email);
+	NSS_CK_SET_ATTRIBUTE_UTF8(attr, CKA_NSS_EMAIL,    email);
     }
     NSS_CK_TEMPLATE_FINISH(cert_tmpl, attr, ctsize);
     /* see if the cert is already there */
@@ -705,7 +678,7 @@ nssToken_FindCertificatesByNickname (
 
 /* XXX
  * This function *does not* use the token object cache, because not even
- * the softoken will return a value for CKA_NETSCAPE_EMAIL from a call
+ * the softoken will return a value for CKA_NSS_EMAIL from a call
  * to GetAttributes.  The softoken does allow searches with that attribute,
  * it just won't return a value for it.
  */
@@ -724,7 +697,7 @@ nssToken_FindCertificatesByEmail (
     CK_ULONG etsize;
     nssCryptokiObject **objects;
     NSS_CK_TEMPLATE_START(email_template, attr, etsize);
-    NSS_CK_SET_ATTRIBUTE_UTF8(attr, CKA_NETSCAPE_EMAIL, email);
+    NSS_CK_SET_ATTRIBUTE_UTF8(attr, CKA_NSS_EMAIL, email);
     /* Set the search to token/session only if provided */
     if (searchType == nssTokenSearchType_SessionOnly) {
 	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_TOKEN, &g_ck_false);
@@ -842,6 +815,13 @@ nssToken_FindCertificateByIssuerAndSerialNumber (
     nssCryptokiObject **objects;
     nssCryptokiObject *rvObject = NULL;
     NSS_CK_TEMPLATE_START(cert_template, attr, ctsize);
+
+    if (!token) {
+    	PORT_SetError(SEC_ERROR_NO_TOKEN);
+	if (statusOpt) 
+	    *statusOpt = PR_FAILURE;
+	return NULL;
+    }
     /* Set the search to token/session only if provided */
     if (searchType == nssTokenSearchType_SessionOnly) {
 	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_TOKEN, &g_ck_false);
@@ -1055,14 +1035,14 @@ get_ck_trust (
 {
     CK_TRUST t;
     switch (nssTrust) {
-    case nssTrustLevel_NotTrusted: t = CKT_NETSCAPE_UNTRUSTED; break;
-    case nssTrustLevel_TrustedDelegator: t = CKT_NETSCAPE_TRUSTED_DELEGATOR; 
+    case nssTrustLevel_NotTrusted: t = CKT_NSS_NOT_TRUSTED; break;
+    case nssTrustLevel_TrustedDelegator: t = CKT_NSS_TRUSTED_DELEGATOR; 
 	break;
-    case nssTrustLevel_ValidDelegator: t = CKT_NETSCAPE_VALID_DELEGATOR; break;
-    case nssTrustLevel_Trusted: t = CKT_NETSCAPE_TRUSTED; break;
-    case nssTrustLevel_Valid: t = CKT_NETSCAPE_VALID; break;
+    case nssTrustLevel_ValidDelegator: t = CKT_NSS_VALID_DELEGATOR; break;
+    case nssTrustLevel_Trusted: t = CKT_NSS_TRUSTED; break;
+    case nssTrustLevel_MustVerify: t = CKT_NSS_MUST_VERIFY_TRUST; break;
     case nssTrustLevel_Unknown:
-    default: t = CKT_NETSCAPE_TRUST_UNKNOWN; break;
+    default: t = CKT_NSS_TRUST_UNKNOWN; break;
     }
     return t;
 }
@@ -1083,7 +1063,7 @@ nssToken_ImportTrust (
 )
 {
     nssCryptokiObject *object;
-    CK_OBJECT_CLASS tobjc = CKO_NETSCAPE_TRUST;
+    CK_OBJECT_CLASS tobjc = CKO_NSS_TRUST;
     CK_TRUST ckSA, ckCA, ckCS, ckEP;
     CK_ATTRIBUTE_PTR attr;
     CK_ATTRIBUTE trust_tmpl[11];
@@ -1142,7 +1122,7 @@ nssToken_FindTrustForCertificate (
   nssTokenSearchType searchType
 )
 {
-    CK_OBJECT_CLASS tobjc = CKO_NETSCAPE_TRUST;
+    CK_OBJECT_CLASS tobjc = CKO_NSS_TRUST;
     CK_ATTRIBUTE_PTR attr;
     CK_ATTRIBUTE tobj_template[5];
     CK_ULONG tobj_size;
@@ -1156,9 +1136,7 @@ nssToken_FindTrustForCertificate (
     }
 
     NSS_CK_TEMPLATE_START(tobj_template, attr, tobj_size);
-    if (searchType == nssTokenSearchType_SessionOnly) {
-	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_TOKEN, &g_ck_false);
-    } else if (searchType == nssTokenSearchType_TokenOnly) {
+    if (searchType == nssTokenSearchType_TokenOnly) {
 	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_TOKEN, &g_ck_true);
     }
     NSS_CK_SET_ATTRIBUTE_VAR( attr, CKA_CLASS,          tobjc);
@@ -1187,7 +1165,7 @@ nssToken_ImportCRL (
 )
 {
     nssCryptokiObject *object;
-    CK_OBJECT_CLASS crlobjc = CKO_NETSCAPE_CRL;
+    CK_OBJECT_CLASS crlobjc = CKO_NSS_CRL;
     CK_ATTRIBUTE_PTR attr;
     CK_ATTRIBUTE crl_tmpl[6];
     CK_ULONG crlsize;
@@ -1201,11 +1179,11 @@ nssToken_ImportCRL (
     NSS_CK_SET_ATTRIBUTE_VAR( attr, CKA_CLASS,        crlobjc);
     NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_SUBJECT,      subject);
     NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_VALUE,        encoding);
-    NSS_CK_SET_ATTRIBUTE_UTF8(attr, CKA_NETSCAPE_URL, url);
+    NSS_CK_SET_ATTRIBUTE_UTF8(attr, CKA_NSS_URL, url);
     if (isKRL) {
-	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_NETSCAPE_KRL, &g_ck_true);
+	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_NSS_KRL, &g_ck_true);
     } else {
-	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_NETSCAPE_KRL, &g_ck_false);
+	NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_NSS_KRL, &g_ck_false);
     }
     NSS_CK_TEMPLATE_FINISH(crl_tmpl, attr, crlsize);
 
@@ -1228,7 +1206,7 @@ nssToken_FindCRLsBySubject (
   PRStatus *statusOpt
 )
 {
-    CK_OBJECT_CLASS crlobjc = CKO_NETSCAPE_CRL;
+    CK_OBJECT_CLASS crlobjc = CKO_NSS_CRL;
     CK_ATTRIBUTE_PTR attr;
     CK_ATTRIBUTE crlobj_template[3];
     CK_ULONG crlobj_size;

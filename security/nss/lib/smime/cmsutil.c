@@ -1,44 +1,9 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /*
  * CMS miscellaneous utility functions.
- *
- * $Id: cmsutil.c,v 1.15 2008/03/10 00:01:27 wtc%google.com Exp $
  */
 
 #include "cmslocal.h"
@@ -62,7 +27,7 @@
 SECStatus
 NSS_CMSArray_SortByDER(void **objs, const SEC_ASN1Template *objtemplate, void **objs2)
 {
-    PRArenaPool *poolp;
+    PLArenaPool *poolp;
     int num_objs;
     SECItem **enc_objs;
     SECStatus rv = SECFailure;
@@ -211,6 +176,45 @@ NSS_CMSAlgArray_GetIndexByAlgTag(SECAlgorithmID **algorithmArray,
     return i;
 }
 
+/*
+ * Map a sign algorithm to a digest algorithm.
+ * This is used to handle incorrectly formatted packages sent to us
+ * from Windows 2003.
+ */
+SECOidTag
+NSS_CMSUtil_MapSignAlgs(SECOidTag signAlg)
+{
+    switch (signAlg) {
+    case SEC_OID_PKCS1_MD2_WITH_RSA_ENCRYPTION:
+	return SEC_OID_MD2;
+	break;
+    case SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION:
+	return SEC_OID_MD5;
+	break;
+    case SEC_OID_PKCS1_SHA1_WITH_RSA_ENCRYPTION:
+    case SEC_OID_ANSIX962_ECDSA_SHA1_SIGNATURE:
+    case SEC_OID_ANSIX9_DSA_SIGNATURE_WITH_SHA1_DIGEST:
+	return SEC_OID_SHA1;
+	break;
+    case SEC_OID_PKCS1_SHA256_WITH_RSA_ENCRYPTION:
+    case SEC_OID_ANSIX962_ECDSA_SHA256_SIGNATURE:
+	return SEC_OID_SHA256;
+	break;
+    case SEC_OID_PKCS1_SHA384_WITH_RSA_ENCRYPTION:
+    case SEC_OID_ANSIX962_ECDSA_SHA384_SIGNATURE:
+	return SEC_OID_SHA384;
+	break;
+    case SEC_OID_PKCS1_SHA512_WITH_RSA_ENCRYPTION:
+    case SEC_OID_ANSIX962_ECDSA_SHA512_SIGNATURE:
+	return SEC_OID_SHA512;
+	break;
+    default:
+	break;
+    }
+    /* not one of the algtags incorrectly sent to us*/
+    return signAlg;
+}
+
 const SECHashObject *
 NSS_CMSUtil_GetHashObjByAlgID(SECAlgorithmID *algid)
 {
@@ -243,8 +247,7 @@ NSS_CMSUtil_GetTemplateByTypeTag(SECOidTag type)
 	template = NSSCMSDigestedDataTemplate;
 	break;
     default:
-    case SEC_OID_PKCS7_DATA:
-	template = NULL;
+	template = NSS_CMSType_GetTemplate(type);
 	break;
     }
     return template;
@@ -269,8 +272,7 @@ NSS_CMSUtil_GetSizeByTypeTag(SECOidTag type)
 	size = sizeof(NSSCMSDigestedData);
 	break;
     default:
-    case SEC_OID_PKCS7_DATA:
-	size = 0;
+	size = NSS_CMSType_GetContentSize(type);
 	break;
     }
     return size;
@@ -300,6 +302,9 @@ NSS_CMSContent_GetContentInfo(void *msg, SECOidTag type)
 	break;
     default:
 	cinfo = NULL;
+	if (NSS_CMSType_IsWrapper(type)) {
+	    cinfo = &(c.genericData->contentInfo);
+	}
     }
     return cinfo;
 }
@@ -349,3 +354,4 @@ NSS_CMSDEREncode(NSSCMSMessage *cmsg, SECItem *input, SECItem *derOut,
     }
     return rv;
 }
+

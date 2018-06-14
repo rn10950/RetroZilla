@@ -1,41 +1,6 @@
-/*
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Elliptic Curve Cryptography library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are Copyright (C) 2003
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   Dr Vipul Gupta <vipul.gupta@sun.com> and
- *   Douglas Stebila <douglas@stebila.ca>, Sun Microsystems Laboratories
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifdef FREEBL_NO_DEPEND
 #include "stubs.h"
@@ -239,7 +204,7 @@ ec_NewKey(ECParams *ecParams, ECPrivateKey **privKey,
 {
     SECStatus rv = SECFailure;
 #ifdef NSS_ENABLE_ECC
-    PRArenaPool *arena;
+    PLArenaPool *arena;
     ECPrivateKey *key;
     mp_int k;
     mp_err err = MP_OKAY;
@@ -248,6 +213,7 @@ ec_NewKey(ECParams *ecParams, ECPrivateKey **privKey,
 #if EC_DEBUG
     printf("ec_NewKey called\n");
 #endif
+    MP_DIGITS(&k) = 0;
 
     if (!ecParams || !privKey || !privKeyBytes || (privKeyLen < 0)) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -316,7 +282,6 @@ ec_NewKey(ECParams *ecParams, ECPrivateKey **privKey,
     }
 
     /* Compute corresponding public key */
-    MP_DIGITS(&k) = 0;
     CHECK_MPI_OK( mp_init(&k) );
     CHECK_MPI_OK( mp_read_unsigned_octets(&k, key->privateValue.data, 
 	(mp_size) len) );
@@ -578,12 +543,12 @@ ECDH_Derive(SECItem  *publicValue,
 	return SECFailure;
     }
 
+    MP_DIGITS(&k) = 0;
     memset(derivedSecret, 0, sizeof *derivedSecret);
     len = (ecParams->fieldID.size + 7) >> 3;  
     pointQ.len = 2*len + 1;
     if ((pointQ.data = PORT_Alloc(2*len + 1)) == NULL) goto cleanup;
 
-    MP_DIGITS(&k) = 0;
     CHECK_MPI_OK( mp_init(&k) );
     CHECK_MPI_OK( mp_read_unsigned_octets(&k, privateValue->data, 
 	                                  (mp_size) privateValue->len) );
@@ -655,6 +620,7 @@ ECDSA_SignDigestWithSeed(ECPrivateKey *key, SECItem *signature,
     SECItem kGpoint = { siBuffer, NULL, 0};
     int flen = 0;    /* length in bytes of the field size */
     unsigned olen;   /* length in bytes of the base point order */
+    unsigned obits;  /* length in bits  of the base point order */
 
 #if EC_DEBUG
     char mpstr[256];
@@ -697,6 +663,7 @@ ECDSA_SignDigestWithSeed(ECPrivateKey *key, SECItem *signature,
 
     SECITEM_TO_MPINT( ecParams->order, &n );
     SECITEM_TO_MPINT( key->privateValue, &d );
+
     CHECK_MPI_OK( mp_read_unsigned_octets(&k, kb, kblen) );
     /* Make sure k is in the interval [1, n-1] */
     if ((mp_cmp_z(&k) <= 0) || (mp_cmp(&k, &n) >= 0)) {
@@ -709,6 +676,27 @@ ECDSA_SignDigestWithSeed(ECPrivateKey *key, SECItem *signature,
 #endif
 	PORT_SetError(SEC_ERROR_NEED_RANDOM);
 	goto cleanup;
+    }
+
+    /*
+    ** We do not want timing information to leak the length of k,
+    ** so we compute k*G using an equivalent scalar of fixed
+    ** bit-length.
+    ** Fix based on patch for ECDSA timing attack in the paper
+    ** by Billy Bob Brumley and Nicola Tuveri at
+    **   http://eprint.iacr.org/2011/232
+    **
+    ** How do we convert k to a value of a fixed bit-length?
+    ** k starts off as an integer satisfying 0 <= k < n.  Hence,
+    ** n <= k+n < 2n, which means k+n has either the same number
+    ** of bits as n or one more bit than n.  If k+n has the same
+    ** number of bits as n, the second addition ensures that the
+    ** final value has exactly one more bit than n.  Thus, we
+    ** always end up with a value that exactly one more bit than n.
+    */
+    CHECK_MPI_OK( mp_add(&k, &n, &k) );
+    if (mpl_significant_bits(&k) <= mpl_significant_bits(&n)) {
+	CHECK_MPI_OK( mp_add(&k, &n, &k) );
     }
 
     /* 
@@ -758,8 +746,9 @@ ECDSA_SignDigestWithSeed(ECPrivateKey *key, SECItem *signature,
     /* In the definition of EC signing, digests are truncated
      * to the length of n in bits. 
      * (see SEC 1 "Elliptic Curve Digit Signature Algorithm" section 4.1.*/
-    if (digest->len*8 > ecParams->fieldID.size) {
-	mpl_rsh(&s,&s,digest->len*8 - ecParams->fieldID.size);
+    CHECK_MPI_OK( (obits = mpl_significant_bits(&n)) );
+    if (digest->len*8 > obits) {
+	mpl_rsh(&s,&s,digest->len*8 - obits);
     }
 
 #if EC_DEBUG
@@ -898,6 +887,7 @@ ECDSA_VerifyDigest(ECPublicKey *key, const SECItem *signature,
     int slen;       /* length in bytes of a half signature (r or s) */
     int flen;       /* length in bytes of the field size */
     unsigned olen;  /* length in bytes of the base point order */
+    unsigned obits; /* length in bits  of the base point order */
 
 #if EC_DEBUG
     char mpstr[256];
@@ -979,8 +969,9 @@ ECDSA_VerifyDigest(ECPublicKey *key, const SECItem *signature,
     /* In the definition of EC signing, digests are truncated
      * to the length of n in bits. 
      * (see SEC 1 "Elliptic Curve Digit Signature Algorithm" section 4.1.*/
-    if (digest->len*8 > ecParams->fieldID.size) {  /* u1 = HASH(M')     */
-	mpl_rsh(&u1,&u1,digest->len*8- ecParams->fieldID.size);
+    CHECK_MPI_OK( (obits = mpl_significant_bits(&n)) );
+    if (digest->len*8 > obits) {  /* u1 = HASH(M')     */
+	mpl_rsh(&u1,&u1,digest->len*8 - obits);
     }
 
 #if EC_DEBUG

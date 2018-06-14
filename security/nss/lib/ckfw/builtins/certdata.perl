@@ -1,41 +1,8 @@
 #!perl -w
 # 
-# ***** BEGIN LICENSE BLOCK *****
-# Version: MPL 1.1/GPL 2.0/LGPL 2.1
-#
-# The contents of this file are subject to the Mozilla Public License Version
-# 1.1 (the "License"); you may not use this file except in compliance with
-# the License. You may obtain a copy of the License at
-# http://www.mozilla.org/MPL/
-#
-# Software distributed under the License is distributed on an "AS IS" basis,
-# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-# for the specific language governing rights and limitations under the
-# License.
-#
-# The Original Code is the Netscape security libraries.
-#
-# The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1994-2000
-# the Initial Developer. All Rights Reserved.
-#
-# Contributor(s):
-#
-# Alternatively, the contents of this file may be used under the terms of
-# either the GNU General Public License Version 2 or later (the "GPL"), or
-# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
-# in which case the provisions of the GPL or the LGPL are applicable instead
-# of those above. If you wish to allow use of your version of this file only
-# under the terms of either the GPL or the LGPL, and not to allow others to
-# use your version of this file under the terms of the MPL, indicate your
-# decision by deleting the provisions above and replace them with the notice
-# and other provisions required by the GPL or the LGPL. If you do not delete
-# the provisions above, a recipient may use your version of this file under
-# the terms of any one of the MPL, the GPL or the LGPL.
-#
-# ***** END LICENSE BLOCK *****
-my $cvs_id = '@(#) $RCSfile: certdata.perl,v $ $Revision: 1.12 $ $Date: 2008/01/23 07:34:49 $';
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 use strict;
 
 my %constants;
@@ -43,7 +10,6 @@ my $count = 0;
 my $o;
 my @objects = ();
 my @objsize;
-my $cvsid;
 
 $constants{CKO_DATA} = "static const CK_OBJECT_CLASS cko_data = CKO_DATA;\n";
 $constants{CK_TRUE} = "static const CK_BBOOL ck_true = CK_TRUE;\n";
@@ -55,22 +21,6 @@ while(<>) {
 
   s/^((?:[^"#]+|"[^"]*")*)(\s*#.*$)/$1/;
   next if (/^\s*$/);
-
-  if( /(^CVS_ID\s+)(.*)/ ) {
-#    print "The CVS ID is $2\n";
-    $cvsid = $2 . "\"; $cvs_id\"";
-    my $scratch = $cvsid;
-    $size = 1 + $scratch =~ s/[^"\n]//g;
-    @{$objects[0][0]} = ( "CKA_CLASS", "&cko_data", "sizeof(CK_OBJECT_CLASS)" );
-    @{$objects[0][1]} = ( "CKA_TOKEN", "&ck_true", "sizeof(CK_BBOOL)" );
-    @{$objects[0][2]} = ( "CKA_PRIVATE", "&ck_false", "sizeof(CK_BBOOL)" );
-    @{$objects[0][3]} = ( "CKA_MODIFIABLE", "&ck_false", "sizeof(CK_BBOOL)" );
-    @{$objects[0][4]} = ( "CKA_LABEL", "\"CVS ID\"", "7" );
-    @{$objects[0][5]} = ( "CKA_APPLICATION", "\"NSS\"", "4" );
-    @{$objects[0][6]} = ( "CKA_VALUE", $cvsid, "$size" );
-    $objsize[0] = 7;
-    next;
-  }
 
   # This was taken from the perl faq #4.
   my $text = $_;
@@ -101,9 +51,9 @@ while(<>) {
       $fields[2] = "\"" . $fields[2] . "\"";
     }
 
-    my $scratch = $fields[2];
-    $size = $scratch =~ s/[^"\n]//g; # should supposedly handle multilines, too..
-    $size += 1; # null terminate
+    my $scratch = eval($fields[2]);
+
+    $size = length($scratch) + 1; # null terminate
   }
 
   if( $fields[1] =~ /OCTAL/ ) {
@@ -143,7 +93,7 @@ doprint();
 
 sub dudump {
 my $i;
-for( $i = 0; $i <= $count; $i++ ) {
+for( $i = 1; $i <= $count; $i++ ) {
   print "\n";
   $o = $objects[$i];
   my @ob = @{$o};
@@ -161,48 +111,11 @@ for( $i = 0; $i <= $count; $i++ ) {
 sub doprint {
 my $i;
 
-open(CFILE, ">certdata.c") || die "Can't open certdata.c: $!";
-
-print CFILE <<EOD
+print <<EOD
 /* THIS IS A GENERATED FILE */
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-#ifdef DEBUG
-static const char CVS_ID[] = $cvsid;
-#endif /* DEBUG */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef BUILTINS_H
 #include "builtins.h"
@@ -212,88 +125,57 @@ EOD
     ;
 
 foreach $b (sort values(%constants)) {
-  print CFILE $b;
+  print $b;
 }
 
-for( $i = 0; $i <= $count; $i++ ) {
-  if( 0 == $i ) {
-    print CFILE "#ifdef DEBUG\n";
-  }
-
-  print CFILE "static const CK_ATTRIBUTE_TYPE nss_builtins_types_$i [] = {\n";
+for( $i = 1; $i <= $count; $i++ ) {
+  print "static const CK_ATTRIBUTE_TYPE nss_builtins_types_$i [] = {\n";
   $o = $objects[$i];
- # print STDOUT "type $i object $o \n";
   my @ob = @{$o};
   my $j;
   for( $j = 0; $j < @ob; $j++ ) {
     my $l = $ob[$j];
     my @a = @{$l};
-    print CFILE " $a[0]";
+    print " $a[0]";
     if( $j+1 != @ob ) {
-      print CFILE ", ";
+      print ", ";
     }
   }
-  print CFILE "\n};\n";
-
-  if( 0 == $i ) {
-    print CFILE "#endif /* DEBUG */\n";
-  }
+  print "\n};\n";
 }
 
-for( $i = 0; $i <= $count; $i++ ) {
-  if( 0 == $i ) {
-    print CFILE "#ifdef DEBUG\n";
-  }
-
-  print CFILE "static const NSSItem nss_builtins_items_$i [] = {\n";
+for( $i = 1; $i <= $count; $i++ ) {
+  print "static const NSSItem nss_builtins_items_$i [] = {\n";
   $o = $objects[$i];
   my @ob = @{$o};
   my $j;
   for( $j = 0; $j < @ob; $j++ ) {
     my $l = $ob[$j];
     my @a = @{$l};
-    print CFILE "  { (void *)$a[1], (PRUint32)$a[2] }";
+    print "  { (void *)$a[1], (PRUint32)$a[2] }";
     if( $j+1 != @ob ) {
-      print CFILE ",\n";
+      print ",\n";
     } else {
-      print CFILE "\n";
+      print "\n";
     }
   }
-  print CFILE "};\n";
-
-  if( 0 == $i ) {
-    print CFILE "#endif /* DEBUG */\n";
-  }
+  print "};\n";
 }
 
-print CFILE "\nbuiltinsInternalObject\n";
-print CFILE "nss_builtins_data[] = {\n";
+print "\nbuiltinsInternalObject\n";
+print "nss_builtins_data[] = {\n";
 
-for( $i = 0; $i <= $count; $i++ ) {
-
-  if( 0 == $i ) {
-    print CFILE "#ifdef DEBUG\n";
-  }
-
-  print CFILE "  { $objsize[$i], nss_builtins_types_$i, nss_builtins_items_$i, {NULL} }";
-
+for( $i = 1; $i <= $count; $i++ ) {
+  print "  { $objsize[$i], nss_builtins_types_$i, nss_builtins_items_$i, {NULL} }";
   if( $i == $count ) {
-    print CFILE "\n";
+    print "\n";
   } else {
-    print CFILE ",\n";
-  }
-
-  if( 0 == $i ) {
-    print CFILE "#endif /* DEBUG */\n";
+    print ",\n";
   }
 }
 
-print CFILE "};\n";
+print "};\n";
 
-print CFILE "const PRUint32\n";
-print CFILE "#ifdef DEBUG\n";
-print CFILE "  nss_builtins_nObjects = $count+1;\n";
-print CFILE "#else\n";
-print CFILE "  nss_builtins_nObjects = $count;\n";
-print CFILE "#endif /* DEBUG */\n";
+print "const PRUint32\n";
+print "nss_builtins_nObjects = $count;\n";
 }

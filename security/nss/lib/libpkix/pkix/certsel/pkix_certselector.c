@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_certselector.c
  *
@@ -296,8 +263,7 @@ pkix_CertSelector_Match_Policies(
             if (!certPolicyInfos) {
                 PKIX_CERTSELECTOR_DEBUG("Certificate has no policies\n");
                 *pResult = PKIX_FALSE;
-                goto cleanup;
-
+                PKIX_ERROR(PKIX_CERTSELECTORMATCHPOLICIESFAILED);
             }
 
             PKIX_CHECK(PKIX_List_GetLength
@@ -334,10 +300,8 @@ pkix_CertSelector_Match_Policies(
                         PKIX_DECREF(polOID);
                 }
                 if (!result) {
-                        PKIX_CERTSELECTOR_DEBUG
-                                ("Certificate has no acceptable policies\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
+                    *pResult = PKIX_FALSE;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHPOLICIESFAILED);
                 }
             }
         }
@@ -407,7 +371,9 @@ pkix_CertSelector_Match_CertificateValid(
         }
 
 cleanup:
-
+        if (PKIX_ERROR_RECEIVED) {
+            *pResult = PKIX_FALSE;
+        }
         PKIX_DECREF(validityTime);
 
         PKIX_RETURN(CERTSELECTOR);
@@ -466,6 +432,9 @@ pkix_CertSelector_Match_NameConstraints(
         }
 
 cleanup:
+        if (PKIX_ERROR_RECEIVED) {
+            *pResult = PKIX_FALSE;
+        }
 
         PKIX_DECREF(nameConstraints);
         PKIX_RETURN(CERTSELECTOR);
@@ -531,9 +500,8 @@ pkix_CertSelector_Match_PathToNames(
                         PKIX_CERTNAMECONSTRAINTSCHECKNAMESINNAMESPACEFAILED);
 
                 if (passed != PKIX_TRUE) {
-                        PKIX_CERTSELECTOR_DEBUG("PathToName Match failed\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
+                    *pResult = PKIX_FALSE;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHPATHTONAMESFAILED);
                 }
             }
 
@@ -607,59 +575,52 @@ pkix_CertSelector_Match_SubjAltNames(
                     (cert, &certSubjAltNames, plContext),
                     PKIX_CERTGETSUBJALTNAMESFAILED);
 
-            if (certSubjAltNames != NULL) {
+            if (certSubjAltNames == NULL) {
+                *pResult = PKIX_FALSE;
+                PKIX_ERROR(PKIX_CERTSELECTORMATCHSUBJALTNAMESFAILED);
+            }
 
-                PKIX_CHECK(PKIX_List_GetLength
-                        (subjAltNamesList, &numItems, plContext),
-                        PKIX_LISTGETLENGTHFAILED);
-
-                for (i = 0; i < numItems; i++) {
-
-                        PKIX_CHECK(PKIX_List_GetItem
-                            (subjAltNamesList,
+            PKIX_CHECK(PKIX_List_GetLength
+                       (subjAltNamesList, &numItems, plContext),
+                       PKIX_LISTGETLENGTHFAILED);
+            
+            for (i = 0; i < numItems; i++) {
+                
+                PKIX_CHECK(PKIX_List_GetItem
+                           (subjAltNamesList,
                             i,
                             (PKIX_PL_Object **) &name,
                             plContext),
-                            PKIX_LISTGETITEMFAILED);
-
-                        PKIX_CHECK(pkix_List_Contains
-                            (certSubjAltNames,
+                           PKIX_LISTGETITEMFAILED);
+                
+                PKIX_CHECK(pkix_List_Contains
+                           (certSubjAltNames,
                             (PKIX_PL_Object *) name,
                             &checkPassed,
                             plContext),
-                            PKIX_LISTCONTAINSFAILED);
-
-                        PKIX_DECREF(name);
-
-                        if (checkPassed == PKIX_TRUE) {
-
-                            if (matchAll == PKIX_FALSE) {
-                                /* one match is good enough */
-                                matchCount = numItems;
-                                break;
-                            } else {
-                            /* else continue checking next */
-                                matchCount++;
-                            }
-
-                        }
-
+                           PKIX_LISTCONTAINSFAILED);
+                
+                PKIX_DECREF(name);
+                
+                if (checkPassed == PKIX_TRUE) {
+                    
+                    if (matchAll == PKIX_FALSE) {
+                        /* one match is good enough */
+                        matchCount = numItems;
+                        break;
+                    } else {
+                        /* else continue checking next */
+                        matchCount++;
+                    }
+                    
                 }
-
-                if (matchCount != numItems) {
-                        PKIX_CERTSELECTOR_DEBUG("SubjAltName Match failed\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
-                }
-
-            } else {
-
-                PKIX_CERTSELECTOR_DEBUG
-                        ("SubjAltName Match failed: Cert has no SubjAltName\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
+                
             }
-
+            
+            if (matchCount != numItems) {
+                *pResult = PKIX_FALSE;
+                PKIX_ERROR(PKIX_CERTSELECTORMATCHSUBJALTNAMESFAILED);
+            }
         }
 
 cleanup:
@@ -750,10 +711,8 @@ pkix_CertSelector_Match_ExtendedKeyUsage(
                 PKIX_DECREF(ekuOid);
 
                 if (isContained != PKIX_TRUE) {
-                        PKIX_CERTSELECTOR_DEBUG
-                                ("Extended Key Usage Match failed\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
+                    *pResult = PKIX_FALSE;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHEXTENDEDKEYUSAGEFAILED);
                 }
             }
         }
@@ -819,6 +778,9 @@ pkix_CertSelector_Match_KeyUsage(
         }
 
 cleanup:
+        if (PKIX_ERROR_RECEIVED) {
+            *pResult = PKIX_FALSE;
+        }
 
         PKIX_RETURN(CERTSELECTOR);
 }
@@ -829,8 +791,9 @@ cleanup:
  *
  *  Determines whether the bytes at subjKeyId in "params" matches with the
  *  Subject Key Identifier pointed to by "cert". If the subjKeyId in params is
- *  set to NULL, no checking is done and the Cert is considered a match. If
- *  the Cert does not match, an Error pointer is returned.
+ *  set to NULL or the Cert doesn't have a Subject Key Identifier, no checking
+ *  is done and the Cert is considered a match. If the Cert does not match, an
+ *  Error pointer is returned.
  *
  * PARAMETERS:
  *  "params"
@@ -874,24 +837,20 @@ pkix_CertSelector_Match_SubjKeyId(
                     (cert, &certSubjKeyId, plContext),
                     PKIX_CERTGETSUBJECTKEYIDENTIFIERFAILED);
 
-                if (certSubjKeyId != NULL) {
-                        PKIX_CHECK(PKIX_PL_Object_Equals
-                                ((PKIX_PL_Object *)selSubjKeyId,
-                                (PKIX_PL_Object *)certSubjKeyId,
-                                &equals,
-                                plContext),
-                                PKIX_OBJECTEQUALSFAILED);
-
-                        if (equals != PKIX_TRUE) {
-                            PKIX_CERTSELECTOR_DEBUG("SubjKeyId Match failed\n");
-                            *pResult = PKIX_FALSE;
-                            goto cleanup;
-                        }
-                } else {
-                    PKIX_CERTSELECTOR_DEBUG
-                        ("SubjKeyId Match failed: Cert has no SubjKeyId\n");
-                    *pResult = PKIX_FALSE;
+                if (certSubjKeyId == NULL) {
                     goto cleanup;
+                }
+
+                PKIX_CHECK(PKIX_PL_Object_Equals
+                           ((PKIX_PL_Object *)selSubjKeyId,
+                            (PKIX_PL_Object *)certSubjKeyId,
+                            &equals,
+                            plContext),
+                           PKIX_OBJECTEQUALSFAILED);
+                
+                if (equals == PKIX_FALSE) {
+                    *pResult = PKIX_FALSE;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHSUBJKEYIDFAILED);
                 }
         }
 
@@ -954,24 +913,20 @@ pkix_CertSelector_Match_AuthKeyId(
                     (cert, &certAuthKeyId, plContext),
                     PKIX_CERTGETAUTHORITYKEYIDENTIFIERFAILED);
 
-                if (certAuthKeyId != NULL) {
-                        PKIX_CHECK(PKIX_PL_Object_Equals
-                                ((PKIX_PL_Object *)selAuthKeyId,
-                                (PKIX_PL_Object *)certAuthKeyId,
-                                &equals,
-                                plContext),
-                                PKIX_OBJECTEQUALSFAILED);
-
-                        if (equals != PKIX_TRUE) {
-                            PKIX_CERTSELECTOR_DEBUG("AuthKeyId Match failed\n");
-                            *pResult = PKIX_FALSE;
-                            goto cleanup;
-                        }
-                } else {
-                    PKIX_CERTSELECTOR_DEBUG
-                        ("AuthKeyId Match failed: Cert has no AuthKeyId\n");
+                if (certAuthKeyId == NULL) {
                     *pResult = PKIX_FALSE;
-                    goto cleanup;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHAUTHKEYIDFAILED);
+                }
+                PKIX_CHECK(PKIX_PL_Object_Equals
+                           ((PKIX_PL_Object *)selAuthKeyId,
+                            (PKIX_PL_Object *)certAuthKeyId,
+                            &equals,
+                            plContext),
+                           PKIX_OBJECTEQUALSFAILED);
+                
+                if (equals != PKIX_TRUE) {
+                    *pResult = PKIX_FALSE;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHAUTHKEYIDFAILED);
                 }
         }
 
@@ -1035,24 +990,19 @@ pkix_CertSelector_Match_SubjPKAlgId(
                     PKIX_CERTGETSUBJECTPUBLICKEYALGIDFAILED);
 
                 if (certPKAlgId != NULL) {
-                        PKIX_CHECK(PKIX_PL_Object_Equals
-                                ((PKIX_PL_Object *)selPKAlgId,
-                                (PKIX_PL_Object *)certPKAlgId,
-                                &equals,
-                                plContext),
-                                PKIX_OBJECTEQUALSFAILED);
-
-                        if (equals != PKIX_TRUE) {
-                            PKIX_CERTSELECTOR_DEBUG
-                                ("SubjPKAlgId Match failed\n");
-                            *pResult = PKIX_FALSE;
-                            goto cleanup;
-                        }
-                } else {
-                    PKIX_CERTSELECTOR_DEBUG
-                        ("SubjPKAlgId Match failed: Cert has no SubjPKAlgId\n");
                     *pResult = PKIX_FALSE;
-                    goto cleanup;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHSUBJPKALGIDFAILED);
+                }
+                PKIX_CHECK(PKIX_PL_Object_Equals
+                           ((PKIX_PL_Object *)selPKAlgId,
+                            (PKIX_PL_Object *)certPKAlgId,
+                            &equals,
+                            plContext),
+                           PKIX_OBJECTEQUALSFAILED);
+                
+                if (equals != PKIX_TRUE) {
+                    *pResult = PKIX_FALSE;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHSUBJPKALGIDFAILED);
                 }
         }
 
@@ -1115,26 +1065,20 @@ pkix_CertSelector_Match_SubjPubKey(
                     (cert, &certPK, plContext),
                     PKIX_CERTGETSUBJECTPUBLICKEYFAILED);
 
-                if (certPK != NULL) {
-                        PKIX_CHECK(PKIX_PL_Object_Equals
-                                ((PKIX_PL_Object *)selPK,
-                                (PKIX_PL_Object *)certPK,
-                                &equals,
-                                plContext),
-                                PKIX_OBJECTEQUALSFAILED);
-
-                        if (equals != PKIX_TRUE) {
-                            PKIX_CERTSELECTOR_DEBUG
-                                ("Subject Public Key Match failed\n");
-                            *pResult = PKIX_FALSE;
-                            goto cleanup;
-                        }
-
-                } else {
-                    PKIX_CERTSELECTOR_DEBUG
-                        ("SubjPubKey Match failed: Cert has no SubjPubKey\n");
+                if (certPK == NULL) {
                     *pResult = PKIX_FALSE;
-                    goto cleanup;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHSUBJPUBKEYFAILED);
+                }
+                PKIX_CHECK(PKIX_PL_Object_Equals
+                           ((PKIX_PL_Object *)selPK,
+                            (PKIX_PL_Object *)certPK,
+                            &equals,
+                            plContext),
+                           PKIX_OBJECTEQUALSFAILED);
+                
+                if (equals != PKIX_TRUE) {
+                    *pResult = PKIX_FALSE;
+                    PKIX_ERROR(PKIX_CERTSELECTORMATCHSUBJPUBKEYFAILED);
                 }
         }
 
@@ -1152,9 +1096,8 @@ cleanup:
  *
  *  This default match function determines whether the specified Cert pointed
  *  to by "cert" matches the criteria of the CertSelector pointed to by
- *  "selector". If the Cert satisfies the CertSelector's criteria, PKIX_TRUE
- *  is stored at "pResult". If the Cert does not match the CertSelector's
- *  criteria, PKIX_FALSE is stored at "pResult". 
+ *  "selector". If the Cert does not match the CertSelector's
+ *  criteria, an error will be thrown.
  *
  *  This default match function understands how to process the most common
  *  parameters. Any common parameter that is not set is assumed to be disabled,
@@ -1175,8 +1118,6 @@ cleanup:
  *  "cert"
  *      Address of Cert that is to be matched using "selector".
  *      Must be non-NULL.
- *  "pResult"
- *      Address of PKIX_Boolean that returns the match result.
  *  "plContext"
  *      Platform-specific context pointer.
  * THREAD SAFETY:
@@ -1191,7 +1132,6 @@ static PKIX_Error *
 pkix_CertSelector_DefaultMatch(
         PKIX_CertSelector *selector,
         PKIX_PL_Cert *cert,
-        PKIX_Boolean *pResult,
         void *plContext)
 {
         PKIX_ComCertSelParams *params = NULL;
@@ -1203,10 +1143,10 @@ pkix_CertSelector_DefaultMatch(
         PKIX_PL_BigInt *selSerialNumber = NULL;
         PKIX_PL_Cert *selCert = NULL;
         PKIX_PL_Date *selDate = NULL;
-        PKIX_UInt32 requiredKeyUsage = 0;
         PKIX_UInt32 selVersion = 0xFFFFFFFF;
         PKIX_UInt32 certVersion = 0;
         PKIX_Boolean result = PKIX_TRUE;
+        PKIX_Boolean isLeafCert = PKIX_TRUE;
 
 #ifdef PKIX_BUILDDEBUG
         PKIX_PL_String *certString = NULL;
@@ -1215,12 +1155,15 @@ pkix_CertSelector_DefaultMatch(
 #endif
 
         PKIX_ENTER(CERTSELECTOR, "pkix_CertSelector_DefaultMatch");
-        PKIX_NULLCHECK_THREE(selector, cert, pResult);
-
-        *pResult = PKIX_TRUE;
+        PKIX_NULLCHECK_TWO(selector, cert);
 
         PKIX_INCREF(selector->params);
         params = selector->params;
+
+        /* Are we looking for CAs? */
+        PKIX_CHECK(PKIX_ComCertSelParams_GetLeafCertFlag
+                    (params, &isLeafCert, plContext),
+                    PKIX_COMCERTSELPARAMSGETLEAFCERTFLAGFAILED);
 
         if (params == NULL){
                 goto cleanup;
@@ -1236,9 +1179,7 @@ pkix_CertSelector_DefaultMatch(
                             PKIX_CERTGETVERSIONFAILED);
 
                 if (selVersion != certVersion) {
-                        PKIX_CERTSELECTOR_DEBUG("Version Match FAILED\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
+                        PKIX_ERROR(PKIX_CERTSELECTORMATCHCERTVERSIONFAILED);
                 }
         }
 
@@ -1257,16 +1198,10 @@ pkix_CertSelector_DefaultMatch(
                             PKIX_X500NAMEMATCHFAILED);
 
                         if (result == PKIX_FALSE){
-                                PKIX_CERTSELECTOR_DEBUG
-                                        ("Subject Match FAILED\n");
-                                *pResult = PKIX_FALSE;
-                                goto cleanup;
+                            PKIX_ERROR(PKIX_CERTSELECTORMATCHCERTSUBJECTFAILED);
                         }
                 } else { /* cert has no subject */
-                        PKIX_CERTSELECTOR_DEBUG("Subject Match FAILED\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
-
+                        PKIX_ERROR(PKIX_CERTSELECTORMATCHCERTSUBJECTFAILED);
                 }
         }
 
@@ -1284,9 +1219,7 @@ pkix_CertSelector_DefaultMatch(
                             PKIX_X500NAMEMATCHFAILED);
 
                 if (result == PKIX_FALSE){
-                        PKIX_CERTSELECTOR_DEBUG("Issuer Match FAILED\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
+                        PKIX_ERROR(PKIX_CERTSELECTORMATCHCERTISSUERFAILED);
                 }
         }
 
@@ -1307,9 +1240,7 @@ pkix_CertSelector_DefaultMatch(
                             PKIX_OBJECTEQUALSFAILED);
 
                 if (result == PKIX_FALSE){
-                        PKIX_CERTSELECTOR_DEBUG("Serial Number Match FAILED\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
+                        PKIX_ERROR(PKIX_CERTSELECTORMATCHCERTSERIALNUMFAILED);
                 }
         }
 
@@ -1326,12 +1257,9 @@ pkix_CertSelector_DefaultMatch(
                             PKIX_OBJECTEQUALSFAILED);
 
                 if (result == PKIX_FALSE){
-                        PKIX_CERTSELECTOR_DEBUG("Certificate Match FAILED\n");
-                        *pResult = PKIX_FALSE;
-                        goto cleanup;
+                        PKIX_ERROR(PKIX_CERTSELECTORMATCHCERTOBJECTFAILED);
                 }
         }
-
 
         PKIX_CHECK(PKIX_ComCertSelParams_GetCertificateValid
                     (params, &selDate, plContext),
@@ -1343,135 +1271,59 @@ pkix_CertSelector_DefaultMatch(
                             PKIX_CERTCHECKVALIDITYFAILED);
         }
 
-        PKIX_CHECK(PKIX_ComCertSelParams_GetKeyUsage
-                    (params, &requiredKeyUsage, plContext),
-                    PKIX_COMCERTSELPARAMSGETKEYUSAGEFAILED);
-
-        if (requiredKeyUsage != 0) {
-                PKIX_CHECK(PKIX_PL_Cert_VerifyKeyUsage
-                            (cert, requiredKeyUsage, plContext),
-                            PKIX_CERTVERIFYKEYUSAGEFAILED);
-        }
-
         PKIX_CHECK(pkix_CertSelector_Match_BasicConstraint
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHBASICCONSTRAINTFAILED);
-
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("BasicConstraint Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
 
         PKIX_CHECK(pkix_CertSelector_Match_Policies
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHPOLICIESFAILED);
 
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("Policies Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
-
         PKIX_CHECK(pkix_CertSelector_Match_CertificateValid
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHCERTIFICATEVALIDFAILED);
-
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("CertificateValid Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
 
         PKIX_CHECK(pkix_CertSelector_Match_NameConstraints
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHNAMECONSTRAINTSFAILED);
 
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("NameConstraints Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
-
         PKIX_CHECK(pkix_CertSelector_Match_PathToNames
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHPATHTONAMESFAILED);
-
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("PathToNames Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
 
         PKIX_CHECK(pkix_CertSelector_Match_SubjAltNames
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHSUBJALTNAMESFAILED);
 
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("SubjAltNames Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
+        /* Check key usage and cert type based on certificate usage. */
+        PKIX_CHECK(PKIX_PL_Cert_VerifyCertAndKeyType(cert, !isLeafCert,
+                                                     plContext),
+                   PKIX_CERTVERIFYCERTTYPEFAILED);
 
+        /* Next two check are for user supplied additional KU and EKU. */
         PKIX_CHECK(pkix_CertSelector_Match_ExtendedKeyUsage
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHEXTENDEDKEYUSAGEFAILED);
-
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("ExtendedKeyUsage Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
 
         PKIX_CHECK(pkix_CertSelector_Match_KeyUsage
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHKEYUSAGEFAILED);
 
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("KeyUsage Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
-
         PKIX_CHECK(pkix_CertSelector_Match_SubjKeyId
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHSUBJKEYIDFAILED);
-
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("SubjKeyId Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
 
         PKIX_CHECK(pkix_CertSelector_Match_AuthKeyId
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHAUTHKEYIDFAILED);
 
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("AuthKeyId Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
-
         PKIX_CHECK(pkix_CertSelector_Match_SubjPKAlgId
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHSUBJPKALGIDFAILED);
 
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("SubjPKAlgId Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
-
         PKIX_CHECK(pkix_CertSelector_Match_SubjPubKey
                     (params, cert, &result, plContext),
                     PKIX_CERTSELECTORMATCHSUBJPUBKEYFAILED);
-
-        if (result == PKIX_FALSE){
-                PKIX_CERTSELECTOR_DEBUG("SubjPubKey Match FAILED\n");
-                *pResult = PKIX_FALSE;
-                goto cleanup;
-        }
 
         /* if we reach here, the cert has successfully matched criteria */
 
@@ -1725,7 +1577,6 @@ pkix_CertSelector_Select(
 	PKIX_List **pAfter,
 	void *plContext)
 {
-	PKIX_Boolean match = PKIX_FALSE;
 	PKIX_UInt32 numBefore = 0;
 	PKIX_UInt32 i = 0;
 	PKIX_List *filtered = NULL;
@@ -1747,10 +1598,10 @@ pkix_CertSelector_Select(
                         PKIX_LISTGETITEMFAILED);
 
                 PKIX_CHECK_ONLY_FATAL(selector->matchCallback
-                        (selector, candidate, &match, plContext),
+                        (selector, candidate, plContext),
                         PKIX_CERTSELECTORMATCHCALLBACKFAILED);
 
-                if ((!(PKIX_ERROR_RECEIVED)) && (match == PKIX_TRUE)) {
+                if (!(PKIX_ERROR_RECEIVED)) {
 
                         PKIX_CHECK_ONLY_FATAL(PKIX_List_AppendItem
                                 (filtered,

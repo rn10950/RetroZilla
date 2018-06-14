@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "signtool.h"
 #include "zip.h"
@@ -74,7 +42,7 @@ JzipOpen(char *filename, char *comment)
         PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE, 0777)) == NULL) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -194,7 +162,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
     if ( (readfp = PR_Open(fullname, PR_RDONLY, 0777)) == NULL) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -225,7 +193,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
 	    char	*nsprErr;
 
 	    if (PR_GetErrorTextLength()) {
-		nsprErr = PR_Malloc(PR_GetErrorTextLength());
+		nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 		PR_GetErrorText(nsprErr);
 	    } else {
 		nsprErr = NULL;
@@ -315,7 +283,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
          < sizeof(struct ZipLocal )) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -332,7 +300,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
     if ( PR_Write(zipfp, filename, strlen(filename)) < strlen(filename)) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -382,7 +350,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
 		if ( PR_Write(zipfp, outbuf, BUFSIZ) < BUFSIZ) {
 		    char	*nsprErr;
 		    if (PR_GetErrorTextLength()) {
-			nsprErr = PR_Malloc(PR_GetErrorTextLength());
+			nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 			PR_GetErrorText(nsprErr);
 		    } else {
 			nsprErr = NULL;
@@ -414,7 +382,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
 	if ( PR_Write(zipfp, outbuf, BUFSIZ) < BUFSIZ) {
 	    char	*nsprErr;
 	    if (PR_GetErrorTextLength()) {
-		nsprErr = PR_Malloc(PR_GetErrorTextLength());
+		nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 		PR_GetErrorText(nsprErr);
 	    } else {
 		nsprErr = NULL;
@@ -436,7 +404,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
 	    zstream.next_out - outbuf) {
 	    char	*nsprErr;
 	    if (PR_GetErrorTextLength()) {
-		nsprErr = PR_Malloc(PR_GetErrorTextLength());
+		nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 		PR_GetErrorText(nsprErr);
 	    } else {
 		nsprErr = NULL;
@@ -458,7 +426,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
     if (PR_Seek(zipfp, local_size_pos, PR_SEEK_SET) == -1) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -472,7 +440,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
     if ( PR_Write(zipfp, entry->local.size, 8) != 8) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -486,7 +454,7 @@ JzipAdd(char *fullname, char *filename, ZIPfile *zipfile, int compression_level)
     if (PR_Seek(zipfp, 0L, PR_SEEK_END) == -1) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -559,7 +527,7 @@ JzipClose(ZIPfile *zipfile)
 	     < sizeof(struct ZipCentral )) {
 	    char	*nsprErr;
 	    if (PR_GetErrorTextLength()) {
-		nsprErr = PR_Malloc(PR_GetErrorTextLength());
+		nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 		PR_GetErrorText(nsprErr);
 	    } else {
 		nsprErr = NULL;
@@ -577,7 +545,7 @@ JzipClose(ZIPfile *zipfile)
 	     < strlen(pe->filename)) {
 	    char	*nsprErr;
 	    if (PR_GetErrorTextLength()) {
-		nsprErr = PR_Malloc(PR_GetErrorTextLength());
+		nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 		PR_GetErrorText(nsprErr);
 	    } else {
 		nsprErr = NULL;
@@ -596,7 +564,7 @@ JzipClose(ZIPfile *zipfile)
 	         < strlen(pe->comment)) {
 		char	*nsprErr;
 		if (PR_GetErrorTextLength()) {
-		    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+		    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 		    PR_GetErrorText(nsprErr);
 		} else {
 		    nsprErr = NULL;
@@ -639,7 +607,7 @@ JzipClose(ZIPfile *zipfile)
     if ( PR_Write(zipfp, &zipend, sizeof(zipend)) < sizeof(zipend)) {
 	char	*nsprErr;
 	if (PR_GetErrorTextLength()) {
-	    nsprErr = PR_Malloc(PR_GetErrorTextLength());
+	    nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 	    PR_GetErrorText(nsprErr);
 	} else {
 	    nsprErr = NULL;
@@ -658,7 +626,7 @@ JzipClose(ZIPfile *zipfile)
 	     < strlen(zipfile->comment)) {
 	    char	*nsprErr;
 	    if (PR_GetErrorTextLength()) {
-		nsprErr = PR_Malloc(PR_GetErrorTextLength());
+		nsprErr = PR_Malloc(PR_GetErrorTextLength() + 1);
 		PR_GetErrorText(nsprErr);
 	    } else {
 		nsprErr = NULL;

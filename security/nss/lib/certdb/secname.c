@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *   John Gardiner Myers <jgmyers@speakeasy.net>
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "cert.h"
 #include "secoid.h"
@@ -73,7 +40,7 @@ CountArray(void **array)
 }
 
 static void **
-AddToArray(PRArenaPool *arena, void **array, void *element)
+AddToArray(PLArenaPool *arena, void **array, void *element)
 {
     unsigned count;
     void **ap;
@@ -117,7 +84,7 @@ CERT_GetAVATag(CERTAVA *ava)
 }
 
 static SECStatus
-SetupAVAType(PRArenaPool *arena, SECOidTag type, SECItem *it, unsigned *maxLenp)
+SetupAVAType(PLArenaPool *arena, SECOidTag type, SECItem *it, unsigned *maxLenp)
 {
     unsigned char *oid;
     unsigned oidLen;
@@ -149,7 +116,7 @@ SetupAVAType(PRArenaPool *arena, SECOidTag type, SECItem *it, unsigned *maxLenp)
 }
 
 static SECStatus
-SetupAVAValue(PRArenaPool *arena, int valueType, const SECItem *in, 
+SetupAVAValue(PLArenaPool *arena, int valueType, const SECItem *in,
               SECItem *out, unsigned maxLen)
 {
     PRUint8 *value, *cp, *ucs4Val;
@@ -200,7 +167,7 @@ SetupAVAValue(PRArenaPool *arena, int valueType, const SECItem *in,
 }
 
 CERTAVA *
-CERT_CreateAVAFromRaw(PRArenaPool *pool, const SECItem * OID, 
+CERT_CreateAVAFromRaw(PLArenaPool *pool, const SECItem * OID,
                       const SECItem * value)
 {
     CERTAVA *ava;
@@ -220,7 +187,7 @@ CERT_CreateAVAFromRaw(PRArenaPool *pool, const SECItem * OID,
 }
 
 CERTAVA *
-CERT_CreateAVAFromSECItem(PRArenaPool *arena, SECOidTag kind, int valueType, 
+CERT_CreateAVAFromSECItem(PLArenaPool *arena, SECOidTag kind, int valueType,
                           SECItem *value)
 {
     CERTAVA *ava;
@@ -244,7 +211,7 @@ CERT_CreateAVAFromSECItem(PRArenaPool *arena, SECOidTag kind, int valueType,
 }
 
 CERTAVA *
-CERT_CreateAVA(PRArenaPool *arena, SECOidTag kind, int valueType, char *value)
+CERT_CreateAVA(PLArenaPool *arena, SECOidTag kind, int valueType, char *value)
 {
     SECItem item = { siBuffer, NULL, 0 };
 
@@ -255,7 +222,7 @@ CERT_CreateAVA(PRArenaPool *arena, SECOidTag kind, int valueType, char *value)
 }
 
 CERTAVA *
-CERT_CopyAVA(PRArenaPool *arena, CERTAVA *from)
+CERT_CopyAVA(PLArenaPool *arena, CERTAVA *from)
 {
     CERTAVA *ava;
     int rv;
@@ -282,7 +249,7 @@ static const SEC_ASN1Template cert_RDNTemplate[] = {
 
 
 CERTRDN *
-CERT_CreateRDN(PRArenaPool *arena, CERTAVA *ava0, ...)
+CERT_CreateRDN(PLArenaPool *arena, CERTAVA *ava0, ...)
 {
     CERTAVA *ava;
     CERTRDN *rdn;
@@ -323,14 +290,14 @@ CERT_CreateRDN(PRArenaPool *arena, CERTAVA *ava0, ...)
 }
 
 SECStatus
-CERT_AddAVA(PRArenaPool *arena, CERTRDN *rdn, CERTAVA *ava)
+CERT_AddAVA(PLArenaPool *arena, CERTRDN *rdn, CERTAVA *ava)
 {
     rdn->avas = (CERTAVA**) AddToArray(arena, (void**) rdn->avas, ava);
     return rdn->avas ? SECSuccess : SECFailure;
 }
 
 SECStatus
-CERT_CopyRDN(PRArenaPool *arena, CERTRDN *to, CERTRDN *from)
+CERT_CopyRDN(PLArenaPool *arena, CERTRDN *to, CERTRDN *from)
 {
     CERTAVA **avas, *fava, *tava;
     SECStatus rv = SECSuccess;
@@ -373,7 +340,7 @@ CERT_CreateName(CERTRDN *rdn0, ...)
     va_list ap;
     unsigned count;
     CERTRDN **rdnp;
-    PRArenaPool *arena;
+    PLArenaPool *arena;
     
     arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
     if ( !arena ) {
@@ -428,7 +395,7 @@ CERT_DestroyName(CERTName *name)
 {
     if (name)
     {
-        PRArenaPool *arena = name->arena;
+        PLArenaPool *arena = name->arena;
         name->rdns = NULL;
 	name->arena = NULL;
 	if (arena) PORT_FreeArena(arena, PR_FALSE);
@@ -443,7 +410,7 @@ CERT_AddRDN(CERTName *name, CERTRDN *rdn)
 }
 
 SECStatus
-CERT_CopyName(PRArenaPool *arena, CERTName *to, CERTName *from)
+CERT_CopyName(PLArenaPool *arena, CERTName *to, const CERTName *from)
 {
     CERTRDN **rdns, *frdn, *trdn;
     SECStatus rv = SECSuccess;
@@ -570,7 +537,7 @@ CERT_CompareAVA(const CERTAVA *a, const CERTAVA *b)
 }
 
 SECComparison
-CERT_CompareRDN(CERTRDN *a, CERTRDN *b)
+CERT_CompareRDN(const CERTRDN *a, const CERTRDN *b)
 {
     CERTAVA **aavas, *aava;
     CERTAVA **bavas, *bava;
@@ -590,7 +557,7 @@ CERT_CompareRDN(CERTRDN *a, CERTRDN *b)
     if (ac > bc) return SECGreaterThan;
 
     while (NULL != (aava = *aavas++)) {
-	for (bavas = b->avas; bava = *bavas++; ) {
+	for (bavas = b->avas; NULL != (bava = *bavas++); ) {
 	    rv = SECITEM_CompareItem(&aava->type, &bava->type);
 	    if (SECEqual == rv) {
 		rv = CERT_CompareAVA(aava, bava);
@@ -606,7 +573,7 @@ CERT_CompareRDN(CERTRDN *a, CERTRDN *b)
 }
 
 SECComparison
-CERT_CompareName(CERTName *a, CERTName *b)
+CERT_CompareName(const CERTName *a, const CERTName *b)
 {
     CERTRDN **ardns, *ardn;
     CERTRDN **brdns, *brdn;

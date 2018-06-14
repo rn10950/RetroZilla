@@ -1,3 +1,6 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 # This file enables test coverage of the symmetric key performance tests
 #
@@ -21,6 +24,10 @@
  aes_cbc     16       8192       10000        100000
  aes_ecb     32       8192       10000        100000
  aes_cbc     32       8192       10000        100000
+ aes_ctr     16       8192       10000        100000
+ aes_ctr     32       8192       10000        100000
+ aes_gcm     16       8192       10000        100000
+ aes_gcm     32       8192       10000        100000
  camellia_ecb     16       8192       10000        100000
  camellia_cbc     16       8192       10000        100000
  camellia_ecb     32       8192       10000        100000

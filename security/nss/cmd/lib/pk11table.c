@@ -1,38 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "pk11table.h"
 
@@ -155,10 +123,10 @@ const Constant _consts[] = {
 	mkEntry(CKO_HW_FEATURE, Object),
 	mkEntry(CKO_DOMAIN_PARAMETERS, Object),
 	mkEntry(CKO_KG_PARAMETERS, Object),
-	mkEntry(CKO_NETSCAPE_CRL, Object),
-	mkEntry(CKO_NETSCAPE_SMIME, Object),
-	mkEntry(CKO_NETSCAPE_TRUST, Object),
-	mkEntry(CKO_NETSCAPE_BUILTIN_ROOT_LIST, Object),
+	mkEntry(CKO_NSS_CRL, Object),
+	mkEntry(CKO_NSS_SMIME, Object),
+	mkEntry(CKO_NSS_TRUST, Object),
+	mkEntry(CKO_NSS_BUILTIN_ROOT_LIST, Object),
 
 	mkEntry(CKH_MONOTONIC_COUNTER, Hardware),
 	mkEntry(CKH_CLOCK, Hardware),
@@ -188,7 +156,7 @@ const Constant _consts[] = {
 	mkEntry(CKK_CDMF, KeyType),
 	mkEntry(CKK_AES, KeyType),
 	mkEntry(CKK_CAMELLIA, KeyType),
-	mkEntry(CKK_NETSCAPE_PKCS8, KeyType),
+	mkEntry(CKK_NSS_PKCS8, KeyType),
 
 	mkEntry(CKC_X_509, CertType),
 	mkEntry(CKC_X_509_ATTR_CERT, CertType),
@@ -252,18 +220,18 @@ const Constant _consts[] = {
 	mkEntry2(CKA_HW_FEATURE_TYPE, Attribute, Hardware),
 	mkEntry2(CKA_RESET_ON_INIT, Attribute, Bool),
 	mkEntry2(CKA_HAS_RESET, Attribute, Bool),
-	mkEntry2(CKA_NETSCAPE_URL, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_EMAIL, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_SMIME_INFO, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_SMIME_TIMESTAMP, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_PKCS8_SALT, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_PASSWORD_CHECK, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_EXPIRES, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_KRL, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_PQG_COUNTER, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_PQG_SEED, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_PQG_H, Attribute, None),
-	mkEntry2(CKA_NETSCAPE_PQG_SEED_BITS, Attribute, None),
+	mkEntry2(CKA_NSS_URL, Attribute, None),
+	mkEntry2(CKA_NSS_EMAIL, Attribute, None),
+	mkEntry2(CKA_NSS_SMIME_INFO, Attribute, None),
+	mkEntry2(CKA_NSS_SMIME_TIMESTAMP, Attribute, None),
+	mkEntry2(CKA_NSS_PKCS8_SALT, Attribute, None),
+	mkEntry2(CKA_NSS_PASSWORD_CHECK, Attribute, None),
+	mkEntry2(CKA_NSS_EXPIRES, Attribute, None),
+	mkEntry2(CKA_NSS_KRL, Attribute, None),
+	mkEntry2(CKA_NSS_PQG_COUNTER, Attribute, None),
+	mkEntry2(CKA_NSS_PQG_SEED, Attribute, None),
+	mkEntry2(CKA_NSS_PQG_H, Attribute, None),
+	mkEntry2(CKA_NSS_PQG_SEED_BITS, Attribute, None),
 	mkEntry2(CKA_TRUST_DIGITAL_SIGNATURE, Attribute, Trust),
 	mkEntry2(CKA_TRUST_NON_REPUDIATION, Attribute, Trust),
 	mkEntry2(CKA_TRUST_KEY_ENCIPHERMENT, Attribute, Trust),
@@ -407,8 +375,11 @@ const Constant _consts[] = {
 	mkEntry(CKM_SSL3_MASTER_KEY_DERIVE_DH, Mechanism),
 	mkEntry(CKM_TLS_PRE_MASTER_KEY_GEN, Mechanism),
 	mkEntry(CKM_TLS_MASTER_KEY_DERIVE, Mechanism),
+	mkEntry(CKM_NSS_TLS_MASTER_KEY_DERIVE_SHA256, Mechanism),
 	mkEntry(CKM_TLS_KEY_AND_MAC_DERIVE, Mechanism),
+	mkEntry(CKM_NSS_TLS_KEY_AND_MAC_DERIVE_SHA256, Mechanism),
 	mkEntry(CKM_TLS_MASTER_KEY_DERIVE_DH, Mechanism),
+	mkEntry(CKM_NSS_TLS_MASTER_KEY_DERIVE_DH_SHA256, Mechanism),
 	mkEntry(CKM_SSL3_MD5_MAC, Mechanism),
 	mkEntry(CKM_SSL3_SHA1_MAC, Mechanism),
 	mkEntry(CKM_MD5_KEY_DERIVATION, Mechanism),
@@ -492,8 +463,8 @@ const Constant _consts[] = {
 	mkEntry(CKM_SEED_CBC_ENCRYPT_DATA, Mechanism),
 	mkEntry(CKM_DSA_PARAMETER_GEN, Mechanism),
 	mkEntry(CKM_DH_PKCS_PARAMETER_GEN, Mechanism),
-	mkEntry(CKM_NETSCAPE_AES_KEY_WRAP, Mechanism),
-	mkEntry(CKM_NETSCAPE_AES_KEY_WRAP_PAD, Mechanism),
+	mkEntry(CKM_NSS_AES_KEY_WRAP, Mechanism),
+	mkEntry(CKM_NSS_AES_KEY_WRAP_PAD, Mechanism),
 	mkEntry(CKM_NETSCAPE_PBE_SHA1_DES_CBC, Mechanism),
 	mkEntry(CKM_NETSCAPE_PBE_SHA1_TRIPLE_DES_CBC, Mechanism),
 	mkEntry(CKM_NETSCAPE_PBE_SHA1_40_BIT_RC2_CBC, Mechanism),
@@ -505,6 +476,7 @@ const Constant _consts[] = {
 	mkEntry(CKM_NETSCAPE_PBE_MD5_HMAC_KEY_GEN, Mechanism),
 	mkEntry(CKM_NETSCAPE_PBE_MD2_HMAC_KEY_GEN, Mechanism),
 	mkEntry(CKM_TLS_PRF_GENERAL, Mechanism),
+	mkEntry(CKM_NSS_TLS_PRF_GENERAL_SHA256, Mechanism),
 
 	mkEntry(CKR_OK, Result),
 	mkEntry(CKR_CANCEL, Result),
@@ -593,13 +565,12 @@ const Constant _consts[] = {
 	mkEntry(CKR_MUTEX_NOT_LOCKED, Result),
 	mkEntry(CKR_VENDOR_DEFINED, Result),
 
-	mkEntry(CKT_NETSCAPE_TRUSTED, Trust),
-	mkEntry(CKT_NETSCAPE_TRUSTED_DELEGATOR, Trust),
-	mkEntry(CKT_NETSCAPE_UNTRUSTED, Trust),
-	mkEntry(CKT_NETSCAPE_MUST_VERIFY, Trust),
-	mkEntry(CKT_NETSCAPE_TRUST_UNKNOWN, Trust),
-	mkEntry(CKT_NETSCAPE_VALID, Trust),
-	mkEntry(CKT_NETSCAPE_VALID_DELEGATOR, Trust),
+	mkEntry(CKT_NSS_TRUSTED, Trust),
+	mkEntry(CKT_NSS_TRUSTED_DELEGATOR, Trust),
+	mkEntry(CKT_NSS_NOT_TRUSTED, Trust),
+	mkEntry(CKT_NSS_MUST_VERIFY_TRUST, Trust),
+	mkEntry(CKT_NSS_TRUST_UNKNOWN, Trust),
+	mkEntry(CKT_NSS_VALID_DELEGATOR, Trust),
 
 	mkEntry(CK_EFFECTIVELY_INFINITE, AvailableSizes),
 	mkEntry(CK_UNAVAILABLE_INFORMATION, CurrentSize),
@@ -1252,7 +1223,7 @@ const Commands _commands[] = {
 	 ArgNone, ArgNone, ArgNone, ArgNone, ArgNone }},
     {"NewMechanism", F_NewMechanism,
 "NewMechanism varName mechanismType\n\n"
-"Create a new CK_MECHANISM object with type NULL paramters and specified type\n"
+"Create a new CK_MECHANISM object with type NULL parameters and specified type\n"
 " varName        variable name of the new mechansim\n"
 " mechanismType  CKM_ mechanism type value to set int the type field\n",
 	{ArgVar|ArgNew, ArgULong, ArgNone, ArgNone, ArgNone, 

@@ -1,39 +1,6 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the PKIX-C library.
- *
- * The Initial Developer of the Original Code is
- * Sun Microsystems, Inc.
- * Portions created by the Initial Developer are
- * Copyright 2004-2007 Sun Microsystems, Inc.  All Rights Reserved.
- *
- * Contributor(s):
- *   Sun Microsystems, Inc.
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /*
  * pkix_list.c
  *
@@ -120,7 +87,7 @@ pkix_List_Destroy(
 
         /* We have a valid list. DecRef its item and recurse on next */
         PKIX_DECREF(list->item);
-        while (nextItem = list->next) {
+        while ((nextItem = list->next) != NULL) {
             list->next = nextItem->next;
             nextItem->next = NULL;
             PKIX_DECREF(nextItem);
@@ -1493,36 +1460,37 @@ PKIX_List_InsertItem(
                 PKIX_ERROR(PKIX_INPUTLISTMUSTBEHEADER);
         }
 
-        PKIX_CHECK(pkix_List_GetElement(list, index, &element, plContext),
-                    PKIX_LISTGETELEMENTFAILED);
-
         /* Create a new list object */
         PKIX_CHECK(pkix_List_Create_Internal(PKIX_FALSE, &newElem, plContext),
                     PKIX_LISTCREATEINTERNALFAILED);
 
-        /* Copy the old element's contents into the new element */
-        newElem->item = element->item;
-
-        /* Set the new element's next pointer to the old element's next */
-        newElem->next = element->next;
-
-        /* Set the old element's next pointer to the new element */
-        element->next = newElem;
-
-        PKIX_INCREF(item);
-        element->item = item;
+        if (list->length) {
+            PKIX_CHECK(pkix_List_GetElement(list, index, &element, plContext),
+                       PKIX_LISTGETELEMENTFAILED);
+            /* Copy the old element's contents into the new element */
+            newElem->item = element->item;
+            /* Add new item to the list */
+            PKIX_INCREF(item);
+            element->item = item;
+            /* Set the new element's next pointer to the old element's next */
+            newElem->next = element->next;
+            /* Set the old element's next pointer to the new element */
+            element->next = newElem;
+            newElem = NULL;
+        } else {
+            PKIX_INCREF(item);
+            newElem->item = item;
+            newElem->next = NULL;
+            list->next = newElem;
+            newElem = NULL;
+        }
+        list->length++;
 
         PKIX_CHECK(PKIX_PL_Object_InvalidateCache
                     ((PKIX_PL_Object *)list, plContext),
                     PKIX_OBJECTINVALIDATECACHEFAILED);
-
-        list->length = list->length + 1;
-
 cleanup:
-
-        if (PKIX_ERROR_RECEIVED){
-                PKIX_DECREF(newElem);
-        }
+        PKIX_DECREF(newElem);
 
         PKIX_RETURN(LIST);
 }

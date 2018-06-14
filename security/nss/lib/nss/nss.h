@@ -1,42 +1,9 @@
 /*
  * NSS utility functions
  *
- * ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
-/* $Id: nss.h,v 1.64.2.1 2009/07/27 23:34:16 wtc%google.com Exp $ */
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #ifndef __nss_h_
 #define __nss_h_
@@ -60,21 +27,96 @@
 #endif
 
 /*
- * NSS's major version, minor version, patch level, and whether
+ * NSS's major version, minor version, patch level, build number, and whether
  * this is a beta release.
  *
  * The format of the version string should be
- *     "<major version>.<minor version>[.<patch level>][ <ECC>][ <Beta>]"
+ *     "<major version>.<minor version>[.<patch level>[.<build number>]][ <ECC>][ <Beta>]"
  */
-#define NSS_VERSION  "3.12.3.1" _NSS_ECC_STRING _NSS_CUSTOMIZED
+#define NSS_VERSION  "3.15.5" _NSS_ECC_STRING _NSS_CUSTOMIZED
 #define NSS_VMAJOR   3
-#define NSS_VMINOR   12
-#define NSS_VPATCH   3
+#define NSS_VMINOR   15
+#define NSS_VPATCH   5
+#define NSS_VBUILD   0
 #define NSS_BETA     PR_FALSE
 
 #ifndef RC_INVOKED
 
 #include "seccomon.h"
+
+typedef struct NSSInitParametersStr NSSInitParameters;
+
+/*
+ * parameters used to initialize softoken. Mostly strings used to 
+ * internationalize softoken. Memory for the strings are owned by the caller,
+ * who is free to free them once NSS_ContextInit returns. If the string 
+ * parameter is NULL (as opposed to empty, zero length), then the softoken
+ * default is used. These are equivalent to the parameters for 
+ * PK11_ConfigurePKCS11().
+ *
+ * field names match their equivalent parameter names for softoken strings 
+ * documented at https://developer.mozilla.org/en/PKCS11_Module_Specs.
+ * 
+ * minPWLen 
+ *     Minimum password length in bytes. 
+ * manufacturerID 
+ *     Override the default manufactureID value for the module returned in 
+ *     the CK_INFO, CK_SLOT_INFO, and CK_TOKEN_INFO structures with an 
+ *     internationalize string (UTF8). This value will be truncated at 32 
+ *     bytes (not including the trailing NULL, partial UTF8 characters will be
+ *     dropped). 
+ * libraryDescription 
+ *     Override the default libraryDescription value for the module returned in
+ *     the CK_INFO structure with an internationalize string (UTF8). This value
+ *     will be truncated at 32 bytes(not including the trailing NULL, partial 
+ *     UTF8 characters will be dropped). 
+ * cryptoTokenDescription 
+ *     Override the default label value for the internal crypto token returned
+ *     in the CK_TOKEN_INFO structure with an internationalize string (UTF8).
+ *     This value will be truncated at 32 bytes (not including the trailing
+ *     NULL, partial UTF8 characters will be dropped). 
+ * dbTokenDescription 
+ *     Override the default label value for the internal DB token returned in 
+ *     the CK_TOKEN_INFO structure with an internationalize string (UTF8). This
+ *     value will be truncated at 32 bytes (not including the trailing NULL,
+ *     partial UTF8 characters will be dropped). 
+ * FIPSTokenDescription 
+ *     Override the default label value for the internal FIPS token returned in
+ *     the CK_TOKEN_INFO structure with an internationalize string (UTF8). This
+ *     value will be truncated at 32 bytes (not including the trailing NULL,
+ *     partial UTF8 characters will be dropped). 
+ * cryptoSlotDescription 
+ *     Override the default slotDescription value for the internal crypto token
+ *     returned in the CK_SLOT_INFO structure with an internationalize string
+ *     (UTF8). This value will be truncated at 64 bytes (not including the
+ *     trailing NULL, partial UTF8 characters will be dropped). 
+ * dbSlotDescription 
+ *     Override the default slotDescription value for the internal DB token 
+ *     returned in the CK_SLOT_INFO structure with an internationalize string 
+ *     (UTF8). This value will be truncated at 64 bytes (not including the
+ *     trailing NULL, partial UTF8 characters will be dropped). 
+ * FIPSSlotDescription 
+ *     Override the default slotDecription value for the internal FIPS token
+ *     returned in the CK_SLOT_INFO structure with an internationalize string
+ *     (UTF8). This value will be truncated at 64 bytes (not including the
+ *     trailing NULL, partial UTF8 characters will be dropped). 
+ *
+ */
+struct NSSInitParametersStr {
+   unsigned int	  length;      /* allow this structure to grow in the future,
+				* must be set */
+   PRBool passwordRequired;
+   int    minPWLen;
+   char * manufactureID;           /* variable names for strings match the */
+   char * libraryDescription;      /*   parameter name in softoken */
+   char * cryptoTokenDescription;
+   char * dbTokenDescription;
+   char * FIPSTokenDescription;
+   char * cryptoSlotDescription;
+   char * dbSlotDescription;
+   char * FIPSSlotDescription;
+};
+   
 
 SEC_BEGIN_PROTOS
 
@@ -82,13 +124,17 @@ SEC_BEGIN_PROTOS
  * Return a boolean that indicates whether the underlying library
  * will perform as the caller expects.
  *
- * The only argument is a string, which should be the verson
+ * The only argument is a string, which should be the version
  * identifier of the NSS library. That string will be compared
  * against a string that represents the actual build version of
- * the NSS library.  It also invokes the version checking functions
- * of the dependent libraries such as NSPR.
+ * the NSS library.
  */
 extern PRBool NSS_VersionCheck(const char *importedVersion);
+
+/*
+ * Returns a const string of the NSS library version.
+ */
+extern const char *NSS_GetVersion(void);
 
 /*
  * Open the Cert, Key, and Security Module databases, read only.
@@ -170,7 +216,7 @@ extern SECStatus NSS_InitReadWrite(const char *configdir);
  *                      use both NSS and the Java SunPKCS11 provider.
  *
  * Also NOTE: This is not the recommended method for initializing NSS. 
- * The prefered method is NSS_init().
+ * The preferred method is NSS_init().
  */
 #define NSS_INIT_READONLY	0x1
 #define NSS_INIT_NOCERTDB	0x2
@@ -188,15 +234,20 @@ extern SECStatus NSS_InitReadWrite(const char *configdir);
         NSS_INIT_NOPK11FINALIZE | \
         NSS_INIT_RESERVED
 
-#ifdef macintosh
-#define SECMOD_DB "Security Modules"
-#else
 #define SECMOD_DB "secmod.db"
-#endif
+
+typedef struct NSSInitContextStr NSSInitContext;
+
 
 extern SECStatus NSS_Initialize(const char *configdir, 
 	const char *certPrefix, const char *keyPrefix, 
 	const char *secmodName, PRUint32 flags);
+
+extern NSSInitContext *NSS_InitContext(const char *configdir, 
+	const char *certPrefix, const char *keyPrefix, 
+	const char *secmodName, NSSInitParameters *initParams, PRUint32 flags);
+
+extern SECStatus NSS_ShutdownContext(NSSInitContext *);
 
 /*
  * same as NSS_Init, but checks to see if we need to merge an
@@ -251,9 +302,9 @@ extern SECStatus NSS_Shutdown(void);
 /*
  * set the PKCS #11 strings for the internal token.
  */
-void PK11_ConfigurePKCS11(const char *man, const char *libdes, 
-	const char *tokdes, const char *ptokdes, const char *slotdes, 
-	const char *pslotdes, const char *fslotdes, const char *fpslotdes,
+void PK11_ConfigurePKCS11(const char *man, const char *libdesc, 
+	const char *tokdesc, const char *ptokdesc, const char *slotdesc, 
+	const char *pslotdesc, const char *fslotdesc, const char *fpslotdesc,
         int minPwd, int pwRequired);
 
 /*

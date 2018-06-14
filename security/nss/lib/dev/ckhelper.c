@@ -1,46 +1,8 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef DEBUG
-static const char CVS_ID[] = "@(#) $RCSfile: ckhelper.c,v $ $Revision: 1.39 $ $Date: 2009/01/22 01:29:24 $";
-#endif /* DEBUG */
-
-#ifndef NSSCKEPV_H
-#include "nssckepv.h"
-#endif /* NSSCKEPV_H */
+#include "pkcs11.h"
 
 #ifndef DEVM_H
 #include "devm.h"
@@ -80,7 +42,7 @@ is_string_attribute (
     PRBool isString;
     switch (aType) {
     case CKA_LABEL:
-    case CKA_NETSCAPE_EMAIL:
+    case CKA_NSS_EMAIL:
 	isString = PR_TRUE;
 	break;
     default:
@@ -403,14 +365,13 @@ get_nss_trust (
 {
     nssTrustLevel t;
     switch (ckt) {
-    case CKT_NETSCAPE_UNTRUSTED: t = nssTrustLevel_NotTrusted; break;
-    case CKT_NETSCAPE_TRUSTED_DELEGATOR: t = nssTrustLevel_TrustedDelegator; 
+    case CKT_NSS_NOT_TRUSTED: t = nssTrustLevel_NotTrusted; break;
+    case CKT_NSS_TRUSTED_DELEGATOR: t = nssTrustLevel_TrustedDelegator; 
 	break;
-    case CKT_NETSCAPE_VALID_DELEGATOR: t = nssTrustLevel_ValidDelegator; break;
-    case CKT_NETSCAPE_TRUSTED: t = nssTrustLevel_Trusted; break;
-    case CKT_NETSCAPE_VALID: t = nssTrustLevel_Valid; break;
-    case CKT_NETSCAPE_MUST_VERIFY:
-    case CKT_NETSCAPE_TRUST_UNKNOWN:
+    case CKT_NSS_VALID_DELEGATOR: t = nssTrustLevel_ValidDelegator; break;
+    case CKT_NSS_TRUSTED: t = nssTrustLevel_Trusted; break;
+    case CKT_NSS_MUST_VERIFY_TRUST: t = nssTrustLevel_MustVerify; break;
+    case CKT_NSS_TRUST_UNKNOWN:
     default:
 	t = nssTrustLevel_Unknown; break;
     }
@@ -434,12 +395,13 @@ nssCryptokiTrust_GetAttributes (
     nssSession *session;
     CK_BBOOL isToken = PR_FALSE;
     CK_BBOOL stepUp = PR_FALSE;
-    CK_TRUST saTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
-    CK_TRUST caTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
-    CK_TRUST epTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
-    CK_TRUST csTrust = CKT_NETSCAPE_TRUST_UNKNOWN;
+    CK_TRUST saTrust = CKT_NSS_TRUST_UNKNOWN;
+    CK_TRUST caTrust = CKT_NSS_TRUST_UNKNOWN;
+    CK_TRUST epTrust = CKT_NSS_TRUST_UNKNOWN;
+    CK_TRUST csTrust = CKT_NSS_TRUST_UNKNOWN;
     CK_ATTRIBUTE_PTR attr;
     CK_ATTRIBUTE trust_template[7];
+    CK_ATTRIBUTE_PTR sha1_hash_attr;
     CK_ULONG trust_size;
 
     /* Use the trust object to find the trust settings */
@@ -450,12 +412,13 @@ nssCryptokiTrust_GetAttributes (
     NSS_CK_SET_ATTRIBUTE_VAR(attr, CKA_TRUST_EMAIL_PROTECTION, epTrust);
     NSS_CK_SET_ATTRIBUTE_VAR(attr, CKA_TRUST_CODE_SIGNING,     csTrust);
     NSS_CK_SET_ATTRIBUTE_VAR(attr, CKA_TRUST_STEP_UP_APPROVED, stepUp);
+    sha1_hash_attr = attr;
     NSS_CK_SET_ATTRIBUTE_ITEM(attr, CKA_CERT_SHA1_HASH,     sha1_hash);
     NSS_CK_TEMPLATE_FINISH(trust_template, attr, trust_size);
 
     status = nssToken_GetCachedObjectAttributes(trustObject->token, NULL,
                                                 trustObject, 
-                                                CKO_NETSCAPE_TRUST,
+                                                CKO_NSS_TRUST,
                                                 trust_template, trust_size);
     if (status != PR_SUCCESS) {
 	session = sessionOpt ? 
@@ -476,6 +439,11 @@ nssCryptokiTrust_GetAttributes (
 	}
     }
 
+    if (sha1_hash_attr->ulValueLen == -1) {
+	/* The trust object does not have the CKA_CERT_SHA1_HASH attribute. */
+	sha1_hash_attr->ulValueLen = 0;
+    }
+    sha1_hash->size = sha1_hash_attr->ulValueLen;
     *serverAuth = get_nss_trust(saTrust);
     *clientAuth = get_nss_trust(caTrust);
     *emailProtection = get_nss_trust(epTrust);
@@ -512,10 +480,10 @@ nssCryptokiCRL_GetAttributes (
 	NSS_CK_SET_ATTRIBUTE_NULL(attr, CKA_VALUE);
     }
     if (urlOpt) {
-	NSS_CK_SET_ATTRIBUTE_NULL(attr, CKA_NETSCAPE_URL);
+	NSS_CK_SET_ATTRIBUTE_NULL(attr, CKA_NSS_URL);
     }
     if (isKRLOpt) {
-	NSS_CK_SET_ATTRIBUTE_NULL(attr, CKA_NETSCAPE_KRL);
+	NSS_CK_SET_ATTRIBUTE_NULL(attr, CKA_NSS_KRL);
     }
     if (subjectOpt) {
 	NSS_CK_SET_ATTRIBUTE_NULL(attr, CKA_SUBJECT);
@@ -524,7 +492,7 @@ nssCryptokiCRL_GetAttributes (
 
     status = nssToken_GetCachedObjectAttributes(crlObject->token, NULL,
                                                 crlObject, 
-                                                CKO_NETSCAPE_CRL,
+                                                CKO_NSS_CRL,
                                                 crl_template, crl_size);
     if (status != PR_SUCCESS) {
 	session = sessionOpt ? 

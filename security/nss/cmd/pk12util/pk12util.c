@@ -1,38 +1,11 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1/GPL 2.0/LGPL 2.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Netscape security libraries.
- *
- * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1994-2000
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s):
- *
- * Alternatively, the contents of this file may be used under the terms of
- * either the GNU General Public License Version 2 or later (the "GPL"), or
- * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
- * in which case the provisions of the GPL or the LGPL are applicable instead
- * of those above. If you wish to allow use of your version of this file only
- * under the terms of either the GPL or the LGPL, and not to allow others to
- * use your version of this file under the terms of the MPL, indicate your
- * decision by deleting the provisions above and replace them with the notice
- * and other provisions required by the GPL or the LGPL. If you do not delete
- * the provisions above, a recipient may use your version of this file under
- * the terms of any one of the MPL, the GPL or the LGPL.
- *
- * ***** END LICENSE BLOCK ***** */
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#ifdef _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+#endif
 
 #include "nspr.h"
 #include "secutil.h"
@@ -57,18 +30,22 @@ static void
 Usage(char *progName)
 {
 #define FPS PR_fprintf(PR_STDERR,
-    FPS "Usage:	 %s -i importfile [-d certdir] [-P dbprefix] [-h tokenname] [-v]\n",
+    FPS "Usage:	 %s -i importfile [-d certdir] [-P dbprefix] [-h tokenname]\n",
 				 progName);
     FPS "\t\t [-k slotpwfile | -K slotpw] [-w p12filepwfile | -W p12filepw]\n");
+    FPS "\t\t [-v]\n");
 
-    FPS "Usage:	 %s -l listfile [-d certdir] [-P dbprefix] [-h tokenname] [-r]\n",
+    FPS "Usage:	 %s -l listfile [-d certdir] [-P dbprefix] [-h tokenname]\n",
 				 progName);
     FPS "\t\t [-k slotpwfile | -K slotpw] [-w p12filepwfile | -W p12filepw]\n");
+    FPS "\t\t [-v]\n");
 
-    FPS "Usage:	 %s -o exportfile -n certname [-d certdir] [-P dbprefix] [-v]\n", 
-        progName);
-    FPS "\t\t [-c key_cipher] [-C cert_cipher] [-m | --key_len keyLen] [-n | --cert_key_len certKeyLen]\n");
-    FPS "\t\t [-k slotpwfile | -K slotpw] [-w p12filepwfile | -W p12filefilepw]\n");
+    FPS "Usage:	 %s -o exportfile -n certname [-d certdir] [-P dbprefix]\n",
+		progName);
+    FPS "\t\t [-c key_cipher] [-C cert_cipher]\n"
+        "\t\t [-m | --key_len keyLen] [--cert_key_len certKeyLen] [-v]\n");
+    FPS "\t\t [-k slotpwfile | -K slotpw]\n"
+		"\t\t [-w p12filepwfile | -W p12filefilepw]\n");
 
     exit(PK12UERR_USAGE);
 }
@@ -112,7 +89,8 @@ p12u_DestroyContext(p12uContext **ppCtx, PRBool removeFile)
 	if(removeFile) {
 	    PR_Delete((*ppCtx)->filename);
 	}
-	PR_Free((*ppCtx)->filename);
+	PL_strfree((*ppCtx)->filename);
+	(*ppCtx)->filename = NULL;
     }
 
     PR_Free(*ppCtx);
@@ -134,7 +112,7 @@ p12u_InitContext(PRBool fileImport, char *filename)
 
     p12cxt->error = PR_FALSE;
     p12cxt->errorValue = 0;
-    p12cxt->filename = strdup(filename);
+    p12cxt->filename = PL_strdup(filename);
 
     if(!p12u_OpenFile(p12cxt, fileImport)) {
 	p12u_DestroyContext(&p12cxt, PR_FALSE);
@@ -266,7 +244,7 @@ p12u_ucs2_ascii_conversion_function(PRBool	   toUnicode,
 }
 
 SECStatus
-P12U_UnicodeConversion(PRArenaPool *arena, SECItem *dest, SECItem *src,
+P12U_UnicodeConversion(PLArenaPool *arena, SECItem *dest, SECItem *src,
 		       PRBool toUnicode, PRBool swapBytes)
 {
     unsigned int allocLen;
@@ -477,6 +455,7 @@ done:
     if (pwitem) {
 	SECITEM_ZfreeItem(pwitem, PR_TRUE);
     }
+    SECITEM_ZfreeItem(&p12file, PR_FALSE);
     return p12dcx;
 }
 
@@ -549,17 +528,17 @@ loser:
 static void
 p12u_DoPKCS12ExportErrors()
 {
-    int error_value;
+    PRErrorCode error_value;
 
     error_value = PORT_GetError();
     if ((error_value == SEC_ERROR_PKCS12_UNABLE_TO_EXPORT_KEY) ||
 	(error_value == SEC_ERROR_PKCS12_UNABLE_TO_LOCATE_OBJECT_BY_NAME) ||
 	(error_value == SEC_ERROR_PKCS12_UNABLE_TO_WRITE)) {
-	fprintf(stderr, SECU_ErrorStringRaw((int16)error_value));
+	fputs(SECU_Strerror(error_value), stderr);
     } else if(error_value == SEC_ERROR_USER_CANCELLED) {
 	;
     } else {
-	fprintf(stderr, SECU_ErrorStringRaw(SEC_ERROR_EXPORTING_CERTIFICATES));
+	fputs(SECU_Strerror(SEC_ERROR_EXPORTING_CERTIFICATES), stderr);
     }
 }
 
@@ -579,11 +558,11 @@ p12u_WriteToExportFile(void *arg, const char *buf, unsigned long len)
 	return;
     }
 
-    writeLen = PR_Write(p12cxt->file, (unsigned char *)buf, (int32)len);
+    writeLen = PR_Write(p12cxt->file, (unsigned char *)buf, (PRInt32)len);
 
     if(writeLen != (int)len) {
 	PR_Close(p12cxt->file);
-	PR_Free(p12cxt->filename);
+	PL_strfree(p12cxt->filename);
 	p12cxt->filename = NULL;
 	p12cxt->file = NULL;
 	p12cxt->errorValue = SEC_ERROR_PKCS12_UNABLE_TO_WRITE;
@@ -669,8 +648,9 @@ P12U_ExportPKCS12Object(char *nn, char *outfile, PK11SlotInfo *inSlot,
         goto loser;
     }
 
-    for (node = CERT_LIST_HEAD(certlist);!CERT_LIST_END(node,certlist);node=CERT_LIST_NEXT(node))
-    {
+    for (node = CERT_LIST_HEAD(certlist);
+         !CERT_LIST_END(node,certlist);
+	 node=CERT_LIST_NEXT(node)) {
         CERTCertificate* cert = node->cert;
         if (!cert->slot) {
             SECU_PrintError(progName,"cert does not have a slot");
@@ -744,8 +724,7 @@ P12U_ListPKCS12File(char *in_file, PK11SlotInfo *slot,
     SECStatus rv = SECFailure;
     const SEC_PKCS12DecoderItem *dip;
 
-    p12dcx = p12U_ReadPKCS12File(&uniPwitem, in_file, slot, slotPw,
-                             p12FilePw);
+    p12dcx = p12U_ReadPKCS12File(&uniPwitem, in_file, slot, slotPw, p12FilePw);
     /* did the blob authenticate properly? */
     if(p12dcx == NULL) {
 	SECU_PrintError(progName,"PKCS12 decode not verified");
@@ -954,7 +933,7 @@ static secuCommandFlag pk12util_options[] =
     { /* opt_Cipher	       */ 'c', PR_TRUE,  0, PR_FALSE },
     { /* opt_CertCipher	       */ 'C', PR_TRUE,  0, PR_FALSE },
     { /* opt_KeyLength         */ 'm', PR_TRUE,  0, PR_FALSE, "key_len" },
-    { /* opt_CertKeyLength     */ 'n', PR_TRUE,  0, PR_FALSE, "cert_key_len" }
+    { /* opt_CertKeyLength     */ 0, PR_TRUE,  0, PR_FALSE, "cert_key_len" }
 };
 
 int
@@ -973,8 +952,12 @@ main(int argc, char **argv)
     SECOidTag certCipher;
     int keyLen = 0;
     int certKeyLen = 0;
-
     secuCommand pk12util;
+
+#ifdef _CRTDBG_MAP_ALLOC
+    _CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+#endif
+
     pk12util.numCommands = 0;
     pk12util.commands = 0;
     pk12util.numOptions = sizeof(pk12util_options) / sizeof(secuCommandFlag);
@@ -1010,22 +993,22 @@ main(int argc, char **argv)
 
     if (pk12util.options[opt_P12FilePWFile].activated) {
 	p12FilePw.source = PW_FROMFILE;
-	p12FilePw.data = PL_strdup(pk12util.options[opt_P12FilePWFile].arg);
+	p12FilePw.data = PORT_Strdup(pk12util.options[opt_P12FilePWFile].arg);
     }
 
     if (pk12util.options[opt_P12FilePW].activated) {
 	p12FilePw.source = PW_PLAINTEXT;
-	p12FilePw.data = PL_strdup(pk12util.options[opt_P12FilePW].arg);
+	p12FilePw.data = PORT_Strdup(pk12util.options[opt_P12FilePW].arg);
     }
 
     if (pk12util.options[opt_SlotPWFile].activated) {
 	slotPw.source = PW_FROMFILE;
-	slotPw.data = PL_strdup(pk12util.options[opt_SlotPWFile].arg);
+	slotPw.data = PORT_Strdup(pk12util.options[opt_SlotPWFile].arg);
     }
 
     if (pk12util.options[opt_SlotPW].activated) {
 	slotPw.source = PW_PLAINTEXT;
-	slotPw.data = PL_strdup(pk12util.options[opt_SlotPW].arg);
+	slotPw.data = PORT_Strdup(pk12util.options[opt_SlotPW].arg);
     }
 
     if (pk12util.options[opt_CertDir].activated) {
@@ -1094,8 +1077,7 @@ main(int argc, char **argv)
 	   
 
     if (pk12util.options[opt_Import].activated) {
-	P12U_ImportPKCS12Object(import_file, slot,  &slotPw,
-					   &p12FilePw);
+	P12U_ImportPKCS12Object(import_file, slot,  &slotPw, &p12FilePw);
 
     } else if (pk12util.options[opt_Export].activated) {
 	P12U_ExportPKCS12Object(pk12util.options[opt_Nickname].arg,
@@ -1115,9 +1097,12 @@ done:
 	PORT_ZFree(slotPw.data, PL_strlen(slotPw.data));
     if (p12FilePw.data != NULL)
 	PORT_ZFree(p12FilePw.data, PL_strlen(p12FilePw.data));
-    if (slot) PK11_FreeSlot(slot);
+    if (slot) 
+    	PK11_FreeSlot(slot);
     if (NSS_Shutdown() != SECSuccess) {
 	pk12uErrno = 1;
     }
+    PL_ArenaFinish();
+    PR_Cleanup();
     return pk12uErrno;
 }
