@@ -50,6 +50,8 @@ static NS_DEFINE_CID(kCharsetConverterManagerCID, NS_ICHARSETCONVERTERMANAGER_CI
 #define SJIS_INDEX mMapIndex[0]
 #define JIS0208_INDEX mMapIndex[1]
 #define JIS0212_INDEX gJIS0212Index
+#define SJIS_UNMAPPED 0x30FB
+#define UNICODE_REPLACEMENT_CHARACTER 0xfffd
 
 void nsJapaneseToUnicode::setMapMode()
 {
@@ -153,7 +155,7 @@ NS_IMETHODIMP nsShiftJISToUnicode::Convert(
                        break;
 
                      default:
-                       *dest++ = 0x30FB;
+                       *dest++ = SJIS_UNMAPPED;
                    }
                    if(dest >= destEnd)
                      goto error1;
@@ -176,13 +178,20 @@ NS_IMETHODIMP nsShiftJISToUnicode::Convert(
 
           case 1: // Index to table
           {
+          
+            // Error handling: in the case where the second octet is not in the
+            // valid ranges 0x40-0x7E 0x80-0xFC, unconsume the invalid octet and
+            // interpret it as the ASCII value. In the case where the second
+            // octet is in the valid range but there is no mapping for the
+            // 2-octet sequence, do not unconsume.
             PRUint8 off = sbIdx[*src];
             if(0xFF == off) {
-               *dest++ = 0x30FB;
+               src--;
+               *dest++ = UNICODE_REPLACEMENT_CHARACTER;
             } else {
                PRUnichar ch = gJapaneseMap[mData+off];
                if(ch == 0xfffd) 
-                 ch = 0x30fb;
+                 ch = SJIS_UNMAPPED;
                *dest++ = ch;
             }
             mState = 0;
@@ -194,8 +203,10 @@ NS_IMETHODIMP nsShiftJISToUnicode::Convert(
           case 2: // EUDC
           {
             PRUint8 off = sbIdx[*src];
+            // Error handling as in case 1
             if(0xFF == off) {
-               *dest++ = 0x30fb;
+               src--;
+               *dest++ = UNICODE_REPLACEMENT_CHARACTER;
             } else {
                *dest++ = mData + off;
             }
@@ -322,10 +333,10 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
             if(0xFF == off) {
               *dest++ = 0xFFFD;
                // if the first byte is valid for EUC-JP but the second 
-               // is not while being a valid US-ASCII(i.e. < 0xc0), save it
+               // is not while being a valid US-ASCII, save it
                // instead of eating it up !
-               if ( ! (*src & 0xc0)  )
-                 *dest++ = (PRUnichar) *src;;
+               if ( (PRUint8)*src < (PRUint8)0x7f )
+                 --src;
             } else {
                *dest++ = gJapaneseMap[mData+off];
             }
@@ -344,7 +355,7 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
               // if 0x8e is not followed by a valid JIS X 0201 byte
               // but by a valid US-ASCII, save it instead of eating it up.
               if ( (PRUint8)*src < (PRUint8)0x7f )
-                 *dest++ = (PRUnichar) *src;
+                --src;
             }
             mState = 0;
             if(dest >= destEnd)

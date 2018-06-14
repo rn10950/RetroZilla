@@ -86,6 +86,10 @@ static PRMonitor *gMonitor = nsnull;
 // Thread that we do the updates on.
 static PRThread* gDbBackgroundThread = nsnull;
 
+// Once we've committed to shutting down, don't do work in the background
+// thread.
+static PRBool gShuttingDownThread = PR_FALSE;
+
 static const char* kNEW_TABLE_SUFFIX = "_new";
 
 
@@ -264,6 +268,9 @@ nsUrlClassifierDBServiceWorker::Exists(const nsACString& tableName,
                                        const nsACString& key,
                                        nsIUrlClassifierCallback *c)
 {
+  if (gShuttingDownThread)
+    return NS_ERROR_NOT_INITIALIZED;
+
   nsresult rv = OpenDb();
   if (NS_FAILED(rv)) {
     NS_ERROR("Unable to open database");
@@ -309,6 +316,9 @@ NS_IMETHODIMP
 nsUrlClassifierDBServiceWorker::CheckTables(const nsACString & tableNames,
                                             nsIUrlClassifierCallback *c)
 {
+  if (gShuttingDownThread)
+    return NS_ERROR_NOT_INITIALIZED;
+
   nsresult rv = OpenDb();
   if (NS_FAILED(rv)) {
     NS_ERROR("Unable to open database");
@@ -351,6 +361,9 @@ NS_IMETHODIMP
 nsUrlClassifierDBServiceWorker::UpdateTables(const nsACString& updateString,
                                              nsIUrlClassifierCallback *c)
 {
+  if (gShuttingDownThread)
+    return NS_ERROR_NOT_INITIALIZED;
+
   LOG(("Updating tables\n"));
 
   nsresult rv = OpenDb();
@@ -497,6 +510,11 @@ nsUrlClassifierDBServiceWorker::Finish(nsIUrlClassifierCallback *c)
 {
   if (!mHasPendingUpdate)
     return NS_OK;
+
+  if (gShuttingDownThread) {
+    mConnection->RollbackTransaction();
+    return NS_ERROR_NOT_INITIALIZED;
+  }
 
   nsresult rv = NS_OK;
   for (PRUint32 i = 0; i < mTableUpdateLines.Length(); ++i) {
@@ -843,8 +861,10 @@ PR_STATIC_CALLBACK(void) DestroyHandler(PLEvent *ev);
 nsUrlClassifierDBService::~nsUrlClassifierDBService()
 {
   sUrlClassifierDBService = nsnull;
-  PR_DestroyMonitor(gMonitor);
-  gMonitor = nsnull;
+  if (gMonitor) {
+    PR_DestroyMonitor(gMonitor);
+    gMonitor = nsnull;
+  }
 }
 
 nsresult
@@ -883,7 +903,8 @@ nsUrlClassifierDBService::Init()
   if (!observerService)
     return NS_ERROR_FAILURE;
 
-  observerService->AddObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, PR_FALSE);
+  observerService->AddObserver(this, "profile-before-change", PR_FALSE);
+  observerService->AddObserver(this, "xpcom-shutdown", PR_FALSE);
 
   return NS_OK;
 }
@@ -1056,9 +1077,12 @@ NS_IMETHODIMP
 nsUrlClassifierDBService::Observe(nsISupports *aSubject, const char *aTopic,
                                   const PRUnichar *aData)
 {
-  if (nsCRT::strcmp(aTopic, NS_XPCOM_SHUTDOWN_OBSERVER_ID) == 0) {
-    Shutdown();
-  }
+  NS_ASSERTION(strcmp(aTopic, "profile-before-change") == 0 ||
+               strcmp(aTopic, "xpcom-shutdown") == 0,
+               "Unexpected observer topic");
+
+  Shutdown();
+
   return NS_OK;
 }
 
@@ -1082,6 +1106,11 @@ nsUrlClassifierDBService::EnsureThreadStarted()
 nsresult
 nsUrlClassifierDBService::Shutdown()
 {
+  LOG(("shutting down db service\n"));
+
+  if (!gDbBackgroundThread)
+    return NS_OK;
+
   nsresult rv;
   
   EnsureThreadStarted();
@@ -1095,8 +1124,10 @@ nsUrlClassifierDBService::Shutdown()
                               mWorker,
                               PROXY_ASYNC,
                               getter_AddRefs(proxy));
-    proxy->CloseDb();
-    NS_ENSURE_SUCCESS(rv, rv);
+    if (NS_SUCCEEDED(rv)) {
+      rv = proxy->CloseDb();
+      NS_ASSERTION(NS_SUCCEEDED(rv), "failed to post close db event");
+    }
   }
 
   PLEvent* ev = new PLEvent;
@@ -1107,8 +1138,9 @@ nsUrlClassifierDBService::Shutdown()
   }
   LOG(("joining background thread"));
 
-  rv = PR_JoinThread(gDbBackgroundThread);
-  NS_ASSERTION(NS_SUCCEEDED(rv), "failed to join background thread");
+  gShuttingDownThread = PR_TRUE;
+  PRStatus ok = PR_JoinThread(gDbBackgroundThread);
+  NS_ASSERTION(ok == PR_SUCCESS, "failed to join background thread");
 
   gDbBackgroundThread = nsnull;
   return NS_OK;

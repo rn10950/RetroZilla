@@ -997,7 +997,7 @@ nsContentUtils::ReparentContentWrappersInScope(nsIScriptGlobalObject *aOldScope,
     NS_ERROR("Weird things are happening in XPConnect");
     return NS_ERROR_FAILURE;
   }
-  return xpconnect18->ReparentScopeAwareWrappers(cx, oldScopeObj, newScopeObj);
+  return xpconnect18->MoveWrappers(cx, oldScopeObj, newScopeObj);
 }
 
 nsIDocShell *
@@ -2393,6 +2393,47 @@ nsCxPusher::Push(nsISupports *aCurrentTarget)
     mScx = nsnull;
   }
   return PR_TRUE;
+}
+
+PRBool
+nsCxPusher::RePush(nsISupports *aCurrentTarget)
+{
+  if (!mScx) {
+    return Push(aCurrentTarget);
+  }
+    
+  if (aCurrentTarget) {
+    nsIScriptContext* scx = nsnull;
+    nsCOMPtr<nsIScriptGlobalObject> sgo;
+    nsCOMPtr<nsIContent> content(do_QueryInterface(aCurrentTarget));
+
+    if (content) {
+      nsCOMPtr<nsIDocument> ownerDoc = content->GetOwnerDoc();
+      if (ownerDoc) {
+        nsCOMPtr<nsIDocument_MOZILLA_1_8_BRANCH3> branch3doc =
+          do_QueryInterface(ownerDoc);
+        NS_ASSERTION(branch3doc,
+                     "Document must implement nsIDocument_MOZILLA_1_8_BRANCH3!!!");
+        PRBool hasHadScriptObject = PR_TRUE;
+        sgo = branch3doc->GetScriptHandlingObject(hasHadScriptObject); 
+      }
+    } else {
+      sgo = do_QueryInterface(aCurrentTarget);
+    }
+
+    if (sgo) {
+      scx = sgo->GetContext();
+      // If we have the same script context and native context is still
+      // alive, no need to Pop/Push.
+      if (scx && scx == mScx &&
+          scx->GetNativeContext()) {
+        return PR_TRUE;
+      }
+    }
+  }
+
+  Pop();
+  return Push(aCurrentTarget);
 }
 
 void

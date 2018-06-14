@@ -80,6 +80,13 @@ public:
   /* make sure you clone it, if you need to do stuff to it */
   nsIFile* GetAppDir() { return mAppDir; }
 
+  /**
+   * Get the directory under which update directory is created.
+   * This method may be called before XPCOM is started. aResult
+   * is a clone, it may be modified.
+   */
+  nsresult GetUpdateRootDir(nsIFile* *aResult);
+
 protected:
   static nsresult GetUserDataDirectory(nsILocalFile* *aFile, PRBool aLocal);
   static nsresult EnsureDirectoryExists(nsIFile* aDirectory);

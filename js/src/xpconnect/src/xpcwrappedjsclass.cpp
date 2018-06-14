@@ -238,6 +238,29 @@ nsXPCWrappedJSClass::CallQueryInterfaceOnJSObject(XPCCallContext& ccx,
     jsid funid;
     jsval fun;
 
+    // Don't call the actual function on a content object. We'll determine
+    // whether or not a content object is capable of implementing the
+    // interface (i.e. whether the interface is scriptable) and most content
+    // objects don't have QI implementations anyway. Also see bug 503926.
+    if(!JS_IsSystemObject(ccx, jsobj))
+    {
+        nsCOMPtr<nsIPrincipal> objPrin;
+
+        nsXPConnect *xpc = nsXPConnect::GetXPConnect();
+        nsCOMPtr<nsIScriptSecurityManager> ssm =
+            do_QueryInterface(xpc->GetDefaultSecurityManager());
+        if(ssm)
+        {
+            nsresult rv = ssm->GetObjectPrincipal(ccx, jsobj, getter_AddRefs(objPrin));
+            NS_ENSURE_SUCCESS(rv, nsnull);
+   
+            nsCOMPtr<nsIPrincipal> systemPrin;
+            rv = ssm->GetSystemPrincipal(getter_AddRefs(systemPrin));
+            if(systemPrin != objPrin)
+                return nsnull;
+        }
+    }
+
     // check upfront for the existence of the function property
     funid = mRuntime->GetStringID(XPCJSRuntime::IDX_QUERY_INTERFACE);
     if(!OBJ_GET_PROPERTY(cx, jsobj, funid, &fun) || JSVAL_IS_PRIMITIVE(fun))

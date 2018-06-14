@@ -169,7 +169,8 @@ protected:
     /*
      * Evaluates the given Expression and converts its result to a number.
      */
-    double evaluateToNumber(Expr* aExpr, txIEvalContext* aContext);
+    static nsresult evaluateToNumber(Expr* aExpr, txIEvalContext* aContext,
+                                     double* aResult);
 
     /*
      * Evaluates the given Expression and converts its result to a boolean.

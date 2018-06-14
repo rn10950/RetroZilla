@@ -75,17 +75,18 @@ UrlClassifierTableUrl.inherits(UrlClassifierTable);
  * Look up a URL in a URL table
  */
 UrlClassifierTableUrl.prototype.exists = function(url, callback) {
-  // PROT_URLCanonicalizer.canonicalizeURL_ is the old way of canonicalizing a
-  // URL.  Unfortunately, it doesn't normalize numeric domains so alternate IP
-  // formats (hex, octal, etc) won't trigger a match.
-  // this.enchashDecrypter_.getCanonicalUrl does the right thing and
-  // normalizes a URL to 4 decimal numbers, but the update server may still be
-  // giving us encoded IP addresses.  So to be safe, we check both cases.
-  var oldCanonicalized = PROT_URLCanonicalizer.canonicalizeURL_(url);
-  var canonicalized = this.enchashDecrypter_.getCanonicalUrl(url);
-  G_Debug(this, "Looking up: " + url + " (" + oldCanonicalized + " and " +
-                canonicalized + ")");
-  (new ExistsMultiQuerier([oldCanonicalized, canonicalized],
+  var urlUtils = Cc["@mozilla.org/url-classifier/utils;1"]
+                 .getService(Ci.nsIUrlClassifierUtils);
+  // We plan on having the server collapse multiple slashes in the path.
+  // Until this happens, we check both the raw url and the url with multiple
+  // slashes removed.
+  var urls = [
+    this.enchashDecrypter_.getCanonicalUrl(url),
+    this.enchashDecrypter_.getCanonicalUrl(url, true) /* collapse slashes */
+  ];
+
+  G_Debug(this, "Looking up: " + url + " (" + urls + ")");
+  (new ExistsMultiQuerier(urls,
                           this.name,
                           callback)).run();
 }

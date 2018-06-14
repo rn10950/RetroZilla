@@ -221,7 +221,7 @@ function commonDialogFocus(aEvent)
     var script = "document.documentElement.getButton('accept').disabled = false; ";
     script += "document.documentElement.getButton('extra1').disabled = false; ";
     script += "document.documentElement.getButton('extra2').disabled = false;";
-    setTimeout(script, 250);
+    setTimeout(script, 1000);
   }
 }
 

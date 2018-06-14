@@ -835,6 +835,7 @@ ns4xPluginInstance::ns4xPluginInstance(NPPluginFuncs* callbacks,
   mStarted = PR_FALSE;
   mStreams = nsnull;
   mCached = PR_FALSE;
+  mIsJavaPlugin = PR_FALSE;
 
   PLUGIN_LOG(PLUGIN_LOG_BASIC, ("ns4xPluginInstance ctor: this=%p\n",this));
 }
@@ -1027,6 +1028,17 @@ ns4xPluginInstance::GetDOMWindow()
   return window;
 }
 
+PRBool IsJavaMIMEType(const char* aType)
+{
+   return aType &&
+		((0 == PL_strncasecmp(aType, "application/x-java-vm",
+                           sizeof("application/x-java-vm") - 1)) ||
+      	 (0 == PL_strncasecmp(aType, "application/x-java-applet",
+                           sizeof("application/x-java-applet") - 1)) ||
+     	 (0 == PL_strncasecmp(aType, "application/x-java-bean",
+                          sizeof("application/x-java-bean") - 1)));
+}
+
 ////////////////////////////////////////////////////////////////////////
 nsresult ns4xPluginInstance::InitializePlugin(nsIPluginInstancePeer* peer)
 {
@@ -1183,6 +1195,8 @@ nsresult ns4xPluginInstance::InitializePlugin(nsIPluginInstancePeer* peer)
       }
     }
   }
+
+  mIsJavaPlugin = IsJavaMIMEType(mimetype);
 
   // Assign mPeer now and mark this instance as started before calling NPP_New 
   // because the plugin may call other NPAPI functions, like NPN_GetURLNotify,

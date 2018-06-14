@@ -41,17 +41,21 @@
 #ifndef nsNetUtil_h__
 #define nsNetUtil_h__
 
+#include <stdlib.h>
+
 #include "nsNetError.h"
 #include "nsNetCID.h"
 #include "nsReadableUtils.h"
 #include "nsString.h"
 #include "nsMemory.h"
 #include "nsCOMPtr.h"
+#include "nsCRT.h"
 #include "prio.h" // for read/write flags, permissions, etc.
 
 #include "nsIURI.h"
 #include "nsIInputStream.h"
 #include "nsIOutputStream.h"
+#include "nsIURLParser.h"
 #include "nsISafeOutputStream.h"
 #include "nsIStreamListener.h"
 #include "nsIRequestObserverProxy.h"
@@ -63,6 +67,7 @@
 #include "nsIIOService.h"
 #include "nsIServiceManager.h"
 #include "nsIChannel.h"
+#include "nsChannelProperties.h"
 #include "nsIInputStreamChannel.h"
 #include "nsITransport.h"
 #include "nsIStreamTransportService.h"
@@ -87,6 +92,8 @@
 #include "nsInterfaceRequestorAgg.h"
 #include "nsInt64.h"
 #include "nsINetUtil.h"
+#include "nsIPropertyBag2.h"
+#include "nsAutoLock.h"
 
 // Helper, to simplify getting the I/O service.
 inline const nsGetServiceByCIDWithError
@@ -183,6 +190,19 @@ NS_NewChannel(nsIChannel           **result,
         }
     }
     return rv;
+}
+
+// For now, works only with JARChannel.  Future: with all channels that may
+// have Content-Disposition header (JAR, nsIHttpChannel, and nsIMultiPartChannel).
+inline nsresult
+NS_GetContentDisposition(nsIRequest     *channel,
+                         nsACString     &result)
+{
+    nsCOMPtr<nsIPropertyBag2> props(do_QueryInterface(channel));
+    if (props)
+        return props->GetPropertyAsACString(NS_CHANNEL_PROP_CONTENT_DISPOSITION,
+                                            result);
+    return NS_ERROR_NOT_AVAILABLE;
 }
 
 // Use this function with CAUTION. It creates a stream that blocks when you
@@ -1015,5 +1035,135 @@ NS_NewNotificationCallbacksAggregation(nsIInterfaceRequestor  *aCallbacks,
         aLoadGroup->GetNotificationCallbacks(getter_AddRefs(cbs));
     return NS_NewInterfaceRequestorAggregation(aCallbacks, cbs, aResult);
 }
+
+#define NSID_LENGTH 39
+
+inline nsresult
+GenerateUUIDInPlace(nsID* id)
+{
+    static PRLock* mLock = NULL;
+    if(!mLock) {
+        mLock = PR_NewLock();
+        NS_ENSURE_TRUE(mLock, NS_ERROR_OUT_OF_MEMORY);
+    }
+
+    // The various code in this method is probably not threadsafe, so lock
+    // across the whole method.
+    nsAutoLock lock(mLock);
+
+    PRUint8 mRBytes = 4;
+#ifdef RAND_MAX
+    if ((unsigned long) RAND_MAX < (unsigned long)0xffffffff)
+        mRBytes = 3;
+    if ((unsigned long) RAND_MAX < (unsigned long)0x00ffffff)
+        mRBytes = 2;
+    if ((unsigned long) RAND_MAX < (unsigned long)0x0000ffff)
+        mRBytes = 1;
+    if ((unsigned long) RAND_MAX < (unsigned long)0x000000ff)
+        return NS_ERROR_FAILURE;
+#endif
+
+    PRSize bytesLeft = sizeof(nsID);
+    while (bytesLeft > 0) {
+        long rval = rand();
+
+        PRUint8 *src = (PRUint8*)&rval;
+        // We want to grab the mRBytes least significant bytes of rval, since
+        // mRBytes less than sizeof(rval) means the high bytes are 0.
+#ifdef IS_BIG_ENDIAN
+        src += sizeof(rval) - mRBytes;
+#endif
+        PRUint8 *dst = ((PRUint8*) id) + (sizeof(nsID) - bytesLeft);
+        PRSize toWrite = (bytesLeft < mRBytes ? bytesLeft : mRBytes);
+        for (PRSize i = 0; i < toWrite; i++)
+            dst[i] = src[i];
+
+        bytesLeft -= toWrite;
+    }
+
+    /* Put in the version */
+    id->m2 &= 0x0fff;
+    id->m2 |= 0x4000;
+
+    /* Put in the variant */
+    id->m3[0] &= 0x3f;
+    id->m3[0] |= 0x80;
+
+    return NS_OK;
+}
+ 
+/**
+ * Helper function to create a random URL string that's properly formed
+ * but guaranteed to be invalid.
+ */  
+#define NU_FAKE_SCHEME "http://"
+#define NU_FAKE_TLD ".invalid"
+inline nsresult
+NS_MakeRandomInvalidURLString(nsCString& result)
+{
+  nsresult rv;
+
+  nsID idee;
+  rv = GenerateUUIDInPlace(&idee);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  char chars[NSID_LENGTH];
+  strncpy(chars, idee.ToString(), NSID_LENGTH);
+
+  result.AssignLiteral(NU_FAKE_SCHEME);
+  // Strip off the '{' and '}' at the beginning and end of the UUID
+  result.Append(chars + 1, NSID_LENGTH - 3);
+  result.AppendLiteral(NU_FAKE_TLD);
+
+  return NS_OK;
+}
+#undef NU_FAKE_SCHEME
+#undef NU_FAKE_TLD
+
+/**
+ * Helper function to determine whether urlString is Java-compatible --
+ * whether it can be passed to the Java URL(String) constructor without the
+ * latter throwing a MalformedURLException, or without Java otherwise
+ * mishandling it.
+ */  
+inline nsresult
+NS_CheckIsJavaCompatibleURLString(nsCString& urlString, PRBool *result)
+{ 
+  *result = PR_FALSE; // Default to "no"
+
+  nsresult rv = NS_OK;
+  nsCOMPtr<nsIURLParser> urlParser =
+    do_GetService(NS_STDURLPARSER_CONTRACTID, &rv);
+  if (NS_FAILED(rv) || !urlParser)
+    return NS_ERROR_FAILURE;
+  
+  PRBool compatible = PR_TRUE;
+  PRUint32 schemePos = 0;
+  PRInt32 schemeLen = 0;
+  urlParser->ParseURL(urlString.get(), -1, &schemePos, &schemeLen,
+                      nsnull, nsnull, nsnull, nsnull);
+  if (schemeLen != -1) {
+    nsCString scheme;
+    scheme.Assign(urlString.get() + schemePos, schemeLen);
+    // By default Java only understands a small number of URL schemes, and of
+    // these only some are likely to represent user input (for example from a
+    // link or the location bar) that Java can legitimately be expected to
+    // handle.  (Besides those listed below, Java also understands the "jar",
+    // "mailto" and "netdoc" schemes.  But it probably doesn't expect these
+    // from a browser, and is therefore likely to mishandle them.)
+    if (nsCRT::strcasecmp(scheme.get(), "http") &&
+        nsCRT::strcasecmp(scheme.get(), "https") &&
+        nsCRT::strcasecmp(scheme.get(), "file") &&
+        nsCRT::strcasecmp(scheme.get(), "ftp") &&
+        nsCRT::strcasecmp(scheme.get(), "gopher"))
+      compatible = PR_FALSE;
+  } else {
+    compatible = PR_FALSE;
+  } 
+    
+  *result = compatible;
+        
+  return NS_OK;
+}       
 
 #endif // !nsNetUtil_h__

@@ -3153,19 +3153,19 @@ nsresult nsAddrDatabase::GetListFromDB(nsIAbDirectory *newList, nsIMdbRow* listR
   return err;
 }
 
-class nsAddrDBEnumerator : public nsIEnumerator 
+class nsAddrDBEnumerator : public nsIEnumerator, public nsIAddrDBListener 
 {
 public:
     NS_DECL_ISUPPORTS
 
     // nsIEnumerator methods:
     NS_DECL_NSIENUMERATOR
-
+    NS_DECL_NSIADDRDBLISTENER
     // nsAddrDBEnumerator methods:
 
     nsAddrDBEnumerator(nsAddrDatabase* db);
     virtual ~nsAddrDBEnumerator();
-
+    void Clear();
 protected:
     nsCOMPtr<nsAddrDatabase>    mDB;
     nsCOMPtr<nsIAbDirectory>    mResultList;
@@ -3183,14 +3183,25 @@ nsAddrDBEnumerator::nsAddrDBEnumerator(nsAddrDatabase* db)
 {
     mDbTable = mDB->GetPabTable();
     mCurrentRowIsList = PR_FALSE;
+    if (mDB)
+      mDB->AddListener(this);
 }
 
 nsAddrDBEnumerator::~nsAddrDBEnumerator()
 {
-  NS_IF_RELEASE(mRowCursor);
+  Clear();
 }
 
-NS_IMPL_ISUPPORTS1(nsAddrDBEnumerator, nsIEnumerator)
+void nsAddrDBEnumerator::Clear()
+{
+  NS_IF_RELEASE(mRowCursor);
+  mCurrentRow = nsnull;
+  mDbTable = nsnull;
+  if (mDB)
+    mDB->RemoveListener(this);
+}
+
+NS_IMPL_ISUPPORTS2(nsAddrDBEnumerator, nsIEnumerator, nsIAddrDBListener)
 
 NS_IMETHODIMP nsAddrDBEnumerator::First(void)
 {
@@ -3275,6 +3286,30 @@ NS_IMETHODIMP nsAddrDBEnumerator::CurrentItem(nsISupports **aItem)
 NS_IMETHODIMP nsAddrDBEnumerator::IsDone(void)
 {
     return mDone ? NS_OK : NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP nsAddrDBEnumerator::OnCardAttribChange(PRUint32 abCode)
+{
+  return NS_OK;
+}
+
+/* void onCardEntryChange (in unsigned long aAbCode, in nsIAbCard aCard, in nsIAbDirectory aParent); */
+NS_IMETHODIMP nsAddrDBEnumerator::OnCardEntryChange(PRUint32 aAbCode, nsIAbCard *aCard)
+{
+  return NS_OK;
+}
+
+/* void onListEntryChange (in unsigned long abCode, in nsIAbDirectory list); */
+NS_IMETHODIMP nsAddrDBEnumerator::OnListEntryChange(PRUint32 abCode, nsIAbDirectory *list)
+{
+  return NS_OK;
+}
+
+/* void onAnnouncerGoingAway (); */
+NS_IMETHODIMP nsAddrDBEnumerator::OnAnnouncerGoingAway()
+{
+  Clear();
+  return NS_OK;
 }
 
 class nsListAddressEnumerator : public nsIEnumerator 

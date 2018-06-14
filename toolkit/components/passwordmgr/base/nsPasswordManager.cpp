@@ -373,6 +373,11 @@ nsPasswordManager::AddUser(const nsACString& aHost,
   if (aUser.IsEmpty() && aPassword.IsEmpty())
     return NS_OK;
 
+  // Reject values that would cause problems when parsing the storage file
+  nsresult rv = CheckLoginValues(aHost,
+                                 EmptyString(), EmptyString(), EmptyCString());
+  NS_ENSURE_SUCCESS(rv, rv);
+
   // Check for an existing entry for this host + user
   if (!aHost.IsEmpty()) {
     SignonHashEntry *hashEnt;
@@ -440,6 +445,11 @@ nsPasswordManager::RemoveUser(const nsACString& aHost, const nsAString& aUser)
 NS_IMETHODIMP
 nsPasswordManager::AddReject(const nsACString& aHost)
 {
+  // Reject values that would cause problems when parsing the storage file
+  nsresult rv = CheckLoginValues(aHost,
+                                 EmptyString(), EmptyString(), EmptyCString());
+  NS_ENSURE_SUCCESS(rv, rv);
+
   mRejectTable.Put(aHost, 1);
   WritePasswords(mSignonFile);
   return NS_OK;
@@ -610,6 +620,11 @@ nsPasswordManager::AddUserFull(const nsACString& aKey,
   // There's no point in taking up space in the signon file with this.
   if (aUser.IsEmpty() && aPassword.IsEmpty())
     return NS_OK;
+
+  // Reject values that would cause problems when parsing the storage file
+  nsresult rv = CheckLoginValues(aKey, aUserFieldName,
+                                 aPassFieldName, EmptyCString());
+  NS_ENSURE_SUCCESS(rv, rv);
 
   // Check for an existing entry for this host + user
   if (!aKey.IsEmpty()) {
@@ -795,7 +810,7 @@ nsPasswordManager::Observe(nsISupports* aSubject,
 
     obsService->AddObserver(this, "profile-after-change", PR_TRUE);
   } else if (!strcmp(aTopic, "profile-after-change"))
-    nsCOMPtr<nsIPasswordManager> pm = do_GetService(NS_PASSWORDMANAGER_CONTRACTID);
+    LoadPasswords();
 
   return NS_OK;
 }
@@ -1023,10 +1038,14 @@ nsPasswordManager::Notify(nsIContent* aFormNode,
 
               if (NS_SUCCEEDED(GetActionRealm(formElement, formActionOrigin)) &&
                   !entry->actionOrigin.Equals(formActionOrigin)) {
-                // update the action URL
-                entry->actionOrigin.Assign(formActionOrigin);
 
-                writePasswords = PR_TRUE;
+                // Reject values that would cause problems when parsing the storage file
+                if (NS_SUCCEEDED(CheckLoginValues(EmptyCString(), EmptyString(),
+                                                  EmptyString(), formActionOrigin))) {
+                  // update the action URL
+                  entry->actionOrigin.Assign(formActionOrigin);
+                  writePasswords = PR_TRUE;
+                }
               }
 
               if (writePasswords)
@@ -1101,9 +1120,23 @@ nsPasswordManager::Notify(nsIContent* aFormNode,
           return NS_OK;
         }
 
+        // Reject values that would cause problems when parsing the storage file
+        // We do this after prompting, lest any code somehow change the values
+        // during the prompting.
+        nsresult rv = CheckLoginValues(realm,
+                                       entry->userField, entry->passField,
+                                       entry->actionOrigin);
+        NS_ENSURE_SUCCESS(rv, NS_OK);
+
         AddSignonData(realm, entry);
         WritePasswords(mSignonFile);
       } else if (selection == 2) {
+        // Reject values that would cause problems when parsing the storage file
+        // We do this after prompting, lest any code run from prompt context.
+        nsresult rv = CheckLoginValues(realm, EmptyString(),
+                                       EmptyString(), EmptyCString());
+        NS_ENSURE_SUCCESS(rv, NS_OK);
+
         AddReject(realm);
       }
     }
@@ -1914,6 +1947,7 @@ nsPasswordManager::FillDocument(nsIDOMDocument* aDomDoc)
               inputField->GetValue(oldUserValue);
               userField = inputField;
               foundNode = inputField;
+              // Only the case differs, so CheckLoginValues() unneeded.
               e->userField.Assign(name);
               break;
             }
@@ -1973,8 +2007,15 @@ nsPasswordManager::FillDocument(nsIDOMDocument* aDomDoc)
 
         temp->GetValue(oldPassValue);
         passField = temp;
-        if ((e->passField).IsEmpty())
-          passField->GetName(e->passField);
+        if ((e->passField).IsEmpty()) {
+          nsAutoString passName;
+          passField->GetName(passName);
+
+          // Reject values that would cause problems when parsing the storage file
+          if (NS_SUCCEEDED(CheckLoginValues(EmptyCString(), EmptyString(),
+                                            passName, EmptyCString())))
+            e->passField.Assign(passName);
+        }
       } else {
         continue;
       }
@@ -2098,8 +2139,9 @@ nsPasswordManager::FillPassword(nsIDOMEvent* aEvent)
   nsCOMPtr<nsIForm> form = do_QueryInterface(formEl);
   nsCAutoString formActionOrigin;
   GetActionRealm(form, formActionOrigin);
-  if (NS_FAILED(GetActionRealm(form, formActionOrigin)) ||
-      !foundEntry->actionOrigin.Equals(formActionOrigin))
+  if (NS_FAILED(GetActionRealm(form, formActionOrigin)))
+    return NS_OK;
+  if (!foundEntry->actionOrigin.IsEmpty() && !foundEntry->actionOrigin.Equals(formActionOrigin))
     return NS_OK;
   
   nsCOMPtr<nsISupports> foundNode;
@@ -2195,5 +2237,70 @@ nsPasswordManager::GetActionRealm(nsIForm* aForm, nsCString& aURL)
     return NS_ERROR_FAILURE;
 
   aURL.Assign(formActionOrigin);
+  return NS_OK;
+}
+
+/* static */ PRBool
+nsPasswordManager::BadCharacterPresent(const nsAString &aString)
+{
+  if (aString.FindChar('\r') >= 0)
+    return PR_TRUE;
+  if (aString.FindChar('\n') >= 0)
+    return PR_TRUE;
+  if (aString.FindChar('\0') >= 0)
+    return PR_TRUE;
+
+  return PR_FALSE;
+}
+
+/* static */ nsresult
+nsPasswordManager::CheckLoginValues(const nsACString &aHost,
+                                    const nsAString  &aUserField,
+                                    const nsAString  &aPassField,
+                                    const nsACString &aActionOrigin)
+{
+  // aHost
+  if (BadCharacterPresent(NS_ConvertUTF8toUTF16(aHost))) {
+    NS_WARNING("Login rejected, bad character in aHost");
+    return NS_ERROR_FAILURE;
+  }
+  // The aHost arg is used for both login entry hostnames and reject entry
+  // hostnames ("never for this site"). A value of "." is not allowed for
+  // reject entries. It's technically ok for login entries, but to keep the
+  // code simple we'll disallow it anyway.
+  if (aHost.EqualsLiteral(".")) {
+    NS_WARNING("Login rejected, aHost can not be just a period");
+    return NS_ERROR_FAILURE;
+  }
+
+
+  // aUserField
+  if (BadCharacterPresent(aUserField)) {
+    NS_WARNING("Login rejected, bad character in aUserField");
+    return NS_ERROR_FAILURE;
+  }
+  if (aUserField.EqualsLiteral(".")) {
+    NS_WARNING("Login rejected, aUserField can not be just a period");
+    return NS_ERROR_FAILURE;
+  }
+
+
+  // aPassField
+  if (BadCharacterPresent(aPassField)) {
+    NS_WARNING("Login rejected, bad character in aPassField");
+    return NS_ERROR_FAILURE;
+  }
+
+
+  // aActionOrigin
+  if (BadCharacterPresent(NS_ConvertUTF8toUTF16(aActionOrigin))) {
+    NS_WARNING("Login rejected, bad character in aActionOrigin");
+    return NS_ERROR_FAILURE;
+  }
+  if (aActionOrigin.EqualsLiteral(".")) {
+    NS_WARNING("Login rejected, aActionOrigin can not be just a period");
+    return NS_ERROR_FAILURE;
+  }
+
   return NS_OK;
 }

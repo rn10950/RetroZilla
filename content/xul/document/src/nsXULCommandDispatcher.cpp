@@ -383,6 +383,8 @@ nsXULCommandDispatcher::UpdateCommands(const nsAString& aEventName)
     free(actionString);    
   }
 #endif
+
+  nsCOMArray<nsIContent> updaters;
   
   for (Updater* updater = mUpdaters; updater != nsnull; updater = updater->mNext) {
     nsCOMPtr<nsIDOMElement> element;
@@ -401,6 +403,12 @@ nsXULCommandDispatcher::UpdateCommands(const nsAString& aEventName)
     NS_ASSERTION(content != nsnull, "not an nsIContent");
     if (! content)
       return NS_ERROR_UNEXPECTED;
+    
+    updaters.AppendObject(content);
+  }
+
+  for (PRUint32 u = 0; u < updaters.Count(); u++) {
+    nsIContent* content = updaters[u];
 
     nsCOMPtr<nsIDocument> document = content->GetDocument();
 
@@ -414,7 +422,7 @@ nsXULCommandDispatcher::UpdateCommands(const nsAString& aEventName)
       CopyUTF16toUTF8(aEventName, aeventnameC);
       PR_LOG(gLog, PR_LOG_NOTICE,
              ("xulcmd[%p] update %p event=%s",
-              this, element.get(),
+              this, content,
               aeventnameC.get()));
     }
 #endif
@@ -500,4 +508,3 @@ nsXULCommandDispatcher::SetSuppressFocusScroll(PRBool aSuppressFocusScroll)
 
   return mFocusController->SetSuppressFocusScroll(aSuppressFocusScroll);
 }
-

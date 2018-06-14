@@ -1495,10 +1495,11 @@ CSSLoaderImpl::SheetComplete(SheetLoadData* aLoadData, PRBool aSucceeded)
     data = data->mNext;
   }
 
-  // Now that it's marked complete, put the sheet in our cache
+  // Now that it's marked complete, put the sheet in our cache, but
+  // only if we parsed it case-sensitively.
   if (aSucceeded && aLoadData->mURI) {
 #ifdef MOZ_XUL
-    if (IsChromeURI(aLoadData->mURI)) {
+    if (IsChromeURI(aLoadData->mURI) && mCaseSensitive) {
       nsCOMPtr<nsIXULPrototypeCache> cache(do_GetService("@mozilla.org/xul/xul-prototype-cache;1"));
       if (cache) {
         PRBool enabled;

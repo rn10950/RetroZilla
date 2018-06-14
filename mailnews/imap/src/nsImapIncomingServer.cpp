@@ -1182,6 +1182,8 @@ NS_IMETHODIMP nsImapIncomingServer::PossibleImapMailbox(const char *folderPath, 
   if (dupFolderPath.Last() == hierarchyDelimiter)
   {
       dupFolderPath.SetLength(dupFolderPath.Length()-1);
+      if (dupFolderPath.IsEmpty())
+          return NS_ERROR_FAILURE;
       // *** this is what we did in 4.x in order to list uw folder only
       // mailbox in order to get the \NoSelect flag
       explicitlyVerify = !(boxFlags & kNameSpace);
@@ -1305,7 +1307,8 @@ NS_IMETHODIMP nsImapIncomingServer::PossibleImapMailbox(const char *folderPath, 
       }
     }
     
-    hostFolder->CreateClientSubfolderInfo(dupFolderPath.get(), hierarchyDelimiter,boxFlags, PR_FALSE);
+    rv = hostFolder->CreateClientSubfolderInfo(dupFolderPath.get(), hierarchyDelimiter,boxFlags, PR_FALSE);
+    NS_ENSURE_SUCCESS(rv, rv);
     caseInsensitive = (nsCRT::strcasecmp("INBOX", dupFolderPath.get())== 0);
     a_nsIFolder->GetChildWithURI(uri.get(), PR_TRUE, caseInsensitive , getter_AddRefs(child));
   }

@@ -468,36 +468,34 @@ nsFormFillController::OnSearchComplete()
 }
 
 NS_IMETHODIMP
-nsFormFillController::OnTextEntered(PRBool *_retval)
+nsFormFillController::OnTextEntered(PRBool* aPrevent)
 {
+  NS_ENSURE_ARG(aPrevent);
+  NS_ENSURE_TRUE(mFocusedInput, NS_OK);
   // Fire off a DOMAutoComplete event
   nsCOMPtr<nsIDOMDocument> domDoc;
   mFocusedInput->GetOwnerDocument(getter_AddRefs(domDoc));
 
   nsCOMPtr<nsIDOMDocumentEvent> doc = do_QueryInterface(domDoc);
+  NS_ENSURE_STATE(doc);
 
   nsCOMPtr<nsIDOMEvent> event;
   doc->CreateEvent(NS_LITERAL_STRING("Events"), getter_AddRefs(event));
-  if (!event) {
-    NS_ERROR("Could not create DOM Event");
-    return NS_ERROR_FAILURE;
-  }
+  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(event));
+  NS_ENSURE_STATE(privateEvent);
 
   event->InitEvent(NS_LITERAL_STRING("DOMAutoComplete"), PR_TRUE, PR_TRUE);
 
-  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(event));
-  if (privateEvent) {
-    // XXXjst: We mark this event as a trusted event, it's up to the
-    // callers of this to ensure that it's only called from trusted
-    // code.
-    privateEvent->SetTrusted(PR_TRUE);
-  }
+  // XXXjst: We mark this event as a trusted event, it's up to the
+  // callers of this to ensure that it's only called from trusted
+  // code.
+  privateEvent->SetTrusted(PR_TRUE);
 
   nsCOMPtr<nsIDOMEventTarget> targ = do_QueryInterface(mFocusedInput);
 
   PRBool defaultActionEnabled;
   targ->DispatchEvent(event, &defaultActionEnabled);
-
+  *aPrevent = !defaultActionEnabled;
   return NS_OK;
 }
 
@@ -994,10 +992,6 @@ nsFormFillController::AddWindowListeners(nsIDOMWindow *aWindow)
   target->AddEventListener(NS_LITERAL_STRING("contextmenu"),
                            NS_STATIC_CAST(nsIDOMContextMenuListener *, this),
                            PR_TRUE);
-
-  target->AddEventListener(NS_LITERAL_STRING("keypress"),
-                           NS_STATIC_CAST(nsIDOMKeyListener *, this),
-                           PR_TRUE);
 }
 
 void
@@ -1053,10 +1047,32 @@ nsFormFillController::RemoveWindowListeners(nsIDOMWindow *aWindow)
   target->RemoveEventListener(NS_LITERAL_STRING("contextmenu"),
                               NS_STATIC_CAST(nsIDOMContextMenuListener *, this),
                               PR_TRUE);
+}
 
-  target->RemoveEventListener(NS_LITERAL_STRING("keypress"),
-                              NS_STATIC_CAST(nsIDOMKeyListener *, this),
-                              PR_TRUE);
+void
+nsFormFillController::AddKeyListener(nsIDOMHTMLInputElement *aInput)
+{
+  if (!aInput)
+    return;
+
+    nsCOMPtr<nsIDOMEventTarget> target = do_QueryInterface(aInput);
+
+    target->AddEventListener(NS_LITERAL_STRING("keypress"),
+                             NS_STATIC_CAST(nsIDOMKeyListener *, this),
+                             PR_TRUE);
+  }
+
+void
+nsFormFillController::RemoveKeyListener()
+{
+  if (!mFocusedInput)
+    return;
+
+    nsCOMPtr<nsIDOMEventTarget> target = do_QueryInterface(mFocusedInput);
+
+    target->RemoveEventListener(NS_LITERAL_STRING("keypress"),
+                                NS_STATIC_CAST(nsIDOMKeyListener *, this),
+                                PR_TRUE);
 }
 
 void
@@ -1074,6 +1090,7 @@ nsFormFillController::StartControllingInput(nsIDOMHTMLInputElement *aInput)
   // Cache the popup for the focused docShell
   mPopups->GetElementAt(index, getter_AddRefs(mFocusedPopup));
   
+  AddKeyListener(aInput);
   mFocusedInput = aInput;
 
   // Now we are the autocomplete controller's bitch
@@ -1083,6 +1100,8 @@ nsFormFillController::StartControllingInput(nsIDOMHTMLInputElement *aInput)
 void
 nsFormFillController::StopControllingInput()
 {
+  RemoveKeyListener();
+
   // Reset the controller's input, but not if it has been switched
   // to another input already, which might happen if the user switches
   // focus by clicking another autocomplete textbox

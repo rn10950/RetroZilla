@@ -49,6 +49,8 @@
 #include "nsIFileURL.h"
 #include "nsIViewSourceChannel.h"
 #include "nsIJAR.h"
+#include "nsChannelProperties.h"
+
 
 static NS_DEFINE_CID(kZipReaderCID, NS_ZIPREADER_CID);
 
@@ -190,6 +192,9 @@ nsJARInputThunk::IsNonBlocking(PRBool *nonBlocking)
 }
 
 //-----------------------------------------------------------------------------
+// nsJARChannel
+//-----------------------------------------------------------------------------
+
 
 nsJARChannel::nsJARChannel()
     : mContentLength(-1)
@@ -218,19 +223,24 @@ nsJARChannel::~nsJARChannel()
     NS_RELEASE(handler); // NULL parameter
 }
 
-NS_IMPL_ISUPPORTS7(nsJARChannel,
-                   nsIRequest,
-                   nsIChannel,
-                   nsIStreamListener,
-                   nsIRequestObserver,
-                   nsIDownloadObserver,
-                   nsIJARChannel,
-                   nsIJARChannel_MOZILLA_1_8_BRANCH)
+NS_IMPL_ISUPPORTS_INHERITED7(nsJARChannel,
+                             nsHashPropertyBag,
+                             nsIRequest,
+                             nsIChannel,
+                             nsIStreamListener,
+                             nsIRequestObserver,
+                             nsIDownloadObserver,
+                             nsIJARChannel,
+                             nsIJARChannel_MOZILLA_1_8_BRANCH)
 
 nsresult 
 nsJARChannel::Init(nsIURI *uri)
 {
     nsresult rv;
+    rv = nsHashPropertyBag::Init();
+    if (NS_FAILED(rv))
+        return rv;
+ 
     mJarURI = do_QueryInterface(uri, &rv);
     if (NS_FAILED(rv))
         return rv;
@@ -736,6 +746,11 @@ nsJARChannel::OnDownloadComplete(nsIDownloader *downloader,
             mIsUnsafe = !(contentType.Equals(channelContentType) &&
                           (contentType.EqualsLiteral("application/java-archive") ||
                            contentType.EqualsLiteral("application/x-jar")));
+            rv = httpChannel->GetResponseHeader(NS_LITERAL_CSTRING("Content-Disposition"),
+                                                header);
+            if (NS_SUCCEEDED(rv))
+                SetPropertyAsACString(NS_CHANNEL_PROP_CONTENT_DISPOSITION, header);
+
         } else {
             nsCOMPtr<nsIJARChannel_MOZILLA_1_8_BRANCH> innerJARChannel(do_QueryInterface(channel));
             if (innerJARChannel) {

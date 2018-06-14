@@ -587,21 +587,23 @@ JS_SetWatchPoint(JSContext *cx, JSObject *obj, jsval id,
             attrs = sprop->attrs;
             flags = sprop->flags;
             shortid = sprop->shortid;
+            JS_UNLOCK_OBJ(cx, pobj);
         } else {
-            if (!OBJ_GET_PROPERTY(cx, pobj, id, &value) ||
-                !OBJ_GET_ATTRIBUTES(cx, pobj, id, prop, &attrs)) {
-                OBJ_DROP_PROPERTY(cx, pobj, prop);
+            OBJ_DROP_PROPERTY(cx, pobj, prop);
+
+            if (!OBJ_GET_PROPERTY(cx, pobj, propid, &value) ||
+                !OBJ_GET_ATTRIBUTES(cx, pobj, propid, NULL, &attrs)) {
                 return JS_FALSE;
             }
             getter = setter = NULL;
             flags = 0;
             shortid = 0;
         }
-        OBJ_DROP_PROPERTY(cx, pobj, prop);
 
         /* Recall that obj is native, whether or not pobj is native. */
-        if (!js_DefineNativeProperty(cx, obj, propid, value, getter, setter,
-                                     attrs, flags, shortid, &prop)) {
+        if (!js_DefineNativeProperty(cx, obj, propid, value,
+                                     getter, setter, attrs, flags,
+                                     shortid, &prop)) {
             return JS_FALSE;
         }
         sprop = (JSScopeProperty *) prop;

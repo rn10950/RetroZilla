@@ -54,6 +54,7 @@
 #include "nsINameSpaceManager.h"
 #include "nsXULAtoms.h"
 #include "nsPLDOMEvent.h"
+#include "nsTArray.h"
 
 // A helper class for managing our ranges of selection.
 struct nsTreeRange
@@ -212,17 +213,39 @@ struct nsTreeRange
     return total;
   };
 
+  static void CollectRanges(nsTreeRange* aRange, nsTArray<PRInt32>& aRanges)
+  {
+    nsTreeRange* cur = aRange;
+    while (cur) {
+      aRanges.AppendElement(cur->mMin);
+      aRanges.AppendElement(cur->mMax);
+      cur = cur->mNext;
+    }
+  }
+  
+  static void InvalidateRanges(nsITreeBoxObject* aTree,
+                               nsTArray<PRInt32>& aRanges)
+  {
+    if (aTree) {
+      nsCOMPtr<nsITreeBoxObject> tree = aTree;
+      for (PRUint32 i = 0; i < aRanges.Length(); i += 2) {
+        aTree->InvalidateRange(aRanges[i], aRanges[i + 1]);
+      }
+    }
+  }
+
   void Invalidate() {
-    mSelection->mTree->InvalidateRange(mMin, mMax);
-    if (mNext)
-      mNext->Invalidate();
+    nsTArray<PRInt32> ranges;
+    CollectRanges(this, ranges);
+    InvalidateRanges(mSelection->mTree, ranges);
   };
 
   void RemoveAllBut(PRInt32 aIndex) {
     if (aIndex >= mMin && aIndex <= mMax) {
 
       // Invalidate everything in this list.
-      mSelection->mFirstRange->Invalidate();
+      nsTArray<PRInt32> ranges;
+      CollectRanges(mSelection->mFirstRange, ranges);
 
       mMin = aIndex;
       mMax = aIndex;
@@ -238,6 +261,7 @@ struct nsTreeRange
         delete mSelection->mFirstRange;
         mSelection->mFirstRange = this;
       }
+      InvalidateRanges(mSelection->mTree, ranges);
     }
     else if (mNext)
       mNext->RemoveAllBut(aIndex);
@@ -272,6 +296,7 @@ nsTreeSelection::~nsTreeSelection()
 // QueryInterface implementation for nsBoxObject
 NS_INTERFACE_MAP_BEGIN(nsTreeSelection)
   NS_INTERFACE_MAP_ENTRY(nsITreeSelection)
+  NS_INTERFACE_MAP_ENTRY(nsINativeTreeSelection)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
   NS_INTERFACE_MAP_ENTRY_DOM_CLASSINFO(TreeSelection)
 NS_INTERFACE_MAP_END
@@ -281,8 +306,7 @@ NS_IMPL_RELEASE(nsTreeSelection)
 
 NS_IMETHODIMP nsTreeSelection::GetTree(nsITreeBoxObject * *aTree)
 {
-  NS_IF_ADDREF(mTree);
-  *aTree = mTree;
+  NS_IF_ADDREF(*aTree = mTree);
   return NS_OK;
 }
 
@@ -292,13 +316,20 @@ NS_IMETHODIMP nsTreeSelection::SetTree(nsITreeBoxObject * aTree)
     mSelectTimer->Cancel();
     mSelectTimer = nsnull;
   }
-  mTree = aTree; // WEAK
+
+  // Make sure aTree really implements nsITreeBoxObject!
+  mTree = do_QueryInterface(aTree);
+  NS_ENSURE_STATE(mTree || !aTree);
   return NS_OK;
 }
 
 NS_IMETHODIMP nsTreeSelection::GetSingle(PRBool* aSingle)
 {
+  if (!mTree)
+    return NS_ERROR_NULL_POINTER;
+
   nsCOMPtr<nsIBoxObject> boxObject = do_QueryInterface(mTree);
+  NS_ENSURE_STATE(boxObject);
   nsCOMPtr<nsIDOMElement> element;
   boxObject->GetElement(getter_AddRefs(element));
   nsCOMPtr<nsIContent> content = do_QueryInterface(element);
@@ -399,8 +430,8 @@ NS_IMETHODIMP nsTreeSelection::ToggleSelect(PRInt32 aIndex)
   else {
     if (!mFirstRange->Contains(aIndex)) {
       PRBool single;
-      GetSingle(&single);
-      if (!single)
+      rv = GetSingle(&single);
+      if (NS_SUCCEEDED(rv) && !single)
         rv = mFirstRange->Add(aIndex);
     }
     else
@@ -418,7 +449,10 @@ NS_IMETHODIMP nsTreeSelection::ToggleSelect(PRInt32 aIndex)
 NS_IMETHODIMP nsTreeSelection::RangedSelect(PRInt32 aStartIndex, PRInt32 aEndIndex, PRBool aAugment)
 {
   PRBool single;
-  GetSingle(&single);
+  nsresult rv = GetSingle(&single);
+  if (NS_FAILED(rv))
+    return rv;
+
   if ((mFirstRange || (aStartIndex != aEndIndex)) && single)
     return NS_OK;
 
@@ -427,6 +461,7 @@ NS_IMETHODIMP nsTreeSelection::RangedSelect(PRInt32 aStartIndex, PRInt32 aEndInd
     if (mFirstRange) {
         mFirstRange->Invalidate();
         delete mFirstRange;
+        mFirstRange = nsnull;
     }
   }
 
@@ -503,6 +538,10 @@ NS_IMETHODIMP nsTreeSelection::InvertSelection()
 
 NS_IMETHODIMP nsTreeSelection::SelectAll()
 {
+  if (!mTree) {
+    return NS_OK;
+  }
+
   nsCOMPtr<nsITreeView> view;
   mTree->GetView(getter_AddRefs(view));
   if (!view)
@@ -511,7 +550,10 @@ NS_IMETHODIMP nsTreeSelection::SelectAll()
   PRInt32 rowCount;
   view->GetRowCount(&rowCount);
   PRBool single;
-  GetSingle(&single);
+  nsresult rv = GetSingle(&single);
+  if (NS_FAILED(rv))
+    return rv;
+
   if (rowCount == 0 || (rowCount > 1 && single))
     return NS_OK;
 
@@ -592,6 +634,9 @@ NS_IMETHODIMP nsTreeSelection::GetCurrentIndex(PRInt32 *aCurrentIndex)
 
 NS_IMETHODIMP nsTreeSelection::SetCurrentIndex(PRInt32 aIndex)
 {
+  if (!mTree)
+    return NS_ERROR_NULL_POINTER;
+
   if (mCurrentIndex == aIndex) {
     return NS_OK;
   }
@@ -633,7 +678,12 @@ NS_IMETHODIMP nsTreeSelection::SetCurrentIndex(PRInt32 aIndex)
 
 #define ADD_NEW_RANGE(macro_range, macro_selection, macro_start, macro_end) \
   { \
-    nsTreeRange* macro_new_range = new nsTreeRange(macro_selection, (macro_start), (macro_end)); \
+    PRInt32 start = macro_start; \
+    PRInt32 end = macro_end; \
+    if (start > end) { \
+      end = start; \
+    } \
+    nsTreeRange* macro_new_range = new nsTreeRange(macro_selection, start, end); \
     if (macro_range) \
       macro_range->Insert(macro_new_range); \
     else \
@@ -671,27 +721,27 @@ nsTreeSelection::AdjustSelection(PRInt32 aIndex, PRInt32 aCount)
   // no selection, so nothing to do.
   if (!mFirstRange) return NS_OK;
 
-  nsTreeRange* newRange = nsnull;
-
   PRBool selChanged = PR_FALSE;
+  nsTreeRange* oldFirstRange = mFirstRange;
   nsTreeRange* curr = mFirstRange;
+  mFirstRange = nsnull;
   while (curr) {
     if (aCount > 0) {
       // inserting
       if (aIndex > curr->mMax) {
         // adjustment happens after the range, so no change
-        ADD_NEW_RANGE(newRange, this, curr->mMin, curr->mMax);
+        ADD_NEW_RANGE(mFirstRange, this, curr->mMin, curr->mMax);
       }
       else if (aIndex <= curr->mMin) {  
         // adjustment happens before the start of the range, so shift down
-        ADD_NEW_RANGE(newRange, this, curr->mMin + aCount, curr->mMax + aCount);
+        ADD_NEW_RANGE(mFirstRange, this, curr->mMin + aCount, curr->mMax + aCount);
         selChanged = PR_TRUE;
       }
       else {
         // adjustment happen inside the range.
         // break apart the range and create two ranges
-        ADD_NEW_RANGE(newRange, this, curr->mMin, aIndex - 1);
-        ADD_NEW_RANGE(newRange, this, aIndex + aCount, curr->mMax + aCount);
+        ADD_NEW_RANGE(mFirstRange, this, curr->mMin, aIndex - 1);
+        ADD_NEW_RANGE(mFirstRange, this, aIndex + aCount, curr->mMax + aCount);
         selChanged = PR_TRUE;
       }
     }
@@ -699,7 +749,7 @@ nsTreeSelection::AdjustSelection(PRInt32 aIndex, PRInt32 aCount)
       // deleting
       if (aIndex > curr->mMax) {
         // adjustment happens after the range, so no change
-        ADD_NEW_RANGE(newRange, this, curr->mMin, curr->mMax);
+        ADD_NEW_RANGE(mFirstRange, this, curr->mMin, curr->mMax);
       }
       else {
         // remember, aCount is negative
@@ -708,31 +758,30 @@ nsTreeSelection::AdjustSelection(PRInt32 aIndex, PRInt32 aCount)
         if (aIndex <= curr->mMin) {
           if (lastIndexOfAdjustment < curr->mMin) {
             // adjustment happens before the start of the range, so shift up
-            ADD_NEW_RANGE(newRange, this, curr->mMin + aCount, curr->mMax + aCount);
+            ADD_NEW_RANGE(mFirstRange, this, curr->mMin + aCount, curr->mMax + aCount);
           }
           else if (lastIndexOfAdjustment >= curr->mMax) {
             // adjustment contains the range.  remove the range by not adding it to the newRange
           }
           else {
             // adjustment starts before the range, and ends in the middle of it, so trim the range
-            ADD_NEW_RANGE(newRange, this, aIndex, curr->mMax + aCount)
+            ADD_NEW_RANGE(mFirstRange, this, aIndex, curr->mMax + aCount)
           }
         }
         else if (lastIndexOfAdjustment >= curr->mMax) {
          // adjustment starts in the middle of the current range, and contains the end of the range, so trim the range
-         ADD_NEW_RANGE(newRange, this, curr->mMin, aIndex - 1)
+         ADD_NEW_RANGE(mFirstRange, this, curr->mMin, aIndex - 1)
         }
         else {
           // range contains the adjustment, so shorten the range
-          ADD_NEW_RANGE(newRange, this, curr->mMin, curr->mMax + aCount)
+          ADD_NEW_RANGE(mFirstRange, this, curr->mMin, curr->mMax + aCount)
         }
       }
     }
     curr = curr->mNext;
   }
 
-  delete mFirstRange;
-  mFirstRange = newRange;
+  delete oldFirstRange;
 
   // Fire the select event
   if (selChanged)
@@ -760,7 +809,7 @@ nsTreeSelection::GetShiftSelectPivot(PRInt32* aIndex)
 nsresult
 nsTreeSelection::FireOnSelectHandler()
 {
-  if (mSuppressed)
+  if (mSuppressed || !mTree)
     return NS_OK;
 
   nsCOMPtr<nsIBoxObject> boxObject = do_QueryInterface(mTree);

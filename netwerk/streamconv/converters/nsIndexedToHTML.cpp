@@ -133,6 +133,30 @@ nsIndexedToHTML::AsyncConvertData(const char *aFromType,
 
 NS_IMETHODIMP
 nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
+    nsString buffer;
+    nsresult rv = DoOnStartRequest(request, aContext, buffer);
+    if (NS_FAILED(rv)) {
+        request->Cancel(rv);
+    }
+    
+    // Push buffer to the listener now, so the initial HTML will not
+    // be parsed in OnDataAvailable().
+
+    rv = mListener->OnStartRequest(request, aContext);
+    if (NS_FAILED(rv)) return rv;
+
+    // The request may have been canceled, and if that happens, we want to
+    // suppress calls to OnDataAvailable.
+    request->GetStatus(&rv);
+    if (NS_FAILED(rv)) return rv;
+
+    rv = FormatInputStream(request, aContext, buffer);
+    return rv;
+}
+
+nsresult
+nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
+                                  nsString& aBuffer) {
     nsresult rv;
 
     nsCOMPtr<nsIChannel> channel = do_QueryInterface(request);
@@ -393,18 +417,7 @@ nsIndexedToHTML::OnStartRequest(nsIRequest* request, nsISupports *aContext) {
         buffer.AppendLiteral("</a></td></tr>\n");
     }
 
-    // Push buffer to the listener now, so the initial HTML will not
-    // be parsed in OnDataAvailable().
-
-    rv = mListener->OnStartRequest(request, aContext);
-    if (NS_FAILED(rv)) return rv;
-
-    // The request may have been canceled, and if that happens, we want to
-    // suppress calls to OnDataAvailable.
-    request->GetStatus(&rv);
-    if (NS_FAILED(rv)) return rv;
-
-    rv = FormatInputStream(request, aContext, buffer);
+    aBuffer = buffer;
     return rv;
 }
 

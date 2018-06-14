@@ -273,6 +273,10 @@ nsUnknownContentTypeDialog.prototype = {
       if (!aLocalFile || !aLocalFile.exists())
         return null;
 
+      // Remove any leading periods, since we don't want to save hidden files
+      // automatically.
+      aLeafName = aLeafName.replace(/^\.+/, "");
+
       if (aLeafName == "")
         aLeafName = "unnamed" + (aFileExt ? "." + aFileExt : "");
       aLocalFile.append(aLeafName);
@@ -286,6 +290,7 @@ nsUnknownContentTypeDialog.prototype = {
         f.remove(false);
         this.makeFileUnique(aLocalFile);
       }
+
       return aLocalFile;
     },
 
@@ -490,7 +495,7 @@ nsUnknownContentTypeDialog.prototype = {
       const nsITimer = Components.interfaces.nsITimer;
       this._timer = Components.classes["@mozilla.org/timer;1"]
                               .createInstance(nsITimer);
-      this._timer.initWithCallback(this, 250, nsITimer.TYPE_ONE_SHOT);
+      this._timer.initWithCallback(this, 1000, nsITimer.TYPE_ONE_SHOT);
     },
     
     _timer: null,
@@ -591,7 +596,7 @@ nsUnknownContentTypeDialog.prototype = {
       this._blurred = false;
       if (this._delayExpired) {
         var script = "document.documentElement.getButton('accept').disabled = false";
-        this.mDialog.setTimeout(script, 250);
+        this.mDialog.setTimeout(script, 1000);
       }
     },
 

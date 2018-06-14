@@ -552,11 +552,14 @@ PROT_ListManager.prototype.downloadError_ = function(status) {
     status = 500;
   }
   status = parseInt(status, 10);
-  this.requestBackoff_.noteServerResponse(status);
-
-  // Try again in a minute
-  this.currentUpdateChecker_ =
-    new G_Alarm(BindToObject(this.checkForUpdates, this), 60000);
+  var isError = this.requestBackoff_.noteServerResponse(status);
+  if (isError) {
+    // Try again in a minute.  We'll hit backoff if this is an error.  If
+    // it's not an error, we just ignore the response and try again during
+    // our regular check interval.
+    this.currentUpdateChecker_ =
+      new G_Alarm(BindToObject(this.checkForUpdates, this), 60000);
+  }
 }
 
 PROT_ListManager.prototype.QueryInterface = function(iid) {

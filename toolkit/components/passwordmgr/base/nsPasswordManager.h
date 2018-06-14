@@ -153,6 +153,12 @@ protected:
   
   static nsresult GetActionRealm(nsIForm* aForm, nsCString& aURL);
 
+  static PRBool BadCharacterPresent(const nsAString &aString);
+  static nsresult CheckLoginValues(const nsACString &aHost,
+                                   const nsAString  &aUserField,
+                                   const nsAString  &aPassField,
+                                   const nsACString &aActionOrigin);
+
   static PLDHashOperator PR_CALLBACK FindEntryEnumerator(const nsACString& aKey,
                                                          SignonHashEntry* aEntry,
                                                          void* aUserData);

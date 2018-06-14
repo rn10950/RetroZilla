@@ -321,6 +321,7 @@ JavaClass_lookupProperty(JSContext *cx, JSObject *obj, jsid id,
     if (lookup_static_member_by_id(cx, jEnv, obj, NULL, id, NULL)) {
         *objp = obj;
         *propp = (JSProperty*)1;
+        js_SetObjectWeakRoot(cx, obj);
     } else {
         *objp = NULL;
         *propp = NULL;

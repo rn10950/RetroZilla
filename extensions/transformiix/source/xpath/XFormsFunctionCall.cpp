@@ -625,8 +625,8 @@ XFormsFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         return NS_ERROR_XPATH_BAD_ARGUMENT_COUNT;
 
       double result = 0;
-      double base = evaluateToNumber((Expr*)iter.next(), aContext);
-      double exponent = evaluateToNumber((Expr*)iter.next(), aContext);
+      double base = evaluateToNumber((Expr*)iter.next(), aContext, &result);
+      double exponent = evaluateToNumber((Expr*)iter.next(), aContext, &result);
 
       // If base is negative and exponent is not an integral value, or if base
       // is zero and exponent is negative, a domain error occurs, setting the
@@ -712,7 +712,8 @@ XFormsFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
       if (!requireParams(1, 1, aContext))
         return NS_ERROR_XPATH_BAD_ARGUMENT_COUNT;
 
-      double days = evaluateToNumber((Expr*)iter.next(), aContext);
+      double res;
+      double days = evaluateToNumber((Expr*)iter.next(), aContext, &res);
 
       nsAutoString date;
       if (!Double::isNaN(days)) {
@@ -745,7 +746,8 @@ XFormsFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
       if (!requireParams(1, 1, aContext))
         return NS_ERROR_XPATH_BAD_ARGUMENT_COUNT;
 
-      double seconds = evaluateToNumber((Expr*)iter.next(), aContext);
+      double res;
+      double seconds = evaluateToNumber((Expr*)iter.next(), aContext, &res);
 
       nsAutoString dateTime;
       if (!Double::isNaN(seconds)) {

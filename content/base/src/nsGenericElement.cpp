@@ -2797,15 +2797,16 @@ doInsertChildAt(nsIContent* aKid, PRUint32 aIndex, PRBool aNotify,
   NS_PRECONDITION(!aParent || aParent->GetCurrentDoc() == aDocument,
                   "Incorrect aDocument");
 
+  nsMutationGuard::DidMutate();
+
+  // Do this before checking the child-count since this could cause mutations
+  mozAutoDocUpdate updateBatch(aDocument, UPDATE_CONTENT_MODEL, aNotify);
+
   PRUint32 childCount = aChildArray.ChildCount();
   NS_ENSURE_TRUE(aIndex <= childCount, NS_ERROR_ILLEGAL_VALUE);
 
-  nsMutationGuard::DidMutate();
-
   PRBool isAppend = (aIndex == childCount);
 
-  mozAutoDocUpdate updateBatch(aDocument, UPDATE_CONTENT_MODEL, aNotify);
-  
   // Note that SetRootContent already deals with binding, so if we plan to call
   // it we shouldn't bind ourselves.
   // XXXbz this doesn't put aKid in the right spot, really... We really need a

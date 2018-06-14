@@ -3236,6 +3236,8 @@ NS_IMETHODIMP
 PresShell::NotifyDestroyingFrame(nsIFrame* aFrame)
 {
   if (!mIgnoreFrameDestruction) {
+    mPresContext->StopImagesFor(aFrame);
+
     mFrameConstructor->NotifyDestroyingFrame(aFrame);
 
     // Cancel any pending reflow commands targeted at this frame

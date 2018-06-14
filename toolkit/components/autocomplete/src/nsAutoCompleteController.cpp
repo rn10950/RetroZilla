@@ -995,6 +995,13 @@ nsAutoCompleteController::StartSearch()
       ++searchesFailed;
       --mSearchesOngoing;
     }
+    // nsIAutoCompleteSearch::StartSearch might cause us to be detached from
+    // our input field, so it's not safe to assume that it's safe to iterate
+    // over the next iteration.
+    if (!mInput) {
+      // The search operation has been finished.
+      return NS_OK;
+    }
   }
   
   if (searchesFailed == count) {

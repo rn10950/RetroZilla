@@ -82,7 +82,6 @@
 #include "nsIEventListenerManager.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMCrypto.h"
-#include "nsIDOMPkcs11.h"
 #include "nsIPrincipal.h"
 #include "nsPluginArray.h"
 #include "nsMimeTypeArray.h"
@@ -319,6 +318,8 @@ public:
   friend class WindowStateHolder;
 
 protected:
+  friend class nsBarProp;
+
   // Object Management
   virtual ~nsGlobalWindow();
   void CleanUp();
@@ -537,7 +538,6 @@ protected:
   nsIScriptGlobalObjectOwner*   mGlobalObjectOwner; // Weak Reference
   nsIDocShell*                  mDocShell;  // Weak Reference
   nsCOMPtr<nsIDOMCrypto>        mCrypto;
-  nsCOMPtr<nsIDOMPkcs11>        mPkcs11;
 
   nsCOMPtr<nsIDOMStorageList>   gGlobalStorageList;
 

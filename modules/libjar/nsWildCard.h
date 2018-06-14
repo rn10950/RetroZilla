@@ -16,10 +16,11 @@
  *
  * The Initial Developer of the Original Code is
  * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
+ * Portions created by the Initial Developer are Copyright (C) 1998-2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *      Nelson Bolyard <nelson@bolyard.me>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -83,7 +84,7 @@
 #define INVALID_SXP -2
 #define VALID_SXP 1
 
-extern int NS_WildCardValid(char *expr);
+extern int NS_WildCardValid(const char *expr);
 
 
 /* return values for the search routines */
@@ -99,7 +100,8 @@ extern int NS_WildCardValid(char *expr);
  * Returns 0 on match and 1 on non-match.
  */
 
-extern int NS_WildCardMatch(char *str, char *expr, PRBool case_insensitive);
+extern int 
+NS_WildCardMatch(const char *str, const char *expr, PRBool case_insensitive);
 
 /*
  * Same as above, but validates the exp first. 0 on match, 1 on non-match,

@@ -1645,11 +1645,7 @@ nsEventListenerManager::HandleEventSubType(nsListenerStruct* aListenerStruct,
     }
   }
 
-  // nsCxPusher will push and pop (automatically) the current cx onto the
-  // context stack
-  nsCxPusher pusher;
-
-  if (NS_SUCCEEDED(result) && pusher.Push(aCurrentTarget)) {
+  if (NS_SUCCEEDED(result)) {
     nsCOMPtr<nsIPrivateDOMEvent> aPrivDOMEvent(do_QueryInterface(aDOMEvent));
     aPrivDOMEvent->SetCurrentTarget(aCurrentTarget);
     result = aListener->HandleEvent(aDOMEvent);
@@ -1727,6 +1723,7 @@ nsEventListenerManager::HandleEvent(nsPresContext* aPresContext,
     }
 
     if (NS_SUCCEEDED(ret)) {
+      nsCxPusher pusher;
       PRInt32 count = listeners->Count();
       nsVoidArray originalListeners(count);
       originalListeners = *listeners;
@@ -1746,14 +1743,17 @@ nsEventListenerManager::HandleEvent(nsPresContext* aPresContext,
           if (eventListener) {
             // Try the type-specific listener interface
             PRBool hasInterface = PR_FALSE;
-            if (typeData)
+            if (typeData) {
+              pusher.Pop(); 
               DispatchToInterface(*aDOMEvent, eventListener,
                                   dispData->method, *typeData->iid,
                                   &hasInterface);
+            }
 
             // If it doesn't implement that, call the generic HandleEvent()
-            if (!hasInterface && (ls->mSubType == NS_EVENT_BITS_NONE ||
-                                  ls->mSubType & dispData->bits)) {
+            if (!hasInterface &&
+               (ls->mSubType == NS_EVENT_BITS_NONE || ls->mSubType & dispData->bits) &&
+                pusher.RePush(aCurrentTarget)) {
               HandleEventSubType(ls, eventListener, *aDOMEvent, aCurrentTarget,
                                  dispData ? dispData->bits : NS_EVENT_BITS_NONE,
                                  aFlags);

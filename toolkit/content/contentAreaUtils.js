@@ -334,7 +334,7 @@ function internalSave(aURL, aDocument, aDefaultFileName, aContentDisposition,
                    saveAsType == kSaveAsType_Text) ?
                    "text/plain" : aContentType,
     target      : fileURL,
-    postData    : isDocument ? getPostData() : null,
+    postData    : isDocument ? getPostData(aDocument) : null,
     bypassCache : aShouldBypassCache
   };
 
@@ -707,14 +707,16 @@ function appendFiltersForContentType(aFilePicker, aContentType, aFileExtension, 
   aFilePicker.appendFilters(Components.interfaces.nsIFilePicker.filterAll);
 }
 
-
-function getPostData()
+function getPostData(aDocument)
 {
   try {
-    var sessionHistory = getWebNavigation().sessionHistory;
-    var entry = sessionHistory.getEntryAtIndex(sessionHistory.index, false);
-    entry = entry.QueryInterface(Components.interfaces.nsISHEntry);
-    return entry.postData;
+    var sessionHistory = aDocument.defaultView
+                                  .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                                  .getInterface(Components.interfaces.nsIWebNavigation)
+                                  .sessionHistory;
+    return sessionHistory.getEntryAtIndex(sessionHistory.index, false)
+                         .QueryInterface(Components.interfaces.nsISHEntry)
+                         .postData;
   }
   catch (e) {
   }
@@ -900,6 +902,9 @@ function getNormalizedLeafName(aFile, aDefaultExtension)
   // Remove trailing dots and spaces on windows
   aFile = aFile.replace(/[\s.]+$/, "");
 #endif
+
+  // Remove leading dots
+  aFile = aFile.replace(/^\.+/, "");
       
   // Fix up the file name we're saving to to include the default extension
   var i = aFile.lastIndexOf(".");

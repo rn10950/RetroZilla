@@ -645,10 +645,6 @@ nsFrame::Destroy(nsPresContext* aPresContext)
     }
   }
 
-  //XXX Why is this done in nsFrame instead of some frame class
-  // that actually loads images?
-  aPresContext->StopImagesFor(this);
-
   if (view) {
     // Break association between view and frame
     view->SetClientData(nsnull);
@@ -2703,9 +2699,11 @@ nsFrame::CheckInvalidateSizeChange(nsPresContext* aPresContext,
 
 PRBool
 nsFrame::IsFrameTreeTooDeep(const nsHTMLReflowState& aReflowState,
-                            nsHTMLReflowMetrics& aMetrics)
+                            nsHTMLReflowMetrics& aMetrics,
+                            nsReflowStatus& aStatus)
 {
   if (aReflowState.mReflowDepth >  MAX_FRAME_DEPTH) {
+    NS_WARNING("frame tree too deep; setting zero size and returning");
     mState |= NS_FRAME_IS_UNFLOWABLE;
     mState &= ~NS_FRAME_OUTSIDE_CHILDREN;
     aMetrics.width = 0;
@@ -2720,6 +2718,16 @@ nsFrame::IsFrameTreeTooDeep(const nsHTMLReflowState& aReflowState,
     if (aMetrics.mComputeMEW) {
       aMetrics.mMaxElementWidth = 0;
     }
+
+    if (GetNextInFlow()) {
+      // Reflow depth might vary between reflows, so we might have
+      // successfully reflowed and split this frame before.  If so, we
+      // shouldn't delete its continuations.
+      aStatus = NS_FRAME_NOT_COMPLETE;
+    } else {
+      aStatus = NS_FRAME_COMPLETE;
+    }
+
     return PR_TRUE;
   }
   mState &= ~NS_FRAME_IS_UNFLOWABLE;

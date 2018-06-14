@@ -57,6 +57,12 @@
 #define XULRUNNER_BIN "xulrunner-bin"
 #endif
 
+//Added code to include necessary BEOS header for BEOS specific code
+#ifdef XP_BEOS
+#include <Entry.h>
+#include <Path.h>
+#endif
+
 #define VERSION_MAXLEN 128
 
 int
@@ -66,12 +72,26 @@ main(int argc, char **argv)
   char *lastSlash;
 
   char iniPath[MAXPATHLEN];
+  char tmpPath[MAXPATHLEN];
 
 #ifdef XP_WIN
   if (!::GetModuleFileName(NULL, iniPath, sizeof(iniPath)))
     return 1;
 
-#else
+//Added Beos specific code to get the Path
+#elif defined ( XP_BEOS )
+
+  BEntry e((const char *)argv[0], true);  // traverse symlink
+  BPath p;
+  status_t err;
+  err = e.GetPath(&p);  
+  NS_ASSERTION(err == B_OK, "realpath failed");
+  
+  if (err == B_OK)
+    //p.Path returns a pointer, so use strcpy to store path in iniPath
+    strcpy(iniPath, p.Path());
+
+#else 
 
   // on unix, there is no official way to get the path of the current binary.
   // instead of using the MOZILLA_FIVE_HOME hack, which doesn't scale to
@@ -96,11 +116,12 @@ main(int argc, char **argv)
     PRBool found = PR_FALSE;
     char *token = strtok(pathdup, ":");
     while (token) {
-      sprintf(iniPath, "%s/%s", token, argv[0]);
-      if (stat(iniPath, &fileStat) == 0) {
+      sprintf(tmpPath, "%s/%s", token, argv[0]);
+      if (realpath(tmpPath, iniPath) && stat(iniPath, &fileStat) == 0) {
         found = PR_TRUE;
         break;
       }
+      token = strtok(NULL, ":");
     }
     free (pathdup);
     if (!found)
@@ -186,8 +207,13 @@ main(int argc, char **argv)
            "%s" XPCOM_FILE_PATH_SEPARATOR XULRUNNER_BIN, greDir);
 
 #ifndef XP_WIN
+#ifdef XP_BEOS
+  putenv(strcat("XPCOM_SEARCH_KEY=", greDir));
+#else
   setenv(XPCOM_SEARCH_KEY, greDir, 1);
 #endif
+#endif
+
 
   argv2[0] = xulBin;
   argv2[1] = iniPath;

@@ -1,4 +1,3 @@
-/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -16,10 +15,13 @@
  *
  * The Initial Developer of the Original Code is
  * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 1998
+ * Portions created by the Initial Developer are Copyright (C) 1998-2009
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *      Rob McCool  (original author)
+ *      Ken Key <key+mozilla@ksquared.net>
+ *      Nelson Bolyard <nelson@bolyard.me>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -36,14 +38,13 @@
  * ***** END LICENSE BLOCK ***** */
 
 /* *
- * 
  *
  * shexp.c: shell-like wildcard match routines
  *
  * See shexp.h for public documentation.
  *
  * Rob McCool
- * 
+ *
  */
 
 #include "nsWildCard.h"
@@ -52,86 +53,86 @@
 
 /* ----------------------------- shexp_valid ------------------------------ */
 
-
-static int 
-_valid_subexp(char *expr, char stop) 
+static int
+_valid_subexp(const char *expr, char stop1, char stop2)
 {
-    register int x,y,t;
-    int nsc,np,tld;
+    register int x;
+    int nsc = 0;     /* Number of special characters */
+    int np;          /* Number of pipe characters in union */
+    int tld = 0;     /* Number of tilde characters */
 
-    x=0;nsc=0;tld=0;
-
-    while(expr[x] && (expr[x] != stop)) {
+    for (x = 0; expr[x] && (expr[x] != stop1) && (expr[x] != stop2); ++x) {
         switch(expr[x]) {
-          case '~':
-            if(tld) return INVALID_SXP;
-            else ++tld;
-          case '*':
-          case '?':
-          case '^':
-          case '$':
+        case '~':
+            if(tld)                 /* at most one exclusion */
+                return INVALID_SXP;
+            if (stop1)              /* no exclusions within unions */
+                return INVALID_SXP;
+            if (!expr[x+1])          /* exclusion cannot be last character */
+                return INVALID_SXP;
+            if (!x)                 /* exclusion cannot be first character */
+                return INVALID_SXP;
+            ++tld;
+            /* fall through */
+        case '*':
+        case '?':
+        case '$':
             ++nsc;
             break;
-          case '[':
+        case '[':
             ++nsc;
             if((!expr[++x]) || (expr[x] == ']'))
                 return INVALID_SXP;
-            for(++x;expr[x] && (expr[x] != ']');++x)
-                if(expr[x] == '\\')
-                    if(!expr[++x])
-                        return INVALID_SXP;
+            for(; expr[x] && (expr[x] != ']'); ++x) {
+                if(expr[x] == '\\' && !expr[++x])
+                    return INVALID_SXP;
+            }
             if(!expr[x])
                 return INVALID_SXP;
             break;
-          case '(':
-            ++nsc;np = 0;
-            while(1) {
-                if(expr[++x] == ')')
-                    return INVALID_SXP;
-                for(y=x;(expr[y]) && (expr[y] != '|') && (expr[y] != ')');++y)
-                    if(expr[y] == '\\')
-                        if(!expr[++y])
-                            return INVALID_SXP;
-                if(!expr[y])
-                    return INVALID_SXP;
-                if(expr[y] == '|')
-                    ++np;
-                t = _valid_subexp(&expr[x],expr[y]);
-                if(t == INVALID_SXP)
+        case '(':
+            ++nsc;
+            if (stop1)                  /* no nested unions */
+                return INVALID_SXP;
+            np = -1;
+            do {
+                int t = _valid_subexp(&expr[++x], ')', '|');
+                if(t == 0 || t == INVALID_SXP)
                     return INVALID_SXP;
                 x+=t;
-                if(expr[x] == ')') {
-                    if(!np)
-                        return INVALID_SXP;
-                    break;
-                }
-            }
+                if(!expr[x])
+                    return INVALID_SXP;
+                ++np;
+            } while (expr[x] == '|' );
+            if(np < 1)  /* must be at least one pipe */
+                return INVALID_SXP;
             break;
-          case ')':
-          case ']':
+        case ')':
+        case ']':
+        case '|':
             return INVALID_SXP;
-          case '\\':
+        case '\\':
+            ++nsc;
             if(!expr[++x])
                 return INVALID_SXP;
-          default:
+            break;
+        default:
             break;
         }
-        ++x;
     }
-    if((!stop) && (!nsc))
+    if((!stop1) && (!nsc)) /* must be at least one special character */
         return NON_SXP;
-    return ((expr[x] == stop) ? x : INVALID_SXP);
+    return ((expr[x] == stop1 || expr[x] == stop2) ? x : INVALID_SXP);
 }
 
-int 
-NS_WildCardValid(char *expr) 
+int
+NS_WildCardValid(const char *expr)
 {
     int x;
 
-    x = _valid_subexp(expr, '\0');
+    x = _valid_subexp(expr, '\0', '\0');
     return (x < 0 ? x : VALID_SXP);
 }
-
 
 /* ----------------------------- shexp_match ----------------------------- */
 
@@ -140,152 +141,266 @@ NS_WildCardValid(char *expr)
 #define NOMATCH 1
 #define ABORTED -1
 
-static int _shexp_match(char *str, char *expr, PRBool case_insensitive);
+static int
+_shexp_match(const char *str, const char *expr, PRBool case_insensitive,
+             unsigned int level);
 
-static int 
-_handle_union(char *str, char *expr, PRBool case_insensitive) 
+/* Count characters until we reach a NUL character or either of the
+ * two delimiter characters, stop1 or stop2.  If we encounter a bracketed
+ * expression, look only for NUL or ']' inside it.  Do not look for stop1
+ * or stop2 inside it. Return ABORTED if bracketed expression is unterminated.
+ * Handle all escaping.
+ * Return index in input string of first stop found, or ABORTED if not found.
+ * If "dest" is non-NULL, copy counted characters to it and NUL terminate.
+ */
+static int
+_scan_and_copy(const char *expr, char stop1, char stop2, char *dest)
 {
-    char *e2 = (char *) PR_Malloc(sizeof(char)*strlen(expr));
-    register int t,p2,p1 = 1;
-    int cp;
+    register int sx;     /* source index */
+    register char cc;
 
-    while(1) {
-        for(cp=1;expr[cp] != ')';cp++)
-            if(expr[cp] == '\\')
-                ++cp;
-        for(p2 = 0;(expr[p1] != '|') && (p1 != cp);p1++,p2++) {
-            if(expr[p1] == '\\')
-                e2[p2++] = expr[p1++];
-            e2[p2] = expr[p1];
+    for (sx = 0; (cc = expr[sx]) && cc != stop1 && cc != stop2; sx++) {
+        if (cc == '\\') {
+            if (!expr[++sx])
+                return ABORTED; /* should be impossible */
         }
-        for (t=cp+1; ((e2[p2] = expr[t]) != 0); ++t,++p2) {}
-        if(_shexp_match(str,e2, case_insensitive) == MATCH) {
-            PR_Free(e2);
-            return MATCH;
+        else if (cc == '[') {
+            while ((cc = expr[++sx]) && cc != ']') {
+                if(cc == '\\' && !expr[++sx])
+                    return ABORTED;
+            }
+            if (!cc)
+                return ABORTED; /* should be impossible */
         }
-        if(p1 == cp) {
-            PR_Free(e2);
-            return NOMATCH;
-        }
-        else ++p1;
     }
+    if (dest && sx) {
+        /* Copy all but the closing delimiter. */
+        memcpy(dest, expr, sx);
+        dest[sx] = 0;
+    }
+    return cc ? sx : ABORTED; /* index of closing delimiter */
 }
 
-
-static int 
-_shexp_match(char *str, char *expr, PRBool case_insensitive) 
+/* On input, expr[0] is the opening parenthesis of a union.
+ * See if any of the alternatives in the union matches as a pattern.
+ * The strategy is to take each of the alternatives, in turn, and append
+ * the rest of the expression (after the closing ')' that marks the end of
+ * this union) to that alternative, and then see if the resultant expression
+ * matches the input string.  Repeat this until some alternative matches,
+ * or we have an abort.
+ */
+static int
+_handle_union(const char *str, const char *expr, PRBool case_insensitive,
+              unsigned int level)
 {
-    register int x,y;
+    register int sx;     /* source index */
+    int cp;              /* source index of closing parenthesis */
+    int count;
+    int ret   = NOMATCH;
+    char *e2;
+
+    /* Find the closing parenthesis that ends this union in the expression */
+    cp = _scan_and_copy(expr, ')', '\0', NULL);
+    if (cp == ABORTED || cp < 4) /* must be at least "(a|b" before ')' */
+        return ABORTED;
+    ++cp;                /* now index of char after closing parenthesis */
+    e2 = (char *) PR_Malloc(1 + strlen(expr));
+    if (!e2)
+        return ABORTED;
+    for (sx = 1; ; ++sx) {
+        /* Here, expr[sx] is one character past the preceeding '(' or '|'. */
+        /* Copy everything up to the next delimiter to e2 */
+        count = _scan_and_copy(expr + sx, ')', '|', e2);
+        if (count == ABORTED || !count) {
+            ret = ABORTED;
+            break;
+        }
+        sx += count;
+        /* Append everything after closing parenthesis to e2. This is safe. */
+        strcpy(e2+count, expr+cp);
+        ret = _shexp_match(str, e2, case_insensitive, level + 1);
+        if (ret != NOMATCH || !expr[sx] || expr[sx] == ')')
+            break;
+    }
+    PR_Free(e2);
+    if (sx < 2)
+        ret = ABORTED;
+    return ret;
+}
+
+/* returns 1 if val is in range from start..end, case insensitive. */
+static int
+_is_char_in_range(int start, int end, int val)
+{
+    char map[256];
+    memset(map, 0, sizeof map);
+    while (start <= end)
+        map[tolower(start++)] = 1;
+    return map[tolower(val)];
+}
+
+static int
+_shexp_match(const char *str, const char *expr, PRBool case_insensitive,
+             unsigned int level)
+{
+    register int x;   /* input string index */
+    register int y;   /* expression index */
     int ret,neg;
 
-    ret = 0;
-    for(x=0,y=0;expr[y];++y,++x) {
-        if((!str[x]) && (expr[y] != '(') && (expr[y] != '$') && (expr[y] != '*'))
-            ret = ABORTED;
-        else {
-            switch(expr[y]) {
-              case '$':
-                if( (str[x]) )
-                    ret = NOMATCH;
-                else
-                    --x;             /* we don't want loop to increment x */
-                break;
-              case '*':
-                while(expr[++y] == '*'){}
-                if(!expr[y])
+    if (level > 20)      /* Don't let the stack get too deep. */
+        return ABORTED;
+    for(x = 0, y = 0; expr[y]; ++y, ++x) {
+        if((!str[x]) && (expr[y] != '$') && (expr[y] != '*')) {
+            return NOMATCH;
+        }
+        switch(expr[y]) {
+        case '$':
+            if(str[x])
+                return NOMATCH;
+            --x;                 /* we don't want loop to increment x */
+            break;
+        case '*':
+            while(expr[++y] == '*'){}
+            if(!expr[y])
+                return MATCH;
+            while(str[x]) {
+                ret = _shexp_match(&str[x++], &expr[y], case_insensitive,
+                                   level + 1);
+                switch(ret) {
+                case NOMATCH:
+                    continue;
+                case ABORTED:
+                    return ABORTED;
+                default:
                     return MATCH;
-                while(str[x]) {
-                    switch(_shexp_match(&str[x++],&expr[y], case_insensitive)) {
-                    case NOMATCH:
-                        continue;
-                    case ABORTED:
-                        ret = ABORTED;
-                        break;
-                    default:
-                        return MATCH;
-                    }
-                    break;
                 }
-                if((expr[y] == '$') && (expr[y+1] == '\0') && (!str[x]))
-                    return MATCH;
-                else
-                    ret = ABORTED;
-                break;
-              case '[':
-              	neg = ((expr[++y] == '^') && (expr[y+1] != ']'));
-                if (neg)
-                    ++y;
-                
-                if ((isalnum(expr[y])) && (expr[y+1] == '-') && 
-                   (isalnum(expr[y+2])) && (expr[y+3] == ']'))
-                    {
-                        int start = expr[y], end = expr[y+2];
-                        
-                        /* Droolproofing for pinheads not included */
-                        if(neg ^ ((str[x] < start) || (str[x] > end))) {
-                            ret = NOMATCH;
-                            break;
-                        }
-                        y+=3;
-                    }
-                else {
-                    int matched;
-                    
-                    for (matched=0;expr[y] != ']';y++)
-                        matched |= (str[x] == expr[y]);
-                    if (neg ^ (!matched))
-                        ret = NOMATCH;
-                }
-                break;
-              case '(':
-                return _handle_union(&str[x],&expr[y], case_insensitive);
-                break;
-              case '?':
-                break;
-              case '\\':
+            }
+            if((expr[y] == '$') && (expr[y+1] == '\0') && (!str[x]))
+                return MATCH;
+            else
+                return NOMATCH;
+        case '[': {
+            int start, end = 0, i;
+            neg = ((expr[++y] == '^') && (expr[y+1] != ']'));
+            if (neg)
                 ++y;
-              default:
-				if(case_insensitive)
-				  {
-                    if(toupper(str[x]) != toupper(expr[y]))
-                        ret = NOMATCH;
-				  }
-				else
-				  {
-                    if(str[x] != expr[y])
-                        ret = NOMATCH;
-				  }
-                break;
+            i = y;
+            start = (unsigned char)(expr[i++]);
+            if (start == '\\')
+                start = (unsigned char)(expr[i++]);
+            if (isalnum(start) && expr[i++] == '-') {
+                end = (unsigned char)(expr[i++]);
+                if (end == '\\')
+                    end = (unsigned char)(expr[i++]);
+            }
+            if (isalnum(end) && expr[i] == ']') {
+                /* This is a range form: a-b */
+                int val   = (unsigned char)(str[x]);
+                if (end < start) { /* swap them */
+                    start ^= end;
+                    end ^= start;
+                    start ^= end;
+                }
+                if (case_insensitive && isalpha(val)) {
+                    val = _is_char_in_range(start, end, val);
+                    if (neg == val)
+                        return NOMATCH;
+                }
+                else if (neg != ((val < start) || (val > end))) {
+                    return NOMATCH;
+                }
+                y = i;
+            }
+            else {
+                /* Not range form */
+                int matched = 0;
+                for (; expr[y] != ']'; y++) {
+                    if (expr[y] == '\\')
+                        ++y;
+                    if(case_insensitive) {
+                        matched |= (toupper(str[x]) == toupper(expr[y]));
+                    }
+                    else {
+                        matched |= (str[x] == expr[y]);
+                    }
+                }
+                if (neg == matched)
+                    return NOMATCH;
             }
         }
-        if(ret)
+        break;
+        case '(':
+            if (!expr[y+1])
+                return ABORTED;
+            return _handle_union(&str[x], &expr[y], case_insensitive, level);
+        case '?':
             break;
-    }
-    return (ret ? ret : (str[x] ? NOMATCH : MATCH));
-}
-
-int 
-NS_WildCardMatch(char *str, char *xp, PRBool case_insensitive) {
-    register int x;
-    char *expr = PL_strdup(xp);
-
-	if(!expr)
-		return 1;
-
-    for(x=strlen(expr)-1;x;--x) {
-        if((expr[x] == '~') && (expr[x-1] != '\\')) {
-            expr[x] = '\0';
-            if(_shexp_match(str,&expr[++x], case_insensitive) == MATCH)
-                goto punt;
+        case ')':
+        case ']':
+        case '|':
+            return ABORTED;
+        case '\\':
+            ++y;
+            /* fall through */
+        default:
+            if(case_insensitive) {
+                if(toupper(str[x]) != toupper(expr[y]))
+                    return NOMATCH;
+            }
+            else {
+                if(str[x] != expr[y])
+                    return NOMATCH;
+            }
             break;
         }
     }
-    if(_shexp_match(str,expr, case_insensitive) == MATCH) {
-        PR_Free(expr);
-        return 0;
-    }
-
-  punt:
-    PR_Free(expr);
-    return 1;
+    return (str[x] ? NOMATCH : MATCH);
 }
+
+static int
+ns_WildCardMatch(const char *str, const char *xp, PRBool case_insensitive)
+{
+    char *expr = 0;
+    int x, ret = MATCH;
+
+    if (!strchr(xp, '~'))
+        return _shexp_match(str, xp, case_insensitive, 0);
+
+    expr = PL_strdup(xp);
+    if(!expr)
+        return NOMATCH;
+
+    x = _scan_and_copy(expr, '~', '\0', NULL);
+    if (x != ABORTED && expr[x] == '~') {
+        expr[x++] = '\0';
+        ret = _shexp_match(str, &expr[x], case_insensitive, 0);
+        switch (ret) {
+        case NOMATCH: ret = MATCH;   break;
+        case MATCH:   ret = NOMATCH; break;
+        default:                     break;
+        }
+    }
+    if (ret == MATCH)
+        ret = _shexp_match(str, expr, case_insensitive, 0);
+
+    PR_Free(expr);
+    return ret;
+}
+
+
+int
+NS_WildCardMatch(const char *str, const char *expr, PRBool case_insensitive)
+{
+    int is_valid = NS_WildCardValid(expr);
+    switch(is_valid) {
+        case INVALID_SXP:
+            return -1;
+        case NON_SXP:
+            if (case_insensitive)
+                return (PL_strcasecmp(expr,str) ? NOMATCH : MATCH);
+            return (strcmp(expr,str) ? NOMATCH : MATCH);
+        default:
+            return ns_WildCardMatch(str, expr, case_insensitive);
+    }
+}
+

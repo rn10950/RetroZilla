@@ -1,4 +1,5 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=2 sw=2 et tw=79: */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -45,6 +46,8 @@
 
 class nsIDOMNavigator;
 
+// NB: Due to weak references, nsNavigator has intimate knowledge of our
+// members.
 class nsMimeTypeArray : public nsIDOMMimeTypeArray
 {
 public:
@@ -57,6 +60,13 @@ public:
 	NS_IMETHOD Item(PRUint32 aIndex, nsIDOMMimeType** aReturn);
 	NS_IMETHOD NamedItem(const nsAString& aName, nsIDOMMimeType** aReturn);
 	nsresult   Refresh();
+
+  void Invalidate()
+  {
+    // NB: This will cause GetMimeTypes to fail from now on.
+    mNavigator = nsnull;
+    Clear();
+  }
 
 private:
   nsresult GetMimeTypes();

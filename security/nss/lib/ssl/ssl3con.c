@@ -4985,14 +4985,22 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
 	}
+	if (dh_p.len < 512/8)
+	    goto alert_loser;
     	rv = ssl3_ConsumeHandshakeVariable(ss, &dh_g, 2, &b, &length);
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
 	}
+	if (dh_g.len == 0 || dh_g.len > dh_p.len + 1 ||
+	   (dh_g.len == 1 && dh_g.data[0] == 0))
+	    goto alert_loser;
     	rv = ssl3_ConsumeHandshakeVariable(ss, &dh_Ys, 2, &b, &length);
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
 	}
+	if (dh_Ys.len == 0 || dh_Ys.len > dh_p.len + 1 ||
+	   (dh_Ys.len == 1 && dh_Ys.data[0] == 0))
+	    goto alert_loser;
     	rv = ssl3_ConsumeHandshakeVariable(ss, &signature, 2, &b, &length);
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */

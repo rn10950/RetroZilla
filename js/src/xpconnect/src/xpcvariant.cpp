@@ -239,6 +239,13 @@ XPCArrayHomogenizer::GetTypeForArray(XPCCallContext& ccx, JSObject* array,
 
 JSBool XPCVariant::InitializeData(XPCCallContext& ccx)
 {
+    int stackDummy;
+
+    if (!JS_CHECK_STACK_SIZE(ccx.GetJSContext(), stackDummy)) {
+        JS_ReportErrorNumber(ccx.GetJSContext(), js_GetErrorMessage, NULL, JSMSG_OVER_RECURSED);
+        return JS_FALSE;
+    }
+
     if(JSVAL_IS_INT(mJSVal))
         return NS_SUCCEEDED(nsVariant::SetFromInt32(&mData, 
                                                    JSVAL_TO_INT(mJSVal)));
@@ -763,5 +770,3 @@ NS_IMETHODIMP XPCVariant::GetAsWStringWithSize(PRUint32 *size, PRUnichar **str)
 {
     return nsVariant::ConvertToWStringWithSize(mData, size, str);
 }
-
-

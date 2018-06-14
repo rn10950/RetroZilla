@@ -81,6 +81,7 @@ class nsIJSRuntimeService;
 class nsIScriptGlobalObject;
 struct JSRuntime;
 class nsPIDOMWindow;
+class nsPIDOMEventTarget;
 #ifdef MOZ_XTF
 class nsIXTFService;
 #endif
@@ -706,6 +707,9 @@ public:
   ~nsCxPusher() { Pop(); }
   // Returns PR_FALSE if something erroneous happened.
   PRBool Push(nsISupports *aCurrentTarget);
+  // If nothing has been pushed to stack, this works like Push.
+  // Otherwise if context will change, Pop and Push will be called.
+  PRBool RePush(nsISupports *aCurrentTarget);
   void Pop();
 
 private:

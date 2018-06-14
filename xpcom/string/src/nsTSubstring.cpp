@@ -36,6 +36,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nspr.h"
 
   /**
    * helper function for down-casting a nsTSubstring to a nsTFixedString.
@@ -63,10 +64,13 @@ nsTSubstring_CharT::MutatePrep( size_type capacity, char_type** oldData, PRUint3
 
     size_type curCapacity = Capacity();
 
-    // If |capacity > size_type(-1)/2|, then our doubling algorithm may not be
+    // If |capacity > kMaxCapacity|, then our doubling algorithm may not be
     // able to allocate it.  Just bail out in cases like that.  We don't want
     // to be allocating 2GB+ strings anyway.
-    if (capacity > size_type(-1)/2) {
+    PR_STATIC_ASSERT((sizeof(nsStringBuffer) & 0x1) == 0);
+    const size_type kMaxCapacity =
+      (size_type(-1)/2 - sizeof(nsStringBuffer)) / sizeof(char_type) - 2;
+    if (capacity > kMaxCapacity) {
       // Also assert for |capacity| equal to |size_type(-1)|, since we use that value to
       // flag immutability.
       NS_ASSERTION(capacity != size_type(-1), "Bogus capacity");
@@ -82,15 +86,15 @@ nsTSubstring_CharT::MutatePrep( size_type capacity, char_type** oldData, PRUint3
         if (capacity <= curCapacity)
           return PR_TRUE;
 
-        if (curCapacity > 0)
-          {
-            // use doubling algorithm when forced to increase available
-            // capacity.
-            PRUint32 temp = curCapacity;
-            while (temp < capacity)
-              temp <<= 1;
-            capacity = temp;
-          }
+        if (curCapacity > 0) {
+          // Use doubling algorithm when forced to increase available capacity.
+          size_type temp = curCapacity;
+          while (temp < capacity)
+            temp <<= 1;
+          NS_ASSERTION(NS_MIN(temp, kMaxCapacity) >= capacity,
+                       "should have hit the early return at the top");
+          capacity = NS_MIN(temp, kMaxCapacity);
+        }
       }
 
     //
@@ -548,7 +552,8 @@ nsTSubstring_CharT::SetLength( size_type length )
     // out.  We should improve that.  For now we just verify that the capacity
     // changed as expected as a means of error checking.
  
-    if (Capacity() >= length)
+    size_type capacity = Capacity();
+    if (capacity != size_type(-1) && capacity >= length)
       mLength = length;
   }
 

@@ -74,6 +74,12 @@
 #include <shlobj.h>
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER < 1300
+#define BYTES_TO_KBYTES(bytes) ((PRFloat64)((PRInt64)(bytes >> 8) / 4 + .5))
+#else
+#define BYTES_TO_KBYTES(bytes) ((PRFloat64)bytes / 1024.0 + .5)
+#endif
+
 /* Outstanding issues/todo:
  * 1. Implement pause/resume.
  */
@@ -480,8 +486,8 @@ nsDownloadManager::AssertProgressInfoFor(const PRUnichar* aPath)
                                  internalDownload->GetTransferInformation();
 
   // convert from bytes to kbytes for progress display
-  PRInt64 current = (PRFloat64)transferInfo.mCurrBytes / 1024 + .5;
-  PRInt64 max = (PRFloat64)transferInfo.mMaxBytes / 1024 + .5;
+  PRInt64 current = BYTES_TO_KBYTES(transferInfo.mCurrBytes);
+  PRInt64 max = BYTES_TO_KBYTES(transferInfo.mMaxBytes);
  
   nsAutoString currBytes; currBytes.AppendInt(current);
   nsAutoString maxBytes; maxBytes.AppendInt(max);
@@ -2330,14 +2336,14 @@ nsDownload::GetPercentComplete(PRInt32* aPercentComplete)
 NS_IMETHODIMP
 nsDownload::GetAmountTransferred(PRUint64* aAmountTransferred)
 {
-  *aAmountTransferred = ((PRFloat64)mCurrBytes / 1024.0 + .5);
+  *aAmountTransferred = BYTES_TO_KBYTES(mCurrBytes);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsDownload::GetSize(PRUint64* aSize)
 {
-  *aSize = ((PRFloat64)mMaxBytes / 1024 + .5);
+  *aSize = BYTES_TO_KBYTES(mMaxBytes);
   return NS_OK;
 }
 

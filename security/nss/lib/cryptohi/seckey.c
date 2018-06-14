@@ -227,7 +227,17 @@ SECKEYPrivateKey *
 SECKEY_CreateDHPrivateKey(SECKEYDHParams *param, SECKEYPublicKey **pubk, void *cx)
 {
     SECKEYPrivateKey *privk;
-    PK11SlotInfo *slot = PK11_GetBestSlot(CKM_DH_PKCS_KEY_PAIR_GEN,cx);
+    PK11SlotInfo *slot;
+
+    if (!param || !param->base.data || !param->prime.data ||
+        param->prime.len < 512/8 || param->base.len == 0 || 
+        param->base.len > param->prime.len + 1 || 
+	(param->base.len == 1 && param->base.data[0] == 0)) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return NULL;
+    }
+
+    slot = PK11_GetBestSlot(CKM_DH_PKCS_KEY_PAIR_GEN,cx);
     if (!slot) {
 	return NULL;
     }
@@ -1460,16 +1470,20 @@ SECKEY_PublicKeyStrength(const SECKEYPublicKey *pubk)
 
     /* interpret modulus length as key strength... in
      * fortezza that's the public key length */
-
+    if (!pubk)
+    	goto loser;
     switch (pubk->keyType) {
     case rsaKey:
+	if (!pubk->u.rsa.modulus.data) break;
     	b0 = pubk->u.rsa.modulus.data[0];
     	return b0 ? pubk->u.rsa.modulus.len : pubk->u.rsa.modulus.len - 1;
     case dsaKey:
+	if (!pubk->u.dsa.publicValue.data) break;
     	b0 = pubk->u.dsa.publicValue.data[0];
     	return b0 ? pubk->u.dsa.publicValue.len :
 	    pubk->u.dsa.publicValue.len - 1;
     case dhKey:
+	if (!pubk->u.dh.publicValue.data) break;
     	b0 = pubk->u.dh.publicValue.data[0];
     	return b0 ? pubk->u.dh.publicValue.len :
 	    pubk->u.dh.publicValue.len - 1;
@@ -1482,6 +1496,7 @@ SECKEY_PublicKeyStrength(const SECKEYPublicKey *pubk)
     default:
 	break;
     }
+loser:
     PORT_SetError(SEC_ERROR_INVALID_KEY);
     return 0;
 }

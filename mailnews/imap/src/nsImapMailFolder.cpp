@@ -7178,7 +7178,7 @@ nsImapFolderCopyState::OnStopRunningUrl(nsIURI *aUrl, nsresult aExitCode)
           nsCOMPtr<nsISupportsArray> msgSupportsArray;
           NS_NewISupportsArray(getter_AddRefs(msgSupportsArray));
 
-          PRBool hasMoreElements;
+          PRBool hasMoreElements = PR_FALSE;
           nsCOMPtr<nsISupports> aSupport;
 
           if (messages)

@@ -36,7 +36,7 @@
 #
 # ***** END LICENSE BLOCK *****
 
-## $Id: mozilla.in,v 1.2.8.1 2005/09/20 21:13:06 dbaron%dbaron.org Exp $
+## $Id: mozilla.in,v 1.2.8.2 2008/01/11 03:20:02 reed%reedloden.com Exp $
 ## 
 ## Usage:
 ##
@@ -112,6 +112,7 @@ else
     bn=`basename "$progname"`
     cd `dirname "$progname"`
     progname=`/bin/ls -l "$bn" | sed -e 's/^.* -> //' `
+    progbase=`basename "$progname"`
     if [ ! -x "$progname" ]; then
       break
     fi

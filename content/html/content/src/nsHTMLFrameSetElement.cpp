@@ -43,6 +43,7 @@
 #include "nsIFrameSetElement.h"
 #include "nsIHTMLDocument.h"
 #include "nsIDocument.h"
+#include "nspr.h"
 
 class nsHTMLFrameSetElement : public nsGenericHTMLElement,
                               public nsIDOMHTMLFrameSetElement,
@@ -312,10 +313,11 @@ nsHTMLFrameSetElement::ParseRowCol(const nsAString & aValue,
   spec.StripChars(" \n\r\t\"\'");
   spec.Trim(",");
   
-  // Count the commas 
+  // Count the commas. Don't count more than X commas (bug 576447).
+  PR_STATIC_ASSERT(NS_MAX_FRAMESET_SPEC_COUNT * sizeof(nsFramesetSpec) < (1 << 30));
   PRInt32 commaX = spec.FindChar(sComma);
   PRInt32 count = 1;
-  while (commaX != kNotFound) {
+  while (commaX != kNotFound && count < NS_MAX_FRAMESET_SPEC_COUNT) {
     count++;
     commaX = spec.FindChar(sComma, commaX + 1);
   }

@@ -1974,6 +1974,7 @@ nsMsgDBFolder::CallFilterPlugins(nsIMsgWindow *aMsgWindow, PRBool *aFiltersRun)
   {
       rv = GetDatabase(nsnull);   // XXX is nsnull a reasonable arg here?
       NS_ENSURE_SUCCESS(rv, rv);
+      NS_ENSURE_TRUE(mDatabase, NS_ERROR_NOT_AVAILABLE);
   }
 
   // get the list of new messages
@@ -2035,8 +2036,10 @@ nsMsgDBFolder::CallFilterPlugins(nsIMsgWindow *aMsgWindow, PRBool *aFiltersRun)
       nsXPIDLCString junkScore;
       nsCOMPtr <nsIMsgDBHdr> msgHdr;
       nsMsgKey msgKey = newMessageKeys.GetAt(i);
-      rv = mDatabase->GetMsgHdrForKey(msgKey, getter_AddRefs(msgHdr));
-      if (!NS_SUCCEEDED(rv))
+      NS_ASSERTION(mDatabase, "null database");
+      if (mDatabase)
+        rv = mDatabase->GetMsgHdrForKey(msgKey, getter_AddRefs(msgHdr));
+      if (!mDatabase || !NS_SUCCEEDED(rv))
         continue;
       nsXPIDLCString author;
       nsXPIDLCString authorEmailAddress;

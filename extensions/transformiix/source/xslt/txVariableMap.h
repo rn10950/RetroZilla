@@ -64,11 +64,14 @@ inline
 txVariableMap::txVariableMap()
     : mMap(MB_FALSE)
 {
+    MOZ_COUNT_CTOR(txVariableMap);
 }
 
 inline
 txVariableMap::~txVariableMap()
 {
+    MOZ_COUNT_DTOR(txVariableMap);
+
     txExpandedNameMap::iterator iter(mMap);
     while (iter.next()) {
         txAExprResult* res = NS_STATIC_CAST(txAExprResult*, iter.value());

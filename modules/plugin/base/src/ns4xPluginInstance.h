@@ -56,6 +56,8 @@
 #include "nsIPluginTagInfo2.h"
 #include "nsIScriptablePlugin.h"
 #include "nsIPluginInstanceInternal.h"
+#include "nsXPIDLString.h"
+#include "nsString.h"
 
 #include "npupp.h"
 #ifdef OJI
@@ -230,10 +232,14 @@ protected:
     PRPackedBool  mCached;
 
 public:
+    PRPackedBool  mIsJavaPlugin;
+
     PRLibrary* fLibrary;
     nsInstanceStream *mStreams;
 
     nsVoidArray mPopupStates;
+
+    nsXPIDLCString mFakeURL;
 };
 
 #endif // ns4xPluginInstance_h__

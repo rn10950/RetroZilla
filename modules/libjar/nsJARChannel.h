@@ -47,6 +47,7 @@
 #include "nsIZipReader.h"
 #include "nsIDownloader.h"
 #include "nsILoadGroup.h"
+#include "nsHashPropertyBag.h"
 #include "nsIFile.h"
 #include "nsIURI.h"
 #include "nsCOMPtr.h"
@@ -61,6 +62,7 @@ class nsJARChannel : public nsIJARChannel
                    , public nsIJARChannel_MOZILLA_1_8_BRANCH
                    , public nsIDownloadObserver
                    , public nsIStreamListener
+                   , public nsHashPropertyBag
 {
 public:
     NS_DECL_ISUPPORTS
