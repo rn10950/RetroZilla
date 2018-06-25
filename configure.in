@@ -4577,7 +4577,7 @@ MOZ_ARG_ENABLE_BOOL(official-branding,
 [case "$MOZ_BUILD_APP" in
 browser)
     MOZ_BRANDING_DIRECTORY=other-licenses/branding/firefox
-    MOZ_APP_DISPLAYNAME=Firefox
+    MOZ_APP_DISPLAYNAME=RetroZilla
     ;;
 
 calendar)

@@ -13397,7 +13397,7 @@ if test "${enable_official_branding+set}" = set; then
     case "$MOZ_BUILD_APP" in
 browser)
     MOZ_BRANDING_DIRECTORY=other-licenses/branding/firefox
-    MOZ_APP_DISPLAYNAME=Firefox
+    MOZ_APP_DISPLAYNAME=RetroZilla
     ;;
 
 calendar)
