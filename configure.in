@@ -4321,7 +4321,7 @@ suite)
 
 browser)
   MOZ_APP_NAME=rzbrowser
-  MOZ_APP_DISPLAYNAME=rxbrowser
+  MOZ_APP_DISPLAYNAME=RetroZilla Browser
   MOZ_XUL_APP=1
   MOZ_PHOENIX=1
   MOZ_SAFE_BROWSING=1
