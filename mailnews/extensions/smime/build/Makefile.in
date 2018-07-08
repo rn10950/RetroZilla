@@ -71,6 +71,8 @@ else
 EXTRA_DSO_LIBS = msgbaseutil
 endif
 
+else
+SHARED_LIBRARY_LIBS += $(DIST)/lib/$(LIB_PREFIX)msgbsutl_s.$(LIB_SUFFIX)
 endif
 
 CPPSRCS		= nsMsgSMIMEFactory.cpp
@@ -78,10 +80,6 @@ CPPSRCS		= nsMsgSMIMEFactory.cpp
 SHARED_LIBRARY_LIBS = \
 		$(DIST)/lib/$(LIB_PREFIX)msgsmime_s.$(LIB_SUFFIX) \
 		$(NULL)
-
-ifndef MOZ_STATIC_MAIL_BUILD
-SHARED_LIBRARY_LIBS + = $(DIST)/lib/$(LIB_PREFIX)msgbsutl_s.$(LIB_SUFFIX)
-endif
 
 EXTRA_DSO_LDOPTS = \
 		$(LIBS_DIR) \
