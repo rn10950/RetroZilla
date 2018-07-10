@@ -968,7 +968,7 @@ PrintSyntax(char *progName)
 	"\t\t [-f pwfile] [-z noisefile] [-d certdir] [-P dbprefix]\n", progName);
     FPS "\t%s -G [-h token-name] -k dsa [-q pqgfile -g key-size] [-f pwfile]\n"
 	"\t\t [-z noisefile] [-d certdir] [-P dbprefix]\n", progName);
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     FPS "\t%s -G [-h token-name] -k ec -q curve [-f pwfile]\n"
 	"\t\t [-z noisefile] [-d certdir] [-P dbprefix]\n", progName);
     FPS "\t%s -K [-n key-name] [-h token-name] [-k dsa|ec|rsa|all]\n", 
@@ -976,7 +976,7 @@ PrintSyntax(char *progName)
 #else
     FPS "\t%s -K [-n key-name] [-h token-name] [-k dsa|rsa|all]\n", 
 	progName);
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     FPS "\t\t [-f pwfile] [-X] [-d certdir] [-P dbprefix]\n");
     FPS "\t%s --upgrade-merge --source-dir upgradeDir --upgrade-id uniqueID\n",
 	progName);
@@ -1155,7 +1155,7 @@ static void luG(enum usage_level ul, const char *command)
         return;
     FPS "%-20s Name of token in which to generate key (default is internal)\n",
         "   -h token-name");
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     FPS "%-20s Type of key pair to generate (\"dsa\", \"ec\", \"rsa\" (default))\n",
         "   -k key-type");
     FPS "%-20s Key size in bits, (min %d, max %d, default %d) (not for ec)\n",
@@ -1165,7 +1165,7 @@ static void luG(enum usage_level ul, const char *command)
         "   -k key-type");
     FPS "%-20s Key size in bits, (min %d, max %d, default %d)\n",
         "   -g key-size", MIN_KEY_BITS, MAX_KEY_BITS, DEFAULT_KEY_BITS);
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     FPS "%-20s Set the public exponent value (3, 17, 65537) (rsa only)\n",
         "   -y exp");
     FPS "%-20s Specify the password file\n",
@@ -1174,7 +1174,7 @@ static void luG(enum usage_level ul, const char *command)
         "   -z noisefile");
     FPS "%-20s read PQG value from pqgfile (dsa only)\n",
         "   -q pqgfile");
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     FPS "%-20s Elliptic curve name (ec only)\n",
         "   -q curve-name");
     FPS "%-20s One of nistp256, nistp384, nistp521\n", "");
@@ -1286,7 +1286,7 @@ static void luK(enum usage_level ul, const char *command)
         "   -h token-name ");
 
     FPS "%-20s Key type (\"all\" (default), \"dsa\","
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
                                                     " \"ec\","
 #endif
                                                     " \"rsa\")\n",
@@ -1418,11 +1418,11 @@ static void luR(enum usage_level ul, const char *command)
         "   -s subject");
     FPS "%-20s Output the cert request to this file\n",
         "   -o output-req");
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     FPS "%-20s Type of key pair to generate (\"dsa\", \"ec\", \"rsa\" (default))\n",
 #else
     FPS "%-20s Type of key pair to generate (\"dsa\", \"rsa\" (default))\n",
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
         "   -k key-type-or-id");
     FPS "%-20s or nickname of the cert key to use \n",
         "");
@@ -1432,12 +1432,12 @@ static void luR(enum usage_level ul, const char *command)
         "   -g key-size", MIN_KEY_BITS, MAX_KEY_BITS, DEFAULT_KEY_BITS);
     FPS "%-20s Name of file containing PQG parameters (dsa only)\n",
         "   -q pqgfile");
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     FPS "%-20s Elliptic curve name (ec only)\n",
         "   -q curve-name");
     FPS "%-20s See the \"-G\" option for a full list of supported names.\n",
         "");
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     FPS "%-20s Specify the password file\n",
         "   -f pwfile");
     FPS "%-20s Key database directory (default is ~/.netscape)\n",
@@ -1570,11 +1570,11 @@ static void luS(enum usage_level ul, const char *command)
         "   -c issuer-name");
     FPS "%-20s Set the certificate trust attributes (see -A above)\n",
         "   -t trustargs");
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     FPS "%-20s Type of key pair to generate (\"dsa\", \"ec\", \"rsa\" (default))\n",
 #else
     FPS "%-20s Type of key pair to generate (\"dsa\", \"rsa\" (default))\n",
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
         "   -k key-type-or-id");
     FPS "%-20s Name of token in which to generate key (default is internal)\n",
         "   -h token-name");
@@ -1582,12 +1582,12 @@ static void luS(enum usage_level ul, const char *command)
         "   -g key-size", MIN_KEY_BITS, MAX_KEY_BITS, DEFAULT_KEY_BITS);
     FPS "%-20s Name of file containing PQG parameters (dsa only)\n",
         "   -q pqgfile");
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     FPS "%-20s Elliptic curve name (ec only)\n",
         "   -q curve-name");
     FPS "%-20s See the \"-G\" option for a full list of supported names.\n",
         "");
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     FPS "%-20s Self sign\n",
         "   -x");
     FPS "%-20s Cert serial number\n",
@@ -1736,7 +1736,8 @@ MakeV1Cert(	CERTCertDBHandle *	handle,
 static SECStatus
 SignCert(CERTCertDBHandle *handle, CERTCertificate *cert, PRBool selfsign, 
          SECOidTag hashAlgTag,
-         SECKEYPrivateKey *privKey, char *issuerNickName, void *pwarg)
+         SECKEYPrivateKey *privKey, char *issuerNickName,
+         int certVersion, void *pwarg)
 {
     SECItem der;
     SECKEYPrivateKey *caPrivateKey = NULL;    
@@ -1776,9 +1777,23 @@ SignCert(CERTCertDBHandle *handle, CERTCertificate *cert, PRBool selfsign,
 	goto done;
     }
 
-    /* we only deal with cert v3 here */
-    *(cert->version.data) = 2;
-    cert->version.len = 1;
+    switch(certVersion) {
+      case (SEC_CERTIFICATE_VERSION_1):
+        /* The initial version for x509 certificates is version one
+         * and this default value must be an implicit DER encoding. */
+        cert->version.data = NULL;
+        cert->version.len = 0;
+        break;
+      case (SEC_CERTIFICATE_VERSION_2):
+      case (SEC_CERTIFICATE_VERSION_3):
+      case 3: /* unspecified format (would be version 4 certificate). */
+        *(cert->version.data) = certVersion;
+        cert->version.len = 1;
+        break;
+      default:
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return SECFailure;
+    }
 
     der.len = 0;
     der.data = NULL;
@@ -1821,6 +1836,7 @@ CreateCert(
 	PRBool ascii,
 	PRBool  selfsign,
 	certutilExtnList extnList,
+        int certVersion,
 	SECItem * certDER)
 {
     void *	extHandle;
@@ -1880,7 +1896,8 @@ CreateCert(
 	}
 
 	rv = SignCert(handle, subjectCert, selfsign, hashAlgTag,
-		      *selfsignprivkey, issuerNickName, pwarg);
+		      *selfsignprivkey, issuerNickName,
+                      certVersion, pwarg);
 	if (rv != SECSuccess)
 	    break;
 
@@ -2194,6 +2211,7 @@ enum certutilOpts {
     opt_KeyOpFlagsOff,
     opt_KeyAttrFlags,
     opt_EmptyPassword,
+    opt_CertVersion,
     opt_Help
 };
 
@@ -2303,6 +2321,8 @@ secuCommandFlag options_init[] =
                                                    "keyAttrFlags"},
 	{ /* opt_EmptyPassword       */  0,   PR_FALSE, 0, PR_FALSE, 
                                                    "empty-password"},
+        { /* opt_CertVersion         */  0,   PR_FALSE, 0, PR_FALSE,
+                                                   "certVersion"},
 };
 #define NUM_OPTIONS ((sizeof options_init)  / (sizeof options_init[0]))
 
@@ -2341,6 +2361,7 @@ certutil_main(int argc, char **argv, PRBool initialize)
     SECOidTag   hashAlgTag      = SEC_OID_UNKNOWN;
     int	        keysize	        = DEFAULT_KEY_BITS;
     int         publicExponent  = 0x010001;
+    int         certVersion     = SEC_CERTIFICATE_VERSION_3;
     unsigned int serialNumber   = 0;
     int         warpmonths      = 0;
     int         validityMonths  = 3;
@@ -2427,12 +2448,12 @@ certutil_main(int argc, char **argv, PRBool initialize)
 		       progName, MIN_KEY_BITS, MAX_KEY_BITS);
 	    return 255;
 	}
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 	if (keytype == ecKey) {
 	    PR_fprintf(PR_STDERR, "%s -g:  Not for ec keys.\n", progName);
 	    return 255;
 	}
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 
     }
 
@@ -2462,10 +2483,10 @@ certutil_main(int argc, char **argv, PRBool initialize)
 	    keytype = rsaKey;
 	} else if (PL_strcmp(arg, "dsa") == 0) {
 	    keytype = dsaKey;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 	} else if (PL_strcmp(arg, "ec") == 0) {
 	    keytype = ecKey;
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 	} else if (PL_strcmp(arg, "all") == 0) {
 	    keytype = nullKey;
 	} else {
@@ -2518,7 +2539,7 @@ certutil_main(int argc, char **argv, PRBool initialize)
 
     /*  -q PQG file or curve name */
     if (certutil.options[opt_PQGFile].activated) {
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 	if ((keytype != dsaKey) && (keytype != ecKey)) {
 	    PR_fprintf(PR_STDERR, "%s -q: specifies a PQG file for DSA keys" \
 		       " (-k dsa) or a named curve for EC keys (-k ec)\n)",
@@ -2527,7 +2548,7 @@ certutil_main(int argc, char **argv, PRBool initialize)
 	if (keytype != dsaKey) {
 	    PR_fprintf(PR_STDERR, "%s -q: PQG file is for DSA key (-k dsa).\n)",
 	               progName);
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 	    return 255;
 	}
     }
@@ -2568,6 +2589,19 @@ certutil_main(int argc, char **argv, PRBool initialize)
 	    return 255;
 	}
     }
+
+    /*  --certVersion */
+    if (certutil.options[opt_CertVersion].activated) {
+        certVersion = PORT_Atoi(certutil.options[opt_CertVersion].arg);
+        if (certVersion < 1 || certVersion > 4) {
+            PR_fprintf(PR_STDERR, "%s -certVersion: incorrect certificate version %d.",
+                                   progName, certVersion);
+            PR_fprintf(PR_STDERR, "Must be 1, 2, 3 or 4.\n");
+            return 255;
+        }
+        certVersion = certVersion - 1;
+    }
+
 
     /*  Check number of commands entered.  */
     commandsEntered = 0;
@@ -3225,6 +3259,7 @@ merge_fail:
 			    certutil.commands[cmd_CreateNewCert].activated,
 	                certutil.options[opt_SelfSign].activated,
 	                certutil_extns,
+                        certVersion,
 			&certDER);
 	if (rv) 
 	    goto shutdown;
