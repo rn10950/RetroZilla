@@ -904,7 +904,7 @@ ssl3_NegotiateVersion(sslSocket *ss, SSL3ProtocolVersion peerVersion,
 
     if (peerVersion < ss->vrange.min ||
 	(peerVersion > ss->vrange.max && !allowLargerPeerVersion)) {
-	PORT_SetError(SSL_ERROR_NO_CYPHER_OVERLAP);
+	PORT_SetError(SSL_ERROR_UNSUPPORTED_VERSION);
 	return SECFailure;
     }
 
@@ -2788,6 +2788,12 @@ ssl3_SendRecord(   sslSocket *        ss,
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveXmitBufLock(ss) );
 
+    if (ss->ssl3.fatalAlertSent) {
+        SSL_TRC(3, ("%d: SSL3[%d] Suppress write, fatal alert already sent",
+                    SSL_GETPID(), ss->fd));
+        return SECFailure;
+    }
+
     capRecordVersion = ((flags & ssl_SEND_FLAG_CAP_RECORD_VERSION) != 0);
 
     if (capRecordVersion) {
@@ -3232,6 +3238,9 @@ SSL3_SendAlert(sslSocket *ss, SSL3AlertLevel level, SSL3AlertDescription desc)
 			       desc == no_certificate 
 			       ? ssl_SEND_FLAG_FORCE_INTO_BUFFER : 0);
 	rv = (sent >= 0) ? SECSuccess : (SECStatus)sent;
+    }
+    if (level == alert_fatal) {
+        ss->ssl3.fatalAlertSent = PR_TRUE;
     }
     ssl_ReleaseXmitBufLock(ss);
     ssl_ReleaseSSL3HandshakeLock(ss);
@@ -4978,23 +4987,17 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
 	    sidOK = PR_FALSE;
 	}
 
-	/* TLS 1.0 (RFC 2246) Appendix E says:
-	 *   Whenever a client already knows the highest protocol known to
-	 *   a server (for example, when resuming a session), it should
-	 *   initiate the connection in that native protocol.
-	 * So we pass sid->version to ssl3_NegotiateVersion() here, except
-	 * when renegotiating.
-	 *
-	 * Windows SChannel compares the client_version inside the RSA
-	 * EncryptedPreMasterSecret of a renegotiation with the
-	 * client_version of the initial ClientHello rather than the
-	 * ClientHello in the renegotiation. To work around this bug, we
-	 * continue to use the client_version used in the initial
-	 * ClientHello when renegotiating.
-	 */
 	if (sidOK) {
+            /* Set ss->version based on the session cache */
 	    if (ss->firstHsDone) {
 		/*
+	         * Windows SChannel compares the client_version inside the RSA
+	         * EncryptedPreMasterSecret of a renegotiation with the
+	         * client_version of the initial ClientHello rather than the
+	         * ClientHello in the renegotiation. To work around this bug, we
+	         * continue to use the client_version used in the initial
+	         * ClientHello when renegotiating.
+	         *
 		 * The client_version of the initial ClientHello is still
 		 * available in ss->clientHelloVersion. Ensure that
 		 * sid->version is bounded within
@@ -5008,10 +5011,22 @@ ssl3_SendClientHello(sslSocket *ss, PRBool resending)
 		    sidOK = PR_FALSE;
 		}
 	    } else {
-		if (ssl3_NegotiateVersion(ss, sid->version,
-					  PR_FALSE) != SECSuccess) {
+                /*
+                 * Check sid->version is OK first.
+                 * Previously, we would cap the version based on sid->version,
+                 * but that prevents negotiation of a higher version if the
+                 * previous session was reduced (e.g., with version fallback)
+                 */
+		if (sid->version < ss->vrange.min || 
+                    sid->version > ss->vrange.max) {
 		    sidOK = PR_FALSE;
-		}
+		} else {
+	            rv = ssl3_NegotiateVersion(ss, SSL_LIBRARY_VERSION_MAX_SUPPORTED,
+                                               PR_TRUE);
+	            if (rv != SECSuccess) {
+                        return rv;	/* error code was set */
+                    }
+	        }
 	    }
 	}
 
@@ -6287,7 +6302,7 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     if (rv != SECSuccess) {
     	desc = (version > SSL_LIBRARY_VERSION_3_0) ? protocol_version 
 						   : handshake_failure;
-	errCode = SSL_ERROR_NO_CYPHER_OVERLAP;
+	errCode = SSL_ERROR_UNSUPPORTED_VERSION;
 	goto alert_loser;
     }
     isTLS = (ss->version > SSL_LIBRARY_VERSION_3_0);
@@ -7699,7 +7714,7 @@ ssl3_HandleClientHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     if (rv != SECSuccess) {
     	desc = (version > SSL_LIBRARY_VERSION_3_0) ? protocol_version 
 	                                           : handshake_failure;
-	errCode = SSL_ERROR_NO_CYPHER_OVERLAP;
+	errCode = SSL_ERROR_UNSUPPORTED_VERSION;
 	goto alert_loser;
     }
 
@@ -8472,8 +8487,9 @@ ssl3_HandleV2ClientHello(sslSocket *ss, unsigned char *buffer, int length)
     rv = ssl3_NegotiateVersion(ss, version, PR_TRUE);
     if (rv != SECSuccess) {
 	/* send back which ever alert client will understand. */
-    	desc = (version > SSL_LIBRARY_VERSION_3_0) ? protocol_version : handshake_failure;
-	errCode = SSL_ERROR_NO_CYPHER_OVERLAP;
+	desc = (version > SSL_LIBRARY_VERSION_3_0) ? protocol_version
+	                                           : handshake_failure;
+	errCode = SSL_ERROR_UNSUPPORTED_VERSION;
 	goto alert_loser;
     }
 
@@ -8743,11 +8759,11 @@ ssl3_PickSignatureHashAlgorithm(sslSocket *ss,
     unsigned int i, j;
     /* hashPreference expresses our preferences for hash algorithms, most
      * preferable first. */
-    static const PRUint8 hashPreference[] = {
-	tls_hash_sha256,
-	tls_hash_sha384,
-	tls_hash_sha512,
-	tls_hash_sha1,
+    static const SECOidTag hashPreference[] = {
+        SEC_OID_SHA256,
+        SEC_OID_SHA384,
+        SEC_OID_SHA512,
+        SEC_OID_SHA1,
     };
 
     switch (ss->ssl3.hs.kea_def->kea) {
