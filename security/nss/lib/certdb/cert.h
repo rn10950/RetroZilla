@@ -1167,7 +1167,7 @@ CERT_DecodeNameConstraintsExtension(PLArenaPool *arena,
 /* returns addr of a NULL termainated array of pointers to CERTAuthInfoAccess */
 extern CERTAuthInfoAccess **
 CERT_DecodeAuthInfoAccessExtension(PLArenaPool *reqArena,
-				   SECItem     *encodedExtension);
+				   const SECItem *encodedExtension);
 
 extern CERTPrivKeyUsagePeriod *
 CERT_DecodePrivKeyUsagePeriodExtension(PLArenaPool *arena, SECItem *extnValue);
@@ -1560,6 +1560,12 @@ CERT_FindNameConstraintsExten(PLArenaPool      *arena,
  */
 extern CERTGeneralName *
 CERT_NewGeneralName(PLArenaPool *arena, CERTGeneralNameType type);
+
+/*
+ * Lookup a CERTGeneralNameType constant by its human readable string.
+ */
+extern CERTGeneralNameType
+CERT_GetGeneralNameTypeFromString(const char *string);
 
 /*
  * PKIX extension encoding routines
