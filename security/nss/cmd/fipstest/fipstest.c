@@ -288,7 +288,7 @@ tdea_kat_mmt(char *reqfn)
     FILE *req;       /* input stream from the REQUEST file */
     FILE *resp;      /* output stream to the RESPONSE file */
     int i, j;
-    int mode;           /* NSS_DES_EDE3 (ECB) or NSS_DES_EDE3_CBC */
+    int mode = NSS_DES_EDE3; /* NSS_DES_EDE3 (ECB) or NSS_DES_EDE3_CBC */
     int crypt = DECRYPT;    /* 1 means encrypt, 0 means decrypt */
     unsigned char key[24];              /* TDEA 3 key bundle */
     unsigned int numKeys = 0;
@@ -997,10 +997,10 @@ aes_kat_mmt(char *reqfn)
     FILE *aesreq;       /* input stream from the REQUEST file */
     FILE *aesresp;      /* output stream to the RESPONSE file */
     int i, j;
-    int mode;           /* NSS_AES (ECB) or NSS_AES_CBC */
+    int mode = NSS_AES; /* NSS_AES (ECB) or NSS_AES_CBC */
     int encrypt = 0;    /* 1 means encrypt, 0 means decrypt */
     unsigned char key[32];              /* 128, 192, or 256 bits */
-    unsigned int keysize;
+    unsigned int keysize = 0;
     unsigned char iv[16];		/* for all modes except ECB */
     unsigned char plaintext[10*16];     /* 1 to 10 blocks */
     unsigned int plaintextlen;
@@ -1197,7 +1197,7 @@ aes_ecb_mct(char *reqfn)
     int i, j;
     int encrypt = 0;    /* 1 means encrypt, 0 means decrypt */
     unsigned char key[32];              /* 128, 192, or 256 bits */
-    unsigned int keysize;
+    unsigned int keysize = 0;
     unsigned char plaintext[16];        /* PT[j] */
     unsigned char plaintext_1[16];      /* PT[j-1] */
     unsigned char ciphertext[16];       /* CT[j] */
@@ -1480,7 +1480,7 @@ aes_cbc_mct(char *reqfn)
     int i, j;
     int encrypt = 0;    /* 1 means encrypt, 0 means decrypt */
     unsigned char key[32];              /* 128, 192, or 256 bits */
-    unsigned int keysize;
+    unsigned int keysize = 0;
     unsigned char iv[16];
     unsigned char plaintext[16];        /* PT[j] */
     unsigned char plaintext_1[16];      /* PT[j-1] */
@@ -2103,7 +2103,7 @@ ecdsa_pkv_test(char *reqfn)
     ECParams *ecparams = NULL;
     SECItem pubkey;
     unsigned int i;
-    unsigned int len;
+    unsigned int len = 0;
     PRBool keyvalid = PR_TRUE;
 
     ecdsareq = fopen(reqfn, "r");
@@ -2360,10 +2360,10 @@ ecdsa_sigver_test(char *reqfn)
     char curve[16];     /* "nistxddd" */
     ECPublicKey ecpub;
     unsigned int i, j;
-    unsigned int flen;  /* length in bytes of the field size */
-    unsigned int olen;  /* length in bytes of the base point order */
+    unsigned int flen = 0; /* length in bytes of the field size */
+    unsigned int olen = 0; /* length in bytes of the base point order */
     unsigned char msg[512];  /* message that was signed (<= 128 bytes) */
-    unsigned int msglen;
+    unsigned int msglen = 0;
     unsigned char sha1[20];  /* SHA-1 hash (160 bits) */
     unsigned char sig[2*MAX_ECKEY_LEN];
     SECItem signature, digest;
@@ -2532,43 +2532,6 @@ loser:
 }
 #endif /* NSS_DISABLE_ECC */
 
-
-/*
- * Read a value from the test and allocate the result.
- */
-static unsigned char *
-alloc_value(char *buf, int *len)
-{
-    unsigned char * value;
-    int i, count;
-
-    if (strncmp(buf, "<None>", 6) == 0) {
-	*len = 0;
-	return NULL;
-    }
-
-    /* find the length of the number */
-    for (count = 0; isxdigit(buf[count]); count++);
-    *len = count/2;
-
-    if (*len == 0) {
-	return NULL;
-    }
-
-    value = PORT_Alloc(*len);
-    if (!value) {
-	*len = 0;
-	return NULL;
-    }
-	
-    for (i=0; i<*len; buf+=2 , i++) {
-	hex_to_byteval(buf, &value[i]);
-    }
-    
-
-    return value;
-}
-
 PRBool
 isblankline(char *b)
 {
@@ -2599,7 +2562,9 @@ drbg(char *reqfn)
     FILE *rngresp;      /* output stream to the RESPONSE file */
     
     unsigned int i, j;
+#if 0
     PRBool predictionResistance = PR_FALSE;
+#endif
     unsigned char *nonce =  NULL;
     int nonceLen = 0;
     unsigned char *personalizationString =  NULL;
@@ -2722,11 +2687,12 @@ drbg(char *reqfn)
             continue;
         }
         
+#if 0   /* currently unsupported */
         if (strncmp(buf, "[PredictionResistance", 21)  == 0) {
             i = 21;
             while (isspace(buf[i]) || buf[i] == '=') {
                 i++;
-            }    
+            }
             if (strncmp(buf, "False", 5) == 0) {
                 predictionResistance = PR_FALSE;
             } else {
@@ -2736,6 +2702,7 @@ drbg(char *reqfn)
             fputs(buf, rngresp);
             continue;
         }
+#endif
         
         if (strncmp(buf, "[EntropyInputLen", 16)  == 0) {
             if (entropyInput) {
@@ -2990,7 +2957,7 @@ rng_vst(char *reqfn)
     unsigned int i, j;
     unsigned char Q[DSA1_SUBPRIME_LEN];
     PRBool hasQ = PR_FALSE;
-    unsigned int b;  /* 160 <= b <= 512, b is a multiple of 8 */
+    unsigned int b = 0; /* 160 <= b <= 512, b is a multiple of 8 */
     unsigned char XKey[512/8];
     unsigned char XSeed[512/8];
     unsigned char GENX[DSA1_SIGNATURE_LEN];
@@ -3113,7 +3080,7 @@ rng_mct(char *reqfn)
     unsigned int i, j;
     unsigned char Q[DSA1_SUBPRIME_LEN];
     PRBool hasQ = PR_FALSE;
-    unsigned int b;  /* 160 <= b <= 512, b is a multiple of 8 */
+    unsigned int b = 0; /* 160 <= b <= 512, b is a multiple of 8 */
     unsigned char XKey[512/8];
     unsigned char XSeed[512/8];
     unsigned char GENX[2*SHA1_LENGTH];
@@ -3416,8 +3383,8 @@ SECStatus sha_mct_test(unsigned int MDLen, unsigned char *seed, FILE *resp)
 void sha_test(char *reqfn) 
 {
     unsigned int i, j;
-    unsigned int MDlen;   /* the length of the Message Digest in Bytes  */
-    unsigned int msgLen;  /* the length of the input Message in Bytes */
+    unsigned int MDlen = 0; /* the length of the Message Digest in Bytes  */
+    unsigned int msgLen = 0; /* the length of the input Message in Bytes */
     unsigned char *msg = NULL; /* holds the message to digest.*/
     size_t bufSize = 25608; /*MAX buffer size */
     char *buf = NULL;      /* holds one line from the input REQUEST file.*/
@@ -3594,18 +3561,18 @@ void hmac_test(char *reqfn)
     unsigned int i, j;
     size_t bufSize =      400;    /* MAX buffer size */
     char *buf = NULL;  /* holds one line from the input REQUEST file.*/
-    unsigned int keyLen;          /* Key Length */  
+    unsigned int keyLen = 0;      /* Key Length */
     unsigned char key[200];       /* key MAX size = 184 */
     unsigned int msgLen = 128;    /* the length of the input  */
                                   /*  Message is always 128 Bytes */
     unsigned char *msg = NULL;    /* holds the message to digest.*/
-    unsigned int HMACLen;         /* the length of the HMAC Bytes  */
-    unsigned int TLen;            /* the length of the requested */
+    unsigned int HMACLen = 0;     /* the length of the HMAC Bytes  */
+    unsigned int TLen = 0;        /* the length of the requested */
                                   /* truncated HMAC Bytes */
     unsigned char HMAC[HASH_LENGTH_MAX];  /* computed HMAC */
     unsigned char expectedHMAC[HASH_LENGTH_MAX]; /* for .fax files that have */ 
                                                  /* supplied known answer */
-    HASH_HashType hash_alg;       /* HMAC type */
+    HASH_HashType hash_alg = HASH_AlgNULL; /* HMAC type */
     
 
     FILE *req = NULL;  /* input stream from the REQUEST file */
@@ -3901,7 +3868,7 @@ dsa_pqgver_test(char *reqfn)
     unsigned int i, j;
     PQGParams pqg;
     PQGVerify vfy;
-    unsigned int pghSize;        /* size for p, g, and h */
+    unsigned int pghSize = 0; /* size for p, g, and h */
     dsa_pqg_type type = FIPS186_1;
 
     dsareq = fopen(reqfn, "r");
@@ -4234,7 +4201,7 @@ dsa_pqggen_test(char *reqfn)
     unsigned int j;
     PQGParams *pqg = NULL;
     PQGVerify *vfy = NULL;
-    unsigned int keySizeIndex;
+    unsigned int keySizeIndex = 0;
     dsa_pqg_type type = FIPS186_1;
 
     dsareq = fopen(reqfn, "r");

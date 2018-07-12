@@ -750,8 +750,7 @@ pk11_mergeCert(PK11SlotInfo *targetSlot, PK11SlotInfo *sourceSlot,
     CK_ATTRIBUTE sourceCKAID = {CKA_ID, NULL, 0};
     CK_ATTRIBUTE targetCKAID = {CKA_ID, NULL, 0};
     SECStatus lrv = SECSuccess;
-    int error;
-
+    int error = SEC_ERROR_LIBRARY_FAILURE;
 
     sourceCert = PK11_MakeCertFromHandle(sourceSlot, id, NULL);
     if (sourceCert == NULL) {

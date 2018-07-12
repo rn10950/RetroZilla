@@ -125,13 +125,57 @@ ifdef MOZ_DEBUG_SYMBOLS
 endif
 endif
 
+ifndef COMPILER_TAG
+COMPILER_TAG = _$(shell $(CC) -? 2>&1 >/dev/null | sed -e 's/:.*//;1q')
+CCC_COMPILER_TAG = _$(shell $(CCC) -? 2>&1 >/dev/null | sed -e 's/:.*//;1q')
+endif
 
 ifeq ($(USE_PTHREADS),1)
 OS_PTHREAD = -lpthread 
 endif
 
-OS_CFLAGS		= $(DSO_CFLAGS) $(OS_REL_CFLAGS) $(ARCHFLAG) -Wall -Werror-implicit-function-declaration -Wno-switch -pipe -ffunction-sections -fdata-sections -DLINUX -Dlinux -DHAVE_STRERROR
+OS_CFLAGS		= $(DSO_CFLAGS) $(OS_REL_CFLAGS) $(ARCHFLAG) -Wall -Werror -pipe -ffunction-sections -fdata-sections -DLINUX -Dlinux -DHAVE_STRERROR
 OS_LIBS			= $(OS_PTHREAD) -ldl -lc
+
+ifeq ($(COMPILER_TAG),_clang)
+# -Qunused-arguments : clang objects to arguments that it doesn't understand
+#    and fixing this would require rearchitecture
+# -Wno-parentheses-equality : because clang warns about macro expansions
+OS_CFLAGS += -Qunused-arguments -Wno-parentheses-equality
+ifdef BUILD_OPT
+# clang is unable to handle glib's expansion of strcmp and similar for optimized
+# builds, so ignore the resulting errors.
+# See https://llvm.org/bugs/show_bug.cgi?id=20144
+OS_CFLAGS += -Wno-array-bounds -Wno-unevaluated-expression
+endif
+# Clang reports its version as an older gcc, but it's OK
+NSS_HAS_GCC48 = true
+endif
+
+# Check for the existence of gcc 4.8
+ifndef NSS_HAS_GCC48
+define GCC48_TEST =
+int main() {\n
+#if __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 8)\n
+  return 1;\n
+#else\n
+  return 0;\n
+#endif\n
+}\n
+endef
+TEST_GCC48 := /tmp/test_gcc48_$(shell echo $$$$)
+NSS_HAS_GCC48 := (,$(shell echo -e "$(GCC48_TEST)" > $(TEST_GCC48).c && \
+  $(CC) -o $(TEST_GCC48) $(TEST_GCC48).c && \
+  $(TEST_GCC48) && echo true || echo false; \
+  rm -f $(TEST_GCC48) $(TEST_GCC48).c))
+export NSS_HAS_GCC48
+endif
+
+ifeq (true,$(NSS_HAS_GCC48))
+# Old versions of gcc (< 4.8) don't support #pragma diagnostic in functions.
+# Here, we disable use of that #pragma and the warnings it suppresses.
+OS_CFLAGS += -DNSS_NO_GCC48 -Wno-unused-variable
+endif
 
 ifdef USE_PTHREADS
 	DEFINES		+= -D_REENTRANT

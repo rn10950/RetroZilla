@@ -1,3 +1,4 @@
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /*
  * This file contains prototypes for the public SSL functions.
  *
@@ -55,12 +56,34 @@ typedef enum {
 #define kt_ecdh   	ssl_kea_ecdh
 #define kt_kea_size	ssl_kea_size
 
+
+/* Values of this enum match the SignatureAlgorithm enum from
+ * https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1 */
 typedef enum {
-    ssl_sign_null   = 0, 
+    ssl_sign_null   = 0, /* "anonymous" in TLS */
     ssl_sign_rsa    = 1,
     ssl_sign_dsa    = 2,
     ssl_sign_ecdsa  = 3
 } SSLSignType;
+
+/* Values of this enum match the HashAlgorithm enum from
+ * https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1 */
+typedef enum {
+    /* ssl_hash_none is used internally to mean the pre-1.2 combination of MD5
+     * and SHA1. The other values are only used in TLS 1.2. */
+    ssl_hash_none = 0,
+    ssl_hash_md5 = 1,
+    ssl_hash_sha1 = 2,
+    ssl_hash_sha224 = 3,
+    ssl_hash_sha256 = 4,
+    ssl_hash_sha384 = 5,
+    ssl_hash_sha512 = 6
+} SSLHashType;
+
+typedef struct SSLSignatureAndHashAlgStr {
+    SSLHashType hashAlg;
+    SSLSignType sigAlg;
+} SSLSignatureAndHashAlg;
 
 typedef enum {
     ssl_auth_null   = 0, 
@@ -123,6 +146,23 @@ typedef struct SSLChannelInfoStr {
     const char *         compressionMethodName;
     SSLCompressionMethod compressionMethod;
 } SSLChannelInfo;
+
+/* Preliminary channel info */
+#define ssl_preinfo_version (1U << 0)
+#define ssl_preinfo_cipher_suite (1U << 1)
+#define ssl_preinfo_all (ssl_preinfo_version|ssl_preinfo_cipher_suite)
+
+typedef struct SSLPreliminaryChannelInfoStr {
+    /* This is set to the length of the struct. */
+    PRUint32 length;
+    /* A bitfield over SSLPreliminaryValueSet that describes which
+     * preliminary values are set (see ssl_preinfo_*). */
+    PRUint32 valuesSet;
+    /* Protocol version: test (valuesSet & ssl_preinfo_version) */
+    PRUint16 protocolVersion;
+    /* Cipher suite: test (valuesSet & ssl_preinfo_cipher_suite) */
+    PRUint16 cipherSuite;
+} SSLPreliminaryChannelInfo;
 
 typedef struct SSLCipherSuiteInfoStr {
     PRUint16             length;
@@ -196,5 +236,15 @@ typedef enum {
 } SSLExtensionType;
 
 #define SSL_MAX_EXTENSIONS             11 /* doesn't include ssl_padding_xtn. */
+
+typedef enum {
+    ssl_dhe_group_none = 0,
+    ssl_ff_dhe_2048_group = 1,
+    ssl_ff_dhe_3072_group = 2,
+    ssl_ff_dhe_4096_group = 3,
+    ssl_ff_dhe_6144_group = 4,
+    ssl_ff_dhe_8192_group = 5,
+    ssl_dhe_group_max
+} SSLDHEGroupType;
 
 #endif /* __sslt_h_ */

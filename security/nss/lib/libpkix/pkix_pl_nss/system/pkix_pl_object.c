@@ -371,7 +371,7 @@ pkix_pl_Object_Hashcode_Default(
         PKIX_ENTER(OBJECT, "pkix_pl_Object_Hashcode_Default");
         PKIX_NULLCHECK_TWO(object, pValue);
 
-        *pValue = (PKIX_UInt32)object;
+        *pValue = (PKIX_UInt32)((char *)object - (char *)NULL);
 
         PKIX_RETURN(OBJECT);
 }

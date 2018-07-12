@@ -422,3 +422,15 @@ ER3(SSL_ERROR_NEXT_PROTOCOL_NO_PROTOCOL, (SSL_ERROR_BASE + 130),
 ER3(SSL_ERROR_INAPPROPRIATE_FALLBACK_ALERT, (SSL_ERROR_BASE + 131),
 "The server rejected the handshake because the client downgraded to a lower "
 "TLS version than the server supports.")
+
+ER3(SSL_ERROR_WEAK_SERVER_CERT_KEY, (SSL_ERROR_BASE + 132),
+"The server certificate included a public key that was too weak.")
+
+ER3(SSL_ERROR_RX_SHORT_DTLS_READ, (SSL_ERROR_BASE + 133),
+"Not enough room in buffer for DTLS record.")
+
+ER3(SSL_ERROR_NO_SUPPORTED_SIGNATURE_ALGORITHM, (SSL_ERROR_BASE + 134),
+"No supported TLS signature algorithm was configured.")
+
+ER3(SSL_ERROR_UNSUPPORTED_SIGNATURE_ALGORITHM, (SSL_ERROR_BASE + 135),
+"The peer used an unsupported combination of signature and hash algorithm.")

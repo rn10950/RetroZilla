@@ -534,9 +534,9 @@ dumpServerCertificateChain(PRFileDesc *fd)
 	return;
     }
     else if (dumpServerChain == 1) {
-	dumpFunction = SECU_PrintCertificateBasicInfo;
+	dumpFunction = (SECU_PPFunc)SECU_PrintCertificateBasicInfo;
     } else {
-	dumpFunction = SECU_PrintCertificate;
+	dumpFunction = (SECU_PPFunc)SECU_PrintCertificate;
 	if (dumpServerChain > 2) {
 	    dumpCertPEM = PR_TRUE;
 	}
@@ -566,7 +566,7 @@ dumpServerCertificateChain(PRFileDesc *fd)
 						PR_TRUE);
 	}
 	if (foundChain) {
-	    int count = 0;
+	    unsigned int count = 0;
 	    fprintf(stderr, "==== locally found issuer certificate(s): ====\n");
 	    for(count = 0; count < (unsigned int)foundChain->len; count++) {
 		CERTCertificate *c;
@@ -619,7 +619,7 @@ ownAuthCertificate(void *arg, PRFileDesc *fd, PRBool checkSig,
 
     if (!serverCertAuth->shouldPause) {
         CERTCertificate *cert;
-        int i;
+        unsigned int i;
         const SECItemArray *csa;
 
         if (!serverCertAuth->testFreshStatusFromSideChannel) {
@@ -644,8 +644,7 @@ ownAuthCertificate(void *arg, PRFileDesc *fd, PRBool checkSig,
 		if (CERT_CacheOCSPResponseFromSideChannel(
 			serverCertAuth->dbHandle, cert, PR_Now(),
 			&csa->items[i], arg) != SECSuccess) {
-		    PRErrorCode error = PR_GetError();
-		    PORT_Assert(error != 0);
+		    PORT_Assert(PR_GetError() != 0);
 		}
             }
         }
@@ -1283,7 +1282,7 @@ int main(int argc, char **argv)
 	    int  cipher;
 
 	    if (ndx == ':') {
-		int ctmp;
+		int ctmp = 0;
 
 		cipher = 0;
 		HEXCHAR_TO_INT(*cipherString, ctmp)

@@ -480,7 +480,7 @@ nssutil_DeleteSecmodDBEntry(const char *appName,
     char *block = NULL;
     char *name = NULL;
     char *lib = NULL;
-    int name_len, lib_len;
+    int name_len, lib_len = 0;
     PRBool skip = PR_FALSE;
     PRBool found = PR_FALSE;
 
