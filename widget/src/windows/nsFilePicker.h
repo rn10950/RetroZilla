@@ -97,6 +97,7 @@ protected:
   static char            mLastUsedDirectory[];
   nsString               mUnicodeFile;
   static nsString        mLastUsedUnicodeDirectory;
+  PRInt32                mWinVer;
 };
 
 #endif // nsFilePicker_h__
