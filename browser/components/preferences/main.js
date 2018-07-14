@@ -307,10 +307,12 @@ var gMainPane = {
    */
   _folderToIndex: function (aFolder)
   {
+   try {
     if (!aFolder || aFolder.equals(this._getDownloadsFolder("Desktop")))
       return 0;
     else if (aFolder.equals(this._getDownloadsFolder("Downloads")))
       return 1;
+   } catch(e) {}
     return 2;
   },
 
@@ -326,8 +328,13 @@ var gMainPane = {
   {
     var fileLocator = Components.classes["@mozilla.org/file/directory_service;1"]
                                 .getService(Components.interfaces.nsIProperties);
-    var dir = fileLocator.get(this._getSpecialFolderKey(aFolder),
+    var dir;
+    try {
+      dir = fileLocator.get(this._getSpecialFolderKey(aFolder),
                               Components.interfaces.nsILocalFile);
+    } catch(e) {
+      dir = aFolder;
+    }
     if (aFolder != "Desktop")
       dir.append("My Downloads"); // XXX l12y!
 
