@@ -515,9 +515,11 @@ function getTargetFile(aFpP, aSkipPrompt)
   {
     var fileLocator = Components.classes["@mozilla.org/file/directory_service;1"]
                                 .getService(Components.interfaces.nsIProperties);
-    
-    var dir = fileLocator.get(getSpecialFolderKey(aFolder), Components.interfaces.nsILocalFile);
-    
+    var dir;
+    try {
+      dir = fileLocator.get(getSpecialFolderKey(aFolder), Components.interfaces.nsILocalFile);
+    }
+    catch (e) {}
     var bundle = Components.classes["@mozilla.org/intl/stringbundle;1"]
                            .getService(Components.interfaces.nsIStringBundleService);
     bundle = bundle.createBundle("chrome://mozapps/locale/downloads/unknownContentType.properties");
@@ -544,6 +546,7 @@ function getTargetFile(aFpP, aSkipPrompt)
   if (!aSkipPrompt || !useDownloadDir || !dir) {
     // If we're asking the user where to save the file, root the Save As...
     // dialog on they place they last picked. 
+   if(!dir) {
     try {
       dir = prefs.getComplexValue("lastDir", nsILocalFile);
     }
@@ -552,8 +555,15 @@ function getTargetFile(aFpP, aSkipPrompt)
       var fileLocator = Components.classes["@mozilla.org/file/directory_service;1"]
                                   .getService(Components.interfaces.nsIProperties);
       
-      dir = fileLocator.get(getSpecialFolderKey("Desktop"), nsILocalFile);
+      try {
+        dir = fileLocator.get(getSpecialFolderKey("Desktop"), nsILocalFile);
+      }
+      catch (r) {
+        // no clue, try current dir
+        dir = '.';
+      }
     }
+   }
 
     var fp = makeFilePicker();
     var titleKey = aFpP.fpTitleKey || "SaveLinkTitle";
