@@ -89,6 +89,7 @@ char nsFilePicker::mLastUsedDirectory[MAX_PATH+1] = { 0 };
 nsFilePicker::nsFilePicker()
 {
   mSelectedType   = 1;
+  mWinVer = GetVersion() & 0xFF;
 }
 
 //-------------------------------------------------------------------------
@@ -153,7 +154,7 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
 
 #ifndef WINCE
 
-  if (mMode == modeGetFolder) {
+  if (mMode == modeGetFolder && mWinVer > 3) {
     PRUnichar dirBuffer[MAX_PATH+1];
     wcsncpy(dirBuffer, initialDir.get(), MAX_PATH);
 
@@ -244,13 +245,17 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
 #ifndef WINCE
     try {
 #endif
-      if (mMode == modeOpen) {
+      if (mMode == modeOpen || mMode == modeGetFolder) {
         // FILE MUST EXIST!
-        ofn.Flags |= OFN_FILEMUSTEXIST;
+        if(mMode == modeOpen) ofn.Flags |= OFN_FILEMUSTEXIST;
+        else {
+          fileBuffer[0]='t'; fileBuffer[1]='h'; fileBuffer[2]='i'; fileBuffer[3]='s';
+          fileBuffer[4]='D'; fileBuffer[5]='i'; fileBuffer[6]='r';
+        }
         result = nsToolkit::mGetOpenFileName(&ofn);
       }
       else if (mMode == modeOpenMultiple) {
-        ofn.Flags |= OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
+        ofn.Flags |= OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | (mWinVer > 3 ? OFN_EXPLORER : 0);
         result = nsToolkit::mGetOpenFileName(&ofn);
       }
       else if (mMode == modeSave) {
@@ -345,6 +350,17 @@ NS_IMETHODIMP nsFilePicker::ShowW(PRInt16 *aReturnVal)
         }
       }
       else {
+        // Get DirPath from Full Pathname
+        if(mMode == modeGetFolder) {
+          int cnt;
+          nsAutoString dirName(fileBuffer);
+          for(cnt=dirName.Length()-1;cnt > 1; cnt--) {
+            if (fileBuffer[cnt] == '\\') {
+              fileBuffer[cnt] = 0;
+              break;
+            }
+          }
+        }
         // I think it also needs a conversion here (to unicode since appending to nsString) 
         // but doing that generates garbage file name, weird.
         mUnicodeFile.Assign(fileBuffer);
