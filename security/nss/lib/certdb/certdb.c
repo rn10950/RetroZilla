@@ -1051,6 +1051,11 @@ SEC_CheckCrlTimes(CERTCrl *crl, PRTime t) {
     PRTime notBefore, notAfter, llPendingSlop, tmp1;
     SECStatus rv;
 
+    if (!crl) {
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return(secCertTimeUndetermined);
+    }
+
     rv = SEC_GetCrlTimes(crl, &notBefore, &notAfter);
     
     if (rv) {
@@ -1063,6 +1068,7 @@ SEC_CheckCrlTimes(CERTCrl *crl, PRTime t) {
     LL_MUL(llPendingSlop, llPendingSlop, tmp1);
     LL_SUB(notBefore, notBefore, llPendingSlop);
     if ( LL_CMP( t, <, notBefore ) ) {
+	PORT_SetError(SEC_ERROR_CRL_EXPIRED);
 	return(secCertTimeNotValidYet);
     }
 
@@ -1074,6 +1080,7 @@ SEC_CheckCrlTimes(CERTCrl *crl, PRTime t) {
     }
 
     if ( LL_CMP( t, >, notAfter) ) {
+	PORT_SetError(SEC_ERROR_CRL_EXPIRED);
 	return(secCertTimeExpired);
     }
 
@@ -1381,7 +1388,7 @@ cert_TestHostName(char * cn, const char * hn)
 	    return rv;
 	}
     } else {
-	/* New approach conforms to RFC 2818. */
+	/* New approach conforms to RFC 6125. */
 	char *wildcard    = PORT_Strchr(cn, '*');
 	char *firstcndot  = PORT_Strchr(cn, '.');
 	char *secondcndot = firstcndot ? PORT_Strchr(firstcndot+1, '.') : NULL;
@@ -1390,14 +1397,17 @@ cert_TestHostName(char * cn, const char * hn)
 	/* For a cn pattern to be considered valid, the wildcard character...
 	 * - may occur only in a DNS name with at least 3 components, and
 	 * - may occur only as last character in the first component, and
-	 * - may be preceded by additional characters
+	 * - may be preceded by additional characters, and
+	 * - must not be preceded by an IDNA ACE prefix (xn--)
 	 */
 	if (wildcard && secondcndot && secondcndot[1] && firsthndot 
-	    && firstcndot  - wildcard  == 1
-	    && secondcndot - firstcndot > 1
-	    && PORT_Strrchr(cn, '*') == wildcard
+	    && firstcndot  - wildcard  == 1 /* wildcard is last char in first component */
+	    && secondcndot - firstcndot > 1 /* second component is non-empty */
+	    && PORT_Strrchr(cn, '*') == wildcard /* only one wildcard in cn */
 	    && !PORT_Strncasecmp(cn, hn, wildcard - cn)
-	    && !PORT_Strcasecmp(firstcndot, firsthndot)) {
+	    && !PORT_Strcasecmp(firstcndot, firsthndot)
+	       /* If hn starts with xn--, then cn must start with wildcard */
+	    && (PORT_Strncasecmp(hn, "xn--", 4) || wildcard == cn)) {
 	    /* valid wildcard pattern match */
 	    return SECSuccess;
 	}
@@ -1422,7 +1432,6 @@ cert_VerifySubjectAltName(const CERTCertificate *cert, const char *hn)
     CERTGeneralName * current;
     char *            cn;
     int               cnBufLen;
-    unsigned int      hnLen;
     int               DNSextCount    = 0;
     int               IPextCount     = 0;
     PRBool            isIPaddr       = PR_FALSE;
@@ -1432,7 +1441,6 @@ cert_VerifySubjectAltName(const CERTCertificate *cert, const char *hn)
     char              cnbuf[128];
 
     subAltName.data = NULL;
-    hnLen    = strlen(hn);
     cn       = cnbuf;
     cnBufLen = sizeof cnbuf;
 
@@ -2308,7 +2316,7 @@ CERT_DecodeTrustString(CERTCertTrust *trust, const char *trusts)
 {
     unsigned int i;
     unsigned int *pflags;
-    
+
     if (!trust) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return SECFailure;
@@ -2322,7 +2330,7 @@ CERT_DecodeTrustString(CERTCertTrust *trust, const char *trusts)
     }
 
     pflags = &trust->sslFlags;
-    
+
     for (i=0; i < PORT_Strlen(trusts); i++) {
 	switch (trusts[i]) {
 	  case 'p':
@@ -2368,6 +2376,7 @@ CERT_DecodeTrustString(CERTCertTrust *trust, const char *trusts)
 	      }
 	      break;
 	  default:
+              PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	      return SECFailure;
 	}
     }
@@ -2434,7 +2443,6 @@ CERT_ImportCerts(CERTCertDBHandle *certdb, SECCertUsage usage,
 {
     unsigned int i;
     CERTCertificate **certs = NULL;
-    SECStatus rv;
     unsigned int fcerts = 0;
 
     if ( ncerts ) {
@@ -2482,10 +2490,11 @@ CERT_ImportCerts(CERTCertDBHandle *certdb, SECCertUsage usage,
 		     * know which cert it belongs to. But we still may try
                      * the individual canickname from the cert itself.
 		     */
-		    rv = CERT_AddTempCertToPerm(certs[i], canickname, NULL);
+                    /* Bug 1192442 - propagate errors from these calls. */
+		    (void)CERT_AddTempCertToPerm(certs[i], canickname, NULL);
 		} else {
-		    rv = CERT_AddTempCertToPerm(certs[i],
-                                                nickname?nickname:canickname, NULL);
+		    (void)CERT_AddTempCertToPerm(certs[i],
+                                                 nickname?nickname:canickname, NULL);
 		}
 
                 PORT_Free(canickname);
@@ -2502,7 +2511,7 @@ CERT_ImportCerts(CERTCertDBHandle *certdb, SECCertUsage usage,
 	}
     }
 
-    return ((fcerts || !ncerts) ? SECSuccess : SECFailure);
+    return (fcerts || !ncerts) ? SECSuccess : SECFailure;
 }
 
 /*
@@ -2884,15 +2893,16 @@ CERT_LockCertRefCount(CERTCertificate *cert)
 void
 CERT_UnlockCertRefCount(CERTCertificate *cert)
 {
-    PRStatus prstat;
-
     PORT_Assert(certRefCountLock != NULL);
     
-    prstat = PZ_Unlock(certRefCountLock);
-    
-    PORT_Assert(prstat == PR_SUCCESS);
-
-    return;
+#ifdef DEBUG
+    {
+        PRStatus prstat = PZ_Unlock(certRefCountLock);
+        PORT_Assert(prstat == PR_SUCCESS);
+    }
+#else
+    PZ_Unlock(certRefCountLock);
+#endif
 }
 
 static PZLock *certTrustLock = NULL;
@@ -2964,15 +2974,16 @@ cert_DestroyLocks(void)
 void
 CERT_UnlockCertTrust(const CERTCertificate *cert)
 {
-    PRStatus prstat;
-
     PORT_Assert(certTrustLock != NULL);
     
-    prstat = PZ_Unlock(certTrustLock);
-    
-    PORT_Assert(prstat == PR_SUCCESS);
-
-    return;
+#ifdef DEBUG
+    {
+        PRStatus prstat = PZ_Unlock(certTrustLock);
+        PORT_Assert(prstat == PR_SUCCESS);
+    }
+#else
+    PZ_Unlock(certTrustLock);
+#endif
 }
 
 

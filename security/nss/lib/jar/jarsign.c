@@ -171,7 +171,6 @@ jar_create_pk7(CERTCertDBHandle *certdb, void *keydb, CERTCertificate *cert,
 {
     SEC_PKCS7ContentInfo *cinfo;
     const SECHashObject *hashObj;
-    char *errstring;
     void *mw = NULL;
     void *hashcx;
     unsigned int len;
@@ -231,7 +230,6 @@ jar_create_pk7(CERTCertDBHandle *certdb, void *keydb, CERTCertificate *cert,
 	status = PORT_GetError();
     SEC_PKCS7DestroyContentInfo (cinfo);
     if (rv != SECSuccess) {
-	errstring = JAR_get_error (status);
 	return ((status < 0) ? status : JAR_ERR_GENERAL);
     }
     return 0;

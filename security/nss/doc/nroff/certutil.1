@@ -2,12 +2,12 @@
 .\"     Title: CERTUTIL
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 12 November 2013
+.\"      Date: 13 August 2015
 .\"    Manual: NSS Security Tools
 .\"    Source: nss-tools
 .\"  Language: English
 .\"
-.TH "CERTUTIL" "1" "12 November 2013" "nss-tools" "NSS Security Tools"
+.TH "CERTUTIL" "1" "13 August 2015" "nss-tools" "NSS Security Tools"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,6 +78,11 @@ prompts for a filename\&.
 \-D
 .RS 4
 Delete a certificate from the certificate database\&.
+.RE
+.PP
+\-\-rename
+.RS 4
+Change the database nickname of a certificate\&.
 .RE
 .PP
 \-E
@@ -229,7 +234,8 @@ NSS recognizes the following prefixes:
 .sp -1
 .IP \(bu 2.3
 .\}
-\fBsql: requests the newer database\fR
+\fBsql:\fR
+requests the newer database
 .RE
 .sp
 .RS 4
@@ -240,10 +246,18 @@ NSS recognizes the following prefixes:
 .sp -1
 .IP \(bu 2.3
 .\}
-\fBdbm: requests the legacy database\fR
+\fBdbm:\fR
+requests the legacy database
 .RE
 .sp
-If no prefix is specified the default type is retrieved from NSS_DEFAULT_DB_TYPE\&. If NSS_DEFAULT_DB_TYPE is not set then dbm: is the default\&.
+If no prefix is specified the default type is retrieved from NSS_DEFAULT_DB_TYPE\&. If NSS_DEFAULT_DB_TYPE is not set then
+\fBdbm:\fR
+is the default\&.
+.RE
+.PP
+\-\-dump\-ext\-val OID
+.RS 4
+For single cert, print binary DER encoding of extension OID\&.
 .RE
 .PP
 \-e
@@ -256,6 +270,44 @@ Check a certificate\*(Aqs signature during the process of validating a certifica
 Specify the email address of a certificate to list\&. Used with the \-L command option\&.
 .RE
 .PP
+\-\-extGeneric OID:critical\-flag:filename[,OID:critical\-flag:filename]\&.\&.\&.
+.RS 4
+Add one or multiple extensions that certutil cannot encode yet, by loading their encodings from external files\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OID (example): 1\&.2\&.3\&.4
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+critical\-flag: critical or not\-critical
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+filename: full path to a file containing an encoded extension
+.RE
+.RE
+.PP
 \-f password\-file
 .RS 4
 Specify a file that will automatically supply the password to include in a certificate or to access a certificate database\&. This is a plain\-text file containing one password\&. Be sure to prevent unauthorized access to this file\&.
@@ -263,7 +315,7 @@ Specify a file that will automatically supply the password to include in a certi
 .PP
 \-g keysize
 .RS 4
-Set a key size to use when generating new public and private key pairs\&. The minimum is 512 bits and the maximum is 8192 bits\&. The default is 1024 bits\&. Any size between the minimum and maximum is allowed\&.
+Set a key size to use when generating new public and private key pairs\&. The minimum is 512 bits and the maximum is 16384 bits\&. The default is 2048 bits\&. Any size between the minimum and maximum is allowed\&.
 .RE
 .PP
 \-h tokenname
@@ -414,7 +466,7 @@ for each trust setting\&. In each category position, use none, any, or all of th
 .sp
 The attribute codes for the categories are separated by commas, and the entire set of attributes enclosed by quotation marks\&. For example:
 .sp
-\fB\-t "TCu,Cu,Tuw"\fR
+\fB\-t "TCu,Cu,Tu"\fR
 .sp
 Use the \-L option to see a list of the current certificates and trust attributes in a certificate database\&.
 .RE
@@ -447,6 +499,42 @@ The contexts are the following:
 .\}
 \fBV\fR
 (as an SSL server)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBL\fR
+(as an SSL CA)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBA\fR
+(as Any CA)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBY\fR
+(Verify CA)
 .RE
 .sp
 .RS 4
@@ -536,14 +624,9 @@ Set an alternate exponent value to use in generating a new RSA public key for th
 Read a seed value from the specified file to generate a new private and public key pair\&. This argument makes it possible to use hardware\-generated seed values or manually create a value from the keyboard\&. The minimum file size is 20 bytes\&.
 .RE
 .PP
-\-0 SSO_password
+\-Z hashAlg
 .RS 4
-Set a site security officer password on a token\&.
-.RE
-.PP
-\-1 | \-\-keyUsage keyword,keyword
-.RS 4
-Set a Netscape Certificate Type Extension in the certificate\&. There are several available keywords:
+Specify the hash algorithm to use with the \-C, \-S or \-R command options\&. Possible keywords:
 .sp
 .RS 4
 .ie n \{\
@@ -553,7 +636,105 @@ Set a Netscape Certificate Type Extension in the certificate\&. There are severa
 .sp -1
 .IP \(bu 2.3
 .\}
-digital signature
+MD2
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+MD4
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+MD5
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHA1
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHA224
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHA256
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHA384
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SHA512
+.RE
+.RE
+.PP
+\-0 SSO_password
+.RS 4
+Set a site security officer password on a token\&.
+.RE
+.PP
+\-1 | \-\-keyUsage keyword,keyword
+.RS 4
+Set an X\&.509 V3 Certificate Type Extension in the certificate\&. There are several available keywords:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+digitalSignature
 .RE
 .sp
 .RS 4
@@ -661,7 +842,7 @@ X\&.509 certificate extensions are described in RFC 5280\&.
 .PP
 \-5 | \-\-nsCertType keyword,keyword
 .RS 4
-Add a Netscape certificate type extension to a certificate that is being created or added to the database\&. There are several available keywords:
+Add an X\&.509 V3 certificate type extension to a certificate that is being created or added to the database\&. There are several available keywords:
 .sp
 .RS 4
 .ie n \{\
@@ -910,6 +1091,13 @@ Add the Subject Key ID extension to the certificate\&. X\&.509 certificate exten
 Add a Name Constraint extension to the certificate\&. X\&.509 certificate extensions are described in RFC 5280\&.
 .RE
 .PP
+\-\-extSAN type:name[,type:name]\&.\&.\&.
+.RS 4
+Create a Subject Alt Name extension with one or multiple names\&.
+.sp
+\-type: directory, dn, dns, edi, ediparty, email, ip, ipaddr, other, registerid, rfc822, uri, x400, x400addr
+.RE
+.PP
 \-\-empty\-password
 .RS 4
 Use empty password when creating new certificate database with \-N\&.
@@ -923,6 +1111,11 @@ PKCS #11 key Attributes\&. Comma separated list of key attribute flags, selected
 \-\-keyOpFlagsOn opflags, \-\-keyOpFlagsOff opflags
 .RS 4
 PKCS #11 key Operation Flags\&. Comma separated list of one or more of the following: {token | session} {public | private} {sensitive | insensitive} {modifiable | unmodifiable} {extractable | unextractable}
+.RE
+.PP
+\-\-new\-n nickname
+.RS 4
+A new nickname, used when renaming a certificate\&.
 .RE
 .PP
 \-\-source\-dir certdir

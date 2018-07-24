@@ -266,6 +266,8 @@ static const struct mechanismList mechanisms[] = {
 				 CKF_DUZ_IT_ALL},       PR_TRUE},
      {CKM_RSA_PKCS_PSS,         {RSA_MIN_MODULUS_BITS,CK_MAX,
 				 CKF_SN_VR},            PR_TRUE},
+     {CKM_RSA_PKCS_OAEP,        {RSA_MIN_MODULUS_BITS,CK_MAX,
+                                 CKF_EN_DE_WR_UN},       PR_TRUE},
 #ifdef SFTK_RSA9796_SUPPORTED
      {CKM_RSA_9796,		{RSA_MIN_MODULUS_BITS,CK_MAX,
 				 CKF_DUZ_IT_ALL},       PR_TRUE},
@@ -302,7 +304,7 @@ static const struct mechanismList mechanisms[] = {
 				 CKF_GENERATE_KEY_PAIR}, PR_TRUE}, 
      {CKM_DH_PKCS_DERIVE,	{DH_MIN_P_BITS, DH_MAX_P_BITS,
 				 CKF_DERIVE}, 	PR_TRUE}, 
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
      /* -------------------- Elliptic Curve Operations --------------------- */
      {CKM_EC_KEY_PAIR_GEN,      {EC_MIN_KEY_BITS, EC_MAX_KEY_BITS,
 				 CKF_GENERATE_KEY_PAIR|CKF_EC_BPNU}, PR_TRUE}, 
@@ -312,7 +314,7 @@ static const struct mechanismList mechanisms[] = {
 				 CKF_SN_VR|CKF_EC_BPNU}, PR_TRUE}, 
      {CKM_ECDSA_SHA1,           {EC_MIN_KEY_BITS, EC_MAX_KEY_BITS,
 				 CKF_SN_VR|CKF_EC_BPNU}, PR_TRUE}, 
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
      /* ------------------------- RC2 Operations --------------------------- */
      {CKM_RC2_KEY_GEN,		{1, 128, CKF_GENERATE},		PR_TRUE},
      {CKM_RC2_ECB,		{1, 128, CKF_EN_DE_WR_UN},	PR_TRUE},
@@ -391,6 +393,7 @@ static const struct mechanismList mechanisms[] = {
      {CKM_SHA512_HMAC,		{1, 128, CKF_SN_VR},		PR_TRUE},
      {CKM_SHA512_HMAC_GENERAL,	{1, 128, CKF_SN_VR},		PR_TRUE},
      {CKM_TLS_PRF_GENERAL,	{0, 512, CKF_SN_VR},		PR_FALSE},
+     {CKM_TLS_MAC,		{0, 512, CKF_SN_VR},		PR_FALSE},
      {CKM_NSS_TLS_PRF_GENERAL_SHA256,
 				{0, 512, CKF_SN_VR},		PR_FALSE},
      /* ------------------------- HKDF Operations -------------------------- */
@@ -460,12 +463,15 @@ static const struct mechanismList mechanisms[] = {
      {CKM_SHA384_KEY_DERIVATION,	{ 0, 48, CKF_DERIVE},   PR_FALSE}, 
      {CKM_SHA512_KEY_DERIVATION,	{ 0, 64, CKF_DERIVE},   PR_FALSE}, 
      {CKM_TLS_MASTER_KEY_DERIVE,	{48, 48, CKF_DERIVE},   PR_FALSE}, 
+     {CKM_TLS12_MASTER_KEY_DERIVE,	{48, 48, CKF_DERIVE},   PR_FALSE}, 
      {CKM_NSS_TLS_MASTER_KEY_DERIVE_SHA256,
 					{48, 48, CKF_DERIVE},	PR_FALSE},
      {CKM_TLS_MASTER_KEY_DERIVE_DH,	{8, 128, CKF_DERIVE},   PR_FALSE}, 
+     {CKM_TLS12_MASTER_KEY_DERIVE_DH,	{8, 128, CKF_DERIVE},   PR_FALSE}, 
      {CKM_NSS_TLS_MASTER_KEY_DERIVE_DH_SHA256,
 					{8, 128, CKF_DERIVE},	PR_FALSE},
      {CKM_TLS_KEY_AND_MAC_DERIVE,	{48, 48, CKF_DERIVE},   PR_FALSE}, 
+     {CKM_TLS12_KEY_AND_MAC_DERIVE,	{48, 48, CKF_DERIVE},   PR_FALSE}, 
      {CKM_NSS_TLS_KEY_AND_MAC_DERIVE_SHA256,
 					{48, 48, CKF_DERIVE},	PR_FALSE},
      /* ---------------------- PBE Key Derivations  ------------------------ */
@@ -927,7 +933,7 @@ sftk_handlePublicKeyObject(SFTKSession *session, SFTKObject *object,
 	recover = CK_FALSE;
 	wrap = CK_FALSE;
 	break;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case CKK_EC:
 	if ( !sftk_hasAttribute(object, CKA_EC_PARAMS)) {
 	    return CKR_TEMPLATE_INCOMPLETE;
@@ -941,7 +947,7 @@ sftk_handlePublicKeyObject(SFTKSession *session, SFTKObject *object,
 	recover = CK_FALSE;
 	wrap = CK_FALSE;
 	break;
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     default:
 	return CKR_ATTRIBUTE_VALUE_INVALID;
     }
@@ -967,6 +973,17 @@ sftk_handlePublicKeyObject(SFTKSession *session, SFTKObject *object,
     }
     object->infoFree = (SFTKFree) nsslowkey_DestroyPublicKey;
 
+    /* Check that an imported EC key is valid */
+    if (key_type == CKK_EC) {
+      NSSLOWKEYPublicKey *pubKey = (NSSLOWKEYPublicKey*) object->objectInfo;
+      SECStatus rv = EC_ValidatePublicKey(&pubKey->u.ec.ecParams,
+                                          &pubKey->u.ec.publicValue);
+
+      if (rv != SECSuccess) {
+        return CKR_TEMPLATE_INCONSISTENT;
+      }
+    }
+
     if (sftk_isTrue(object,CKA_TOKEN)) {
 	SFTKSlot *slot = session->slot;
 	SFTKDBHandle *certHandle = sftk_getCertDB(slot);
@@ -987,7 +1004,7 @@ static NSSLOWKEYPrivateKey *
 sftk_mkPrivKey(SFTKObject *object,CK_KEY_TYPE key, CK_RV *rvp);
 
 static SECStatus
-sftk_fillRSAPrivateKey(SFTKObject *object);
+sftk_verifyRSAPrivateKey(SFTKObject *object, PRBool fillIfNeeded);
 
 /*
  * check the consistancy and initialize a Private Key Object 
@@ -1003,12 +1020,14 @@ sftk_handlePrivateKeyObject(SFTKSession *session,SFTKObject *object,CK_KEY_TYPE 
     CK_BBOOL derive = CK_TRUE;
     CK_BBOOL ckfalse = CK_FALSE;
     PRBool createObjectInfo = PR_TRUE;
+    PRBool fillPrivateKey = PR_FALSE;
     int missing_rsa_mod_component = 0;
     int missing_rsa_exp_component = 0;
     int missing_rsa_crt_component = 0;
-    
+
     SECItem mod;
     CK_RV crv;
+    SECStatus rv;
 
     switch (key_type) {
     case CKK_RSA:
@@ -1043,19 +1062,19 @@ sftk_handlePrivateKeyObject(SFTKSession *session,SFTKObject *object,CK_KEY_TYPE 
 	    int have_exp = 2- missing_rsa_exp_component;
 	    int have_component = 5- 
 		(missing_rsa_exp_component+missing_rsa_mod_component);
-	    SECStatus rv;
 
 	    if ((have_exp == 0) || (have_component < 3)) {
 		/* nope, not enough to reconstruct the private key */
 		return CKR_TEMPLATE_INCOMPLETE;
 	    }
-	    /*fill in the missing parameters */
-	    rv = sftk_fillRSAPrivateKey(object);
-	    if (rv != SECSuccess) {
-		return CKR_TEMPLATE_INCOMPLETE;
-	    }
+	    fillPrivateKey = PR_TRUE;
 	}
-		
+	/*verify the parameters for consistency*/
+	rv = sftk_verifyRSAPrivateKey(object, fillPrivateKey);
+	if (rv != SECSuccess) {
+		return CKR_TEMPLATE_INCOMPLETE;
+	}
+
 	/* make sure Netscape DB attribute is set correctly */
 	crv = sftk_Attribute2SSecItem(NULL, &mod, object, CKA_MODULUS);
 	if (crv != CKR_OK) return crv;
@@ -1088,7 +1107,7 @@ sftk_handlePrivateKeyObject(SFTKSession *session,SFTKObject *object,CK_KEY_TYPE 
 	recover = CK_FALSE;
 	wrap = CK_FALSE;
 	break;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case CKK_EC:
 	if ( !sftk_hasAttribute(object, CKA_EC_PARAMS)) {
 	    return CKR_TEMPLATE_INCOMPLETE;
@@ -1101,7 +1120,7 @@ sftk_handlePrivateKeyObject(SFTKSession *session,SFTKObject *object,CK_KEY_TYPE 
 	recover = CK_FALSE;
 	wrap = CK_FALSE;
 	break;
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     case CKK_NSS_JPAKE_ROUND1:
         if (!sftk_hasAttribute(object, CKA_PRIME) ||
             !sftk_hasAttribute(object, CKA_SUBPRIME) ||
@@ -1149,7 +1168,6 @@ sftk_handlePrivateKeyObject(SFTKSession *session,SFTKObject *object,CK_KEY_TYPE 
     if (sftk_isTrue(object,CKA_TOKEN)) {
 	SFTKSlot *slot = session->slot;
 	SFTKDBHandle *keyHandle = sftk_getKeyDB(slot);
-	CK_RV crv;
 
 	if (keyHandle == NULL) {
 	    return CKR_TOKEN_WRITE_PROTECTED;
@@ -1708,7 +1726,7 @@ NSSLOWKEYPublicKey *sftk_GetPubKey(SFTKObject *object,CK_KEY_TYPE key_type,
     	crv = sftk_Attribute2SSecItem(arena,&pubKey->u.dh.publicValue,
 							object,CKA_VALUE);
 	break;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case CKK_EC:
 	pubKey->keyType = NSSLOWKEYECKey;
 	crv = sftk_Attribute2SSecItem(arena,
@@ -1728,7 +1746,7 @@ NSSLOWKEYPublicKey *sftk_GetPubKey(SFTKObject *object,CK_KEY_TYPE key_type,
 	crv = sftk_Attribute2SSecItem(arena,&pubKey->u.ec.publicValue,
 	                              object,CKA_EC_POINT);
 	if (crv == CKR_OK) {
-	    int keyLen,curveLen;
+	    unsigned int keyLen,curveLen;
 
 	    curveLen = (pubKey->u.ec.ecParams.fieldID.size +7)/8;
 	    keyLen = (2*curveLen)+1;
@@ -1768,7 +1786,7 @@ NSSLOWKEYPublicKey *sftk_GetPubKey(SFTKObject *object,CK_KEY_TYPE key_type,
 	   crv = CKR_ATTRIBUTE_VALUE_INVALID;
 	}
 	break;
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     default:
 	crv = CKR_KEY_TYPE_INCONSISTENT;
 	break;
@@ -1877,7 +1895,7 @@ sftk_mkPrivKey(SFTKObject *object, CK_KEY_TYPE key_type, CK_RV *crvp)
 	 * if we don't set it explicitly */
 	break;
 
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case CKK_EC:
 	privKey->keyType = NSSLOWKEYECKey;
 	crv = sftk_Attribute2SSecItem(arena, 
@@ -1919,7 +1937,7 @@ sftk_mkPrivKey(SFTKObject *object, CK_KEY_TYPE key_type, CK_RV *crvp)
 #endif
 	}
 	break;
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 
     default:
 	crv = CKR_KEY_TYPE_INCONSISTENT;
@@ -1940,10 +1958,11 @@ sftk_mkPrivKey(SFTKObject *object, CK_KEY_TYPE key_type, CK_RV *crvp)
 }
 
 /*
- * we have a partial rsa private key, fill in the rest
+ * If a partial RSA private key is present, fill in the rest if necessary,
+ * and then verify the parameters are well-formed
  */
 static SECStatus
-sftk_fillRSAPrivateKey(SFTKObject *object)
+sftk_verifyRSAPrivateKey(SFTKObject *object, PRBool fillIfNeeded)
 {
     RSAPrivateKey tmpKey = { 0 };
     SFTKAttribute *modulus = NULL;
@@ -1951,6 +1970,9 @@ sftk_fillRSAPrivateKey(SFTKObject *object)
     SFTKAttribute *prime2 = NULL;
     SFTKAttribute *privateExponent = NULL;
     SFTKAttribute *publicExponent = NULL;
+    SFTKAttribute *exponent1 = NULL;
+    SFTKAttribute *exponent2 = NULL;
+    SFTKAttribute *coefficient = NULL;
     SECStatus rv;
     CK_RV crv;
 
@@ -1981,44 +2003,82 @@ sftk_fillRSAPrivateKey(SFTKObject *object)
     if (publicExponent) {
 	tmpKey.publicExponent.data = publicExponent->attrib.pValue;
 	tmpKey.publicExponent.len  = publicExponent->attrib.ulValueLen;
-    } 
+    }
+    exponent1 = sftk_FindAttribute(object, CKA_EXPONENT_1);
+    if (exponent1) {
+	tmpKey.exponent1.data = exponent1->attrib.pValue;
+	tmpKey.exponent1.len  = exponent1->attrib.ulValueLen;
+    }
+    exponent2 = sftk_FindAttribute(object, CKA_EXPONENT_2);
+    if (exponent2) {
+	tmpKey.exponent2.data = exponent2->attrib.pValue;
+	tmpKey.exponent2.len  = exponent2->attrib.ulValueLen;
+    }
+    coefficient = sftk_FindAttribute(object, CKA_COEFFICIENT);
+    if (coefficient) {
+	tmpKey.coefficient.data = coefficient->attrib.pValue;
+	tmpKey.coefficient.len  = coefficient->attrib.ulValueLen;
+    }
 
-    /*
-     * populate requires one exponent plus 2 other components to work.
-     * we expected our caller to check that first. If that didn't happen,
-     * populate will simply return an error here.
-     */
-    rv = RSA_PopulatePrivateKey(&tmpKey);
+    if (fillIfNeeded) {
+	/*
+	* populate requires one exponent plus 2 other components to work.
+	* we expected our caller to check that first. If that didn't happen,
+	* populate will simply return an error here.
+	*/
+	rv = RSA_PopulatePrivateKey(&tmpKey);
+	if (rv != SECSuccess) {
+		goto loser;
+	}
+    }
+    rv = RSA_PrivateKeyCheck(&tmpKey);
     if (rv != SECSuccess) {
 	goto loser;
     }
-
     /* now that we have a fully populated key, set all our attribute values */
     rv = SECFailure;
-    crv = sftk_forceAttribute(object,CKA_MODULUS,
-                       sftk_item_expand(&tmpKey.modulus));
-    if (crv != CKR_OK) goto loser;
-    crv = sftk_forceAttribute(object,CKA_PUBLIC_EXPONENT,
-                       sftk_item_expand(&tmpKey.publicExponent));
-    if (crv != CKR_OK) goto loser;
-    crv = sftk_forceAttribute(object,CKA_PRIVATE_EXPONENT,
-                       sftk_item_expand(&tmpKey.privateExponent));
-    if (crv != CKR_OK) goto loser;
-    crv = sftk_forceAttribute(object,CKA_PRIME_1,
-                       sftk_item_expand(&tmpKey.prime1));
-    if (crv != CKR_OK) goto loser;
-    crv = sftk_forceAttribute(object,CKA_PRIME_2,
-                       sftk_item_expand(&tmpKey.prime2));
-    if (crv != CKR_OK) goto loser;
-    crv = sftk_forceAttribute(object,CKA_EXPONENT_1,
-                       sftk_item_expand(&tmpKey.exponent1));
-    if (crv != CKR_OK) goto loser;
-    crv = sftk_forceAttribute(object,CKA_EXPONENT_2,
-                       sftk_item_expand(&tmpKey.exponent2));
-    if (crv != CKR_OK) goto loser;
-    crv = sftk_forceAttribute(object,CKA_COEFFICIENT,
-                       sftk_item_expand(&tmpKey.coefficient));
-    if (crv != CKR_OK) goto loser;
+    if (!modulus || modulus->attrib.pValue != tmpKey.modulus.data) {
+        crv = sftk_forceAttribute(object,CKA_MODULUS,
+                                  sftk_item_expand(&tmpKey.modulus));
+        if (crv != CKR_OK) goto loser;
+    }
+    if (!publicExponent ||
+        publicExponent->attrib.pValue != tmpKey.publicExponent.data) {
+        crv = sftk_forceAttribute(object, CKA_PUBLIC_EXPONENT,
+                                  sftk_item_expand(&tmpKey.publicExponent));
+        if (crv != CKR_OK) goto loser;
+    }
+    if (!privateExponent ||
+        privateExponent->attrib.pValue != tmpKey.privateExponent.data) {
+        crv = sftk_forceAttribute(object, CKA_PRIVATE_EXPONENT,
+                                  sftk_item_expand(&tmpKey.privateExponent));
+        if (crv != CKR_OK) goto loser;
+    }
+    if (!prime1 || prime1->attrib.pValue != tmpKey.prime1.data) {
+        crv = sftk_forceAttribute(object, CKA_PRIME_1,
+                                  sftk_item_expand(&tmpKey.prime1));
+        if (crv != CKR_OK) goto loser;
+    }
+    if (!prime2 || prime2->attrib.pValue != tmpKey.prime2.data) {
+        crv = sftk_forceAttribute(object, CKA_PRIME_2,
+                                  sftk_item_expand(&tmpKey.prime2));
+        if (crv != CKR_OK) goto loser;
+    }
+    if (!exponent1 || exponent1->attrib.pValue != tmpKey.exponent1.data) {
+        crv = sftk_forceAttribute(object, CKA_EXPONENT_1,
+                                 sftk_item_expand(&tmpKey.exponent1));
+        if (crv != CKR_OK) goto loser;
+    }
+    if (!exponent2 || exponent2->attrib.pValue != tmpKey.exponent2.data) {
+        crv = sftk_forceAttribute(object, CKA_EXPONENT_2,
+                                  sftk_item_expand(&tmpKey.exponent2));
+        if (crv != CKR_OK) goto loser;
+    }
+    if (!coefficient || coefficient->attrib.pValue != tmpKey.coefficient.data) {
+        crv = sftk_forceAttribute(object, CKA_COEFFICIENT,
+                                  sftk_item_expand(&tmpKey.coefficient));
+        if (crv != CKR_OK) goto loser;
+    }
     rv = SECSuccess;
 
     /* we're done (one way or the other), clean up all our stuff */
@@ -2041,14 +2101,17 @@ loser:
     if (publicExponent) {
 	sftk_FreeAttribute(publicExponent);
     }
+    if (exponent1) {
+	sftk_FreeAttribute(exponent1);
+    }
+    if (exponent2) {
+	sftk_FreeAttribute(exponent2);
+    }
+    if (coefficient) {
+	sftk_FreeAttribute(coefficient);
+    }
     return rv;
 }
-
-
-
-
-
-
 
 /* Generate a low private key structure from an object */
 NSSLOWKEYPrivateKey *
@@ -2158,7 +2221,7 @@ CK_RV C_GetFunctionList(CK_FUNCTION_LIST_PTR *pFunctionList)
 static PLHashNumber
 sftk_HashNumber(const void *key)
 {
-    return (PLHashNumber) key;
+    return (PLHashNumber)((char *)key - (char *)NULL);
 }
 
 /*
@@ -3076,17 +3139,16 @@ CK_RV NSC_Finalize (CK_VOID_PTR pReserved)
     return crv;
 }
 
-extern const char __nss_softokn_rcsid[];
-extern const char __nss_softokn_sccsid[];
+extern const char __nss_softokn_version[];
 
 /* NSC_GetInfo returns general information about Cryptoki. */
 CK_RV  NSC_GetInfo(CK_INFO_PTR pInfo)
 {
-    volatile char c; /* force a reference that won't get optimized away */
+#define NSS_VERSION_VARIABLE __nss_softokn_version
+#include "verref.h"
 
     CHECK_FORK();
     
-    c = __nss_softokn_rcsid[0] + __nss_softokn_sccsid[0]; 
     pInfo->cryptokiVersion.major = 2;
     pInfo->cryptokiVersion.minor = 20;
     PORT_Memcpy(pInfo->manufacturerID,manufacturerID,32);
@@ -3128,9 +3190,6 @@ CK_RV NSC_GetSlotInfo(CK_SLOT_ID slotID, CK_SLOT_INFO_PTR pInfo)
 
     if (slot == NULL) return CKR_SLOT_ID_INVALID;
 
-    pInfo->firmwareVersion.major = 0;
-    pInfo->firmwareVersion.minor = 0;
-
     PORT_Memcpy(pInfo->manufacturerID,manufacturerID,
 		sizeof(pInfo->manufacturerID));
     PORT_Memcpy(pInfo->slotDescription,slot->slotDescription,
@@ -3157,6 +3216,8 @@ CK_RV NSC_GetSlotInfo(CK_SLOT_ID slotID, CK_SLOT_INFO_PTR pInfo)
     /* pInfo->hardwareVersion.major = NSSLOWKEY_DB_FILE_VERSION; */
     pInfo->hardwareVersion.major = SOFTOKEN_VMAJOR;
     pInfo->hardwareVersion.minor = SOFTOKEN_VMINOR;
+    pInfo->firmwareVersion.major = SOFTOKEN_VPATCH;
+    pInfo->firmwareVersion.minor = SOFTOKEN_VBUILD;
     return CKR_OK;
 }
 
@@ -3944,7 +4005,7 @@ static CK_RV sftk_CreateNewSlot(SFTKSlot *slot, CK_OBJECT_CLASS class,
     PRBool isValidFIPSUserSlot = PR_FALSE;
     PRBool isValidSlot = PR_FALSE;
     PRBool isFIPS = PR_FALSE;
-    unsigned long moduleIndex;
+    unsigned long moduleIndex = NSC_NON_FIPS_MODULE;
     SFTKAttribute *attribute;
     sftk_parameters paramStrings;
     char *paramString;
@@ -4453,7 +4514,7 @@ sftk_emailhack(SFTKSlot *slot, SFTKDBHandle *handle,
 {
     PRBool isCert = PR_FALSE;
     int emailIndex = -1;
-    int i;
+    unsigned int i;
     SFTKSearchResults smime_search;
     CK_ATTRIBUTE smime_template[2];
     CK_OBJECT_CLASS smime_class = CKO_NETSCAPE_SMIME;

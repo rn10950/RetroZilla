@@ -522,7 +522,6 @@ ConvertFromSID(sidCacheEntry *to, sslSessionID *from)
 /*
 ** Convert shared memory cache-entry to local memory based one
 ** This is only called from ServerSessionIDLookup().
-** Caller must hold cache lock when calling this.
 */
 static sslSessionID *
 ConvertToSID(sidCacheEntry *    from,
@@ -1028,6 +1027,10 @@ CloseCache(cacheDesc *cache)
     memset(cache, 0, sizeof *cache);
 }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
 static SECStatus
 InitCache(cacheDesc *cache, int maxCacheEntries, int maxCertCacheEntries,
           int maxSrvNameCacheEntries, PRUint32 ssl2_timeout, 
@@ -1267,6 +1270,9 @@ loser:
     CloseCache(cache);
     return SECFailure;
 }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 PRUint32
 SSL_GetMaxServerCacheLocks(void)

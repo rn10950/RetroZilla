@@ -67,16 +67,6 @@ static const SEC_ASN1Template CERTOtherNameTemplate[] = {
       sizeof(CERTGeneralName) }
 };
 
-static const SEC_ASN1Template CERTOtherName2Template[] = {
-    { SEC_ASN1_SEQUENCE | SEC_ASN1_CONTEXT_SPECIFIC | 0 ,
-      0, NULL, sizeof(CERTGeneralName) },
-    { SEC_ASN1_OBJECT_ID,
-	  offsetof(CERTGeneralName, name.OthName) + offsetof(OtherName, oid) },
-    { SEC_ASN1_ANY,
-	  offsetof(CERTGeneralName, name.OthName) + offsetof(OtherName, name) },
-    { 0, } 
-};
-
 static const SEC_ASN1Template CERT_RFC822NameTemplate[] = {
     { SEC_ASN1_CONTEXT_SPECIFIC | SEC_ASN1_XTRN | 1 ,
           offsetof(CERTGeneralName, name.other),
@@ -137,6 +127,39 @@ const SEC_ASN1Template CERT_GeneralNamesTemplate[] = {
 };
 
 
+static struct {
+    CERTGeneralNameType type;
+    char *name;
+} typesArray[] = {
+    { certOtherName, "other" },
+    { certRFC822Name, "email" },
+    { certRFC822Name, "rfc822" },
+    { certDNSName, "dns" },
+    { certX400Address, "x400" },
+    { certX400Address, "x400addr" },
+    { certDirectoryName, "directory" },
+    { certDirectoryName, "dn" },
+    { certEDIPartyName, "edi" },
+    { certEDIPartyName, "ediparty" },
+    { certURI, "uri" },
+    { certIPAddress, "ip" },
+    { certIPAddress, "ipaddr" },
+    { certRegisterID, "registerid" }
+};
+
+CERTGeneralNameType
+CERT_GetGeneralNameTypeFromString(const char *string)
+{
+    int types_count = sizeof(typesArray)/sizeof(typesArray[0]);
+    int i;
+
+    for (i=0; i < types_count; i++) {
+        if (PORT_Strcasecmp(string, typesArray[i].name) == 0) {
+            return typesArray[i].type;
+        }
+    }
+    return 0;
+}
 
 CERTGeneralName *
 CERT_NewGeneralName(PLArenaPool *arena, CERTGeneralNameType type)
@@ -651,7 +674,7 @@ loser:
     return NULL;
 }
 
-CERTNameConstraint *
+static CERTNameConstraint *
 cert_DecodeNameConstraintSubTree(PLArenaPool   *arena,
 				 SECItem       **subTree,
 				 PRBool        permited)
@@ -668,15 +691,17 @@ cert_DecodeNameConstraintSubTree(PLArenaPool   *arena,
 	if (current == NULL) {
 	    goto loser;
 	}
-	if (last == NULL) {
-	    first = last = current;
+	if (first == NULL) {
+	    first = current;
+	} else {
+	    current->l.prev = &(last->l);
+	    last->l.next = &(current->l);
 	}
-	current->l.prev = &(last->l);
-	current->l.next = last->l.next;
-	last->l.next = &(current->l);
+	last = current;
 	i++;
     }
-    first->l.prev = &(current->l);
+    first->l.prev = &(last->l);
+    last->l.next = &(first->l);
     /* TODO: unmark arena */
     return first;
 loser:
@@ -1523,7 +1548,98 @@ done:
     return rv;
 }
 
-/* Extract the name constraints extension from the CA cert. */
+/*
+ * Here we define a list of name constraints to be imposed on
+ * certain certificates, most importantly root certificates.
+ *
+ * Each entry in the name constraints list is constructed with this
+ * macro.  An entry contains two SECItems, which have names in
+ * specific forms to make the macro work:
+ *
+ *  * ${CA}_SUBJECT_DN - The subject DN for which the constraints
+ *                       should be applied
+ *  * ${CA}_NAME_CONSTRAINTS - The name constraints extension
+ *
+ * Entities subject to name constraints are identified by subject name
+ * so that we can cover all certificates for that entity, including, e.g.,
+ * cross-certificates.  We use subject rather than public key because
+ * calling methods often have easy access to that field (vs., say, a key ID),
+ * and in practice, subject names and public keys are usually in one-to-one
+ * correspondence anyway.
+ *
+ */
+
+#define STRING_TO_SECITEM(str) \
+{ siBuffer, (unsigned char*) str, sizeof(str) - 1 }
+
+#define NAME_CONSTRAINTS_ENTRY(CA)  \
+    { \
+        STRING_TO_SECITEM(CA ## _SUBJECT_DN), \
+        STRING_TO_SECITEM(CA ## _NAME_CONSTRAINTS) \
+    }
+
+/* Agence Nationale de la Securite des Systemes d'Information (ANSSI) */
+
+#define ANSSI_SUBJECT_DN \
+    "\x30\x81\x85"                                                     \
+    "\x31\x0B\x30\x09\x06\x03\x55\x04\x06\x13\x02" "FR"       /* C */  \
+    "\x31\x0F\x30\x0D\x06\x03\x55\x04\x08\x13\x06" "France"   /* ST */ \
+    "\x31\x0E\x30\x0C\x06\x03\x55\x04\x07\x13\x05" "Paris"    /* L */  \
+    "\x31\x10\x30\x0E\x06\x03\x55\x04\x0A\x13\x07" "PM/SGDN"  /* O */  \
+    "\x31\x0E\x30\x0C\x06\x03\x55\x04\x0B\x13\x05" "DCSSI"    /* OU */ \
+    "\x31\x0E\x30\x0C\x06\x03\x55\x04\x03\x13\x05" "IGC/A"    /* CN */ \
+    "\x31\x23\x30\x21\x06\x09\x2A\x86\x48\x86\xF7\x0D\x01\x09\x01"     \
+    "\x16\x14" "igca@sgdn.pm.gouv.fr" /* emailAddress */ \
+
+#define ANSSI_NAME_CONSTRAINTS \
+    "\x30\x5D\xA0\x5B"       \
+    "\x30\x05\x82\x03" ".fr" \
+    "\x30\x05\x82\x03" ".gp" \
+    "\x30\x05\x82\x03" ".gf" \
+    "\x30\x05\x82\x03" ".mq" \
+    "\x30\x05\x82\x03" ".re" \
+    "\x30\x05\x82\x03" ".yt" \
+    "\x30\x05\x82\x03" ".pm" \
+    "\x30\x05\x82\x03" ".bl" \
+    "\x30\x05\x82\x03" ".mf" \
+    "\x30\x05\x82\x03" ".wf" \
+    "\x30\x05\x82\x03" ".pf" \
+    "\x30\x05\x82\x03" ".nc" \
+    "\x30\x05\x82\x03" ".tf" \
+
+static const SECItem builtInNameConstraints[][2] = {
+    NAME_CONSTRAINTS_ENTRY(ANSSI)
+};
+
+SECStatus
+CERT_GetImposedNameConstraints(const SECItem *derSubject,
+                               SECItem *extensions)
+{
+    size_t i;
+
+    if (!extensions) {
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return SECFailure;
+    }
+
+    for (i = 0; i < PR_ARRAY_SIZE(builtInNameConstraints); ++i) {
+        if (SECITEM_ItemsAreEqual(derSubject, &builtInNameConstraints[i][0])) {
+            return SECITEM_CopyItem(NULL,
+                                    extensions, 
+                                    &builtInNameConstraints[i][1]);
+        }
+    }
+
+    PORT_SetError(SEC_ERROR_EXTENSION_NOT_FOUND);
+    return SECFailure;
+}
+
+/* 
+ * Extract the name constraints extension from the CA cert.
+ * If the certificate contains no name constraints extension, but
+ * CERT_GetImposedNameConstraints returns a name constraints extension
+ * for the subject of the certificate, then that extension will be returned.
+ */
 SECStatus
 CERT_FindNameConstraintsExten(PLArenaPool      *arena,
                               CERTCertificate  *cert,
@@ -1538,10 +1654,17 @@ CERT_FindNameConstraintsExten(PLArenaPool      *arena,
     rv = CERT_FindCertExtension(cert, SEC_OID_X509_NAME_CONSTRAINTS, 
                                 &constraintsExtension);
     if (rv != SECSuccess) {
-        if (PORT_GetError() == SEC_ERROR_EXTENSION_NOT_FOUND) {
-            rv = SECSuccess;
+        if (PORT_GetError() != SEC_ERROR_EXTENSION_NOT_FOUND) {
+            return rv;
         }
-        return rv;
+        rv = CERT_GetImposedNameConstraints(&cert->derSubject,
+                                            &constraintsExtension);
+        if (rv != SECSuccess) {
+          if (PORT_GetError() == SEC_ERROR_EXTENSION_NOT_FOUND) {
+            return SECSuccess;
+          }
+          return rv;
+        }
     }
 
     mark = PORT_ArenaMark(arena);

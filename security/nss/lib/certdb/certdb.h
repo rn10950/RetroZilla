@@ -7,16 +7,16 @@
 
 
 /* common flags for all types of certificates */
-#define CERTDB_TERMINAL_RECORD	(1<<0)
-#define CERTDB_TRUSTED		(1<<1)
-#define CERTDB_SEND_WARN	(1<<2)
-#define CERTDB_VALID_CA		(1<<3)
-#define CERTDB_TRUSTED_CA	(1<<4) /* trusted for issuing server certs */
-#define CERTDB_NS_TRUSTED_CA	(1<<5)
-#define CERTDB_USER		(1<<6)
-#define CERTDB_TRUSTED_CLIENT_CA (1<<7) /* trusted for issuing client certs */
-#define CERTDB_INVISIBLE_CA	(1<<8) /* don't show in UI */
-#define CERTDB_GOVT_APPROVED_CA	(1<<9) /* can do strong crypto in export ver */
+#define CERTDB_TERMINAL_RECORD	(1u<<0)
+#define CERTDB_TRUSTED		(1u<<1)
+#define CERTDB_SEND_WARN	(1u<<2)
+#define CERTDB_VALID_CA		(1u<<3)
+#define CERTDB_TRUSTED_CA	(1u<<4) /* trusted for issuing server certs */
+#define CERTDB_NS_TRUSTED_CA	(1u<<5)
+#define CERTDB_USER		(1u<<6)
+#define CERTDB_TRUSTED_CLIENT_CA (1u<<7) /* trusted for issuing client certs */
+#define CERTDB_INVISIBLE_CA	(1u<<8) /* don't show in UI */
+#define CERTDB_GOVT_APPROVED_CA	(1u<<9) /* can do strong crypto in export ver */
 
 /* old usage, to keep old programs compiling */
 /* On Windows, Mac, and Linux (and other gcc platforms), we can give compile
@@ -75,6 +75,21 @@ SECStatus SEC_DeletePermCertificate(CERTCertificate *cert);
 PRBool
 SEC_CrlIsNewer(CERTCrl *inNew, CERTCrl *old);
 
+/*
+** Extract the validity times from a CRL
+**	"crl" is the CRL
+**	"notBefore" is the start of the validity period (last update)
+**	"notAfter" is the end of the validity period (next update)
+*/
+SECStatus
+SEC_GetCrlTimes(CERTCrl *crl, PRTime *notBefore, PRTime *notAfter);
+
+/*
+** Check the validity times of a crl vs. time 't', allowing
+** some slop for broken clocks and stuff.
+**	"crl" is the certificate to be checked
+**	"t" is the time to check against
+*/
 SECCertTimeValidity
 SEC_CheckCrlTimes(CERTCrl *crl, PRTime t);
 

@@ -659,6 +659,7 @@ public:
   nsCOMPtr<nsIX509Cert> mServerCert;
   PRUint32 mKeyLength;
   PRUint32 mSecretKeyLength;
+  PRUint32 mProtocolVersion;
   nsXPIDLCString mCipherName;
 };
 
@@ -694,6 +695,16 @@ nsSSLStatus::GetSecretKeyLength(PRUint32* _result)
 }
 
 NS_IMETHODIMP
+nsSSLStatus::GetProtocolVersion(PRUint32* _result)
+{
+  NS_ASSERTION(_result, "non-NULL destination required");
+
+  *_result = mProtocolVersion;
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsSSLStatus::GetCipherName(char** _result)
 {
   NS_ASSERTION(_result, "non-NULL destination required");
@@ -704,7 +715,7 @@ nsSSLStatus::GetCipherName(char** _result)
 }
 
 nsSSLStatus::nsSSLStatus()
-: mKeyLength(0), mSecretKeyLength(0)
+: mKeyLength(0), mSecretKeyLength(0), mProtocolVersion(0)
 {
 }
 
@@ -866,6 +877,13 @@ void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
     status->mKeyLength = keyLength;
     status->mSecretKeyLength = encryptBits;
     status->mCipherName.Adopt(cipherName);
+
+    SSLChannelInfo channelInfo;
+    if (SSL_GetChannelInfo(fd, &channelInfo, sizeof(channelInfo)) == SECSuccess) {
+      // Get the protocol version
+      // 0=ssl3, 1=tls1, 2=tls1.1, 3=tls1.2
+      status->mProtocolVersion = channelInfo.protocolVersion & 0xFF;
+    }
 
     infoObject->SetSSLStatus(status);
   }

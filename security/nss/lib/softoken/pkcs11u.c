@@ -1174,7 +1174,6 @@ sftk_DeleteObject(SFTKSession *session, SFTKObject *object)
 {
     SFTKSlot *slot = sftk_SlotFromSession(session);
     SFTKSessionObject *so = sftk_narrowToSessionObject(object);
-    SFTKTokenObject *to = sftk_narrowToTokenObject(object);
     CK_RV crv = CKR_OK;
     PRUint32 index = sftk_hash(object->handle, slot->sessObjHashSize);
 
@@ -1191,8 +1190,10 @@ sftk_DeleteObject(SFTKSession *session, SFTKObject *object)
 	sftk_FreeObject(object); /* free the reference owned by the queue */
     } else {
 	SFTKDBHandle *handle = sftk_getDBForTokenObject(slot, object->handle);
-
+#ifdef DEBUG
+        SFTKTokenObject *to = sftk_narrowToTokenObject(object);
 	PORT_Assert(to);
+#endif
 	crv = sftkdb_DestroyObject(handle, object->handle);
 	sftk_freeDB(handle);
     } 
@@ -1246,7 +1247,7 @@ static const CK_ATTRIBUTE_TYPE dhPubKeyAttrs[] = {
 };
 static const CK_ULONG dhPubKeyAttrsCount = 
 			sizeof(dhPubKeyAttrs)/sizeof(dhPubKeyAttrs[0]);
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 static const CK_ATTRIBUTE_TYPE ecPubKeyAttrs[] = {
     CKA_EC_PARAMS, CKA_EC_POINT
 };
@@ -1279,7 +1280,7 @@ static const CK_ATTRIBUTE_TYPE dhPrivKeyAttrs[] = {
 };
 static const CK_ULONG dhPrivKeyAttrsCount = 
 			sizeof(dhPrivKeyAttrs)/sizeof(dhPrivKeyAttrs[0]);
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 static const CK_ATTRIBUTE_TYPE ecPrivKeyAttrs[] = {
     CKA_EC_PARAMS, CKA_VALUE
 };
@@ -1390,7 +1391,7 @@ stfk_CopyTokenPrivateKey(SFTKObject *destObject,SFTKTokenObject *src_to)
 	crv = stfk_CopyTokenAttributes(destObject, src_to, dhPrivKeyAttrs,
 							dhPrivKeyAttrsCount);
 	break;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case CKK_EC:
 	crv = stfk_CopyTokenAttributes(destObject, src_to, ecPrivKeyAttrs,
 							ecPrivKeyAttrsCount);
@@ -1452,7 +1453,7 @@ stfk_CopyTokenPublicKey(SFTKObject *destObject,SFTKTokenObject *src_to)
 	crv = stfk_CopyTokenAttributes(destObject, src_to, dhPubKeyAttrs,
 							dhPubKeyAttrsCount);
 	break;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case CKK_EC:
 	crv = stfk_CopyTokenAttributes(destObject, src_to, ecPubKeyAttrs,
 							ecPubKeyAttrsCount);
@@ -1899,7 +1900,6 @@ SFTKObject *
 sftk_NewTokenObject(SFTKSlot *slot, SECItem *dbKey, CK_OBJECT_HANDLE handle)
 {
     SFTKObject *object = NULL;
-    SFTKTokenObject *tokObject = NULL;
     PRBool hasLocks = PR_FALSE;
     CK_RV crv;
 
@@ -1908,7 +1908,6 @@ sftk_NewTokenObject(SFTKSlot *slot, SECItem *dbKey, CK_OBJECT_HANDLE handle)
     if (object == NULL) {
 	return NULL;
     }
-    tokObject = (SFTKTokenObject *) object;
 
     object->handle = handle;
     /* every object must have a class, if we can't get it, the object

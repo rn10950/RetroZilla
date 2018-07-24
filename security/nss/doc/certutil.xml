@@ -73,6 +73,11 @@
       </varlistentry>
 
       <varlistentry>
+        <term>--rename </term>
+        <listitem><para>Change the database nickname of a certificate.</para></listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-E </term>
         <listitem><para>Add an email certificate to the certificate database.</para></listitem>
       </varlistentry>
@@ -196,11 +201,16 @@ If this option is not used, the validity check defaults to the current system ti
           <para><command>certutil</command> supports two types of databases: the legacy security databases (<filename>cert8.db</filename>, <filename>key3.db</filename>, and <filename>secmod.db</filename>) and new SQLite databases (<filename>cert9.db</filename>, <filename>key4.db</filename>, and <filename>pkcs11.txt</filename>). </para>
           <para>NSS recognizes the following prefixes:</para>
           <itemizedlist>
-            <listitem><para><command>sql: requests the newer database</command></para></listitem>
-	    <listitem><para><command>dbm: requests the legacy database</command></para></listitem>
+            <listitem><para><command>sql:</command> requests the newer database</para></listitem>
+	    <listitem><para><command>dbm:</command> requests the legacy database</para></listitem>
           </itemizedlist>
-          <para>If no prefix is specified the default type is retrieved from NSS_DEFAULT_DB_TYPE. If NSS_DEFAULT_DB_TYPE is not set then dbm: is the default.</para>
+          <para>If no prefix is specified the default type is retrieved from NSS_DEFAULT_DB_TYPE. If NSS_DEFAULT_DB_TYPE is not set then <command>dbm:</command> is the default.</para>
         </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>--dump-ext-val OID </term>
+        <listitem><para>For single cert, print binary DER encoding of extension OID.</para></listitem>
       </varlistentry>
 
       <varlistentry>
@@ -214,6 +224,26 @@ If this option is not used, the validity check defaults to the current system ti
       </varlistentry>
 
       <varlistentry>
+        <term>--extGeneric OID:critical-flag:filename[,OID:critical-flag:filename]... </term>
+        <listitem>
+          <para>
+Add one or multiple extensions that certutil cannot encode yet, by loading their encodings from external files.
+           </para>
+	<itemizedlist>
+	<listitem>
+<para>OID (example): 1.2.3.4</para>
+	</listitem>
+	<listitem>
+<para>critical-flag: critical or not-critical</para>
+	</listitem>
+	<listitem>
+<para>filename: full path to a file containing an encoded extension</para>
+	</listitem>
+	</itemizedlist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-f password-file</term>
         <listitem><para>Specify a file that will automatically supply the password to include in a certificate 
  or to access a certificate database. This is a plain-text file containing one password. Be sure to prevent 
@@ -222,7 +252,7 @@ If this option is not used, the validity check defaults to the current system ti
 
       <varlistentry>
         <term>-g keysize</term>
-        <listitem><para>Set a key size to use when generating new public and private key pairs. The minimum is 512 bits and the maximum is 8192 bits. The default is 1024 bits. Any size between the minimum and maximum is allowed.</para></listitem>
+        <listitem><para>Set a key size to use when generating new public and private key pairs. The minimum is 512 bits and the maximum is 16384 bits. The default is 2048 bits. Any size between the minimum and maximum is allowed.</para></listitem>
       </varlistentry>
 
 
@@ -360,7 +390,7 @@ of the attribute codes:
 	<para>
 		The attribute codes for the categories are separated by commas, and the entire set of attributes enclosed by quotation marks. For example:
 	</para>
-<para><command>-t "TCu,Cu,Tuw"</command></para>
+<para><command>-t "TCu,Cu,Tu"</command></para>
 	<para>
 	Use the -L option to see a list of the current certificates and trust attributes in a certificate database. </para></listitem>
       </varlistentry>
@@ -374,6 +404,15 @@ of the attribute codes:
 	</listitem>
 	<listitem>
 <para><command>V</command> (as an SSL server)</para>
+	</listitem>
+	<listitem>
+<para><command>L</command> (as an SSL CA)</para>
+	</listitem>
+	<listitem>
+<para><command>A</command> (as Any CA)</para>
+	</listitem>
+	<listitem>
+<para><command>Y</command> (Verify CA)</para>
 	</listitem>
 	<listitem>
 <para><command>S</command> (as an email signer)</para>
@@ -426,17 +465,34 @@ of the attribute codes:
       </varlistentry>
 
       <varlistentry>
+        <term>-Z hashAlg</term>
+        <listitem>
+        <para>Specify the hash algorithm to use with the -C, -S or -R command options. Possible keywords:</para>
+        <itemizedlist>
+          <listitem><para>MD2</para></listitem>
+          <listitem><para>MD4</para></listitem>
+          <listitem><para>MD5</para></listitem>
+          <listitem><para>SHA1</para></listitem>
+          <listitem><para>SHA224</para></listitem>
+          <listitem><para>SHA256</para></listitem>
+          <listitem><para>SHA384</para></listitem>
+          <listitem><para>SHA512</para></listitem>
+        </itemizedlist>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-0 SSO_password</term>
         <listitem><para>Set a site security officer password on a token.</para></listitem>
       </varlistentry>
 
       <varlistentry>
         <term>-1 | --keyUsage keyword,keyword</term>
-        <listitem><para>Set a Netscape Certificate Type Extension in the certificate. There are several available keywords:</para>
+        <listitem><para>Set an X.509 V3 Certificate Type Extension in the certificate. There are several available keywords:</para>
 	<itemizedlist>
 	<listitem>
 	<para>
-		digital signature
+		digitalSignature
 	</para>
 	</listitem>
 	<listitem>
@@ -498,7 +554,7 @@ of the attribute codes:
 
       <varlistentry>
         <term>-5 | --nsCertType keyword,keyword</term>
-        <listitem><para>Add a Netscape certificate type extension to a certificate that is being created or added to the database. There are several available keywords:</para>
+        <listitem><para>Add an X.509 V3 certificate type extension to a certificate that is being created or added to the database. There are several available keywords:</para>
 	<itemizedlist>
 	<listitem>
 	<para>
@@ -649,6 +705,17 @@ of the attribute codes:
       </varlistentry>
 
       <varlistentry>
+        <term>--extSAN type:name[,type:name]...</term>
+        <listitem><para>
+Create a Subject Alt Name extension with one or multiple names.
+          </para>
+          <para>
+-type: directory, dn, dns, edi, ediparty, email, ip, ipaddr, other, registerid, rfc822, uri, x400, x400addr
+        </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>--empty-password</term>
         <listitem><para>Use empty password when creating new certificate database with -N.</para></listitem>
       </varlistentry>
@@ -667,6 +734,11 @@ PKCS #11 key Operation Flags.
 Comma separated list of one or more of the following:
 {token | session} {public | private} {sensitive | insensitive} {modifiable | unmodifiable} {extractable | unextractable}
           </para></listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>--new-n nickname</term>
+        <listitem><para>A new nickname, used when renaming a certificate.</para></listitem>
       </varlistentry>
 
       <varlistentry>

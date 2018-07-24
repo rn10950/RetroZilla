@@ -559,14 +559,19 @@ ocsp_RemoveCacheItem(OCSPCacheData *cache, OCSPCacheItem *item)
      * because of an allocation failure, or it could get removed because we're 
      * cleaning up.
      */
-    PRBool couldRemoveFromHashTable;
     OCSP_TRACE(("OCSP ocsp_RemoveCacheItem, THREADID %p\n", PR_GetCurrentThread()));
     PR_EnterMonitor(OCSP_Global.monitor);
 
     ocsp_RemoveCacheItemFromLinkedList(cache, item);
-    couldRemoveFromHashTable = PL_HashTableRemove(cache->entries, 
-                                                  item->certID);
-    PORT_Assert(couldRemoveFromHashTable);
+#ifdef DEBUG
+    {
+        PRBool couldRemoveFromHashTable = PL_HashTableRemove(cache->entries,
+                                                             item->certID);
+        PORT_Assert(couldRemoveFromHashTable);
+    }
+#else
+    PL_HashTableRemove(cache->entries, item->certID);
+#endif
     --cache->numberOfEntries;
     ocsp_FreeCacheItem(item);
     PR_ExitMonitor(OCSP_Global.monitor);
@@ -2577,9 +2582,8 @@ loser:
 static SECStatus
 ocsp_DecodeResponseBytes(PLArenaPool *arena, ocspResponseBytes *rbytes)
 {
-    PORT_Assert(rbytes != NULL);		/* internal error, really */
     if (rbytes == NULL) {
-	PORT_SetError(SEC_ERROR_INVALID_ARGS);	/* XXX set better error? */
+	PORT_SetError(SEC_ERROR_OCSP_UNKNOWN_RESPONSE_TYPE);
 	return SECFailure;
     }
 

@@ -3506,8 +3506,8 @@ CK_RV PKM_FindAllObjects(CK_FUNCTION_LIST_PTR pFunctionList,
     CK_ATTRIBUTE_PTR pTemplate;
     CK_ULONG tnObjects = 0;
     int curMode;
-    int i;
-    int  number_of_all_known_attribute_types = totalKnownType(ConstAttribute);
+    unsigned int i;
+    unsigned int  number_of_all_known_attribute_types = totalKnownType(ConstAttribute);
 
     NUMTESTS++; /* increment NUMTESTS */
 
@@ -4558,7 +4558,7 @@ PKM_TLSMasterKeyDerive( CK_FUNCTION_LIST_PTR pFunctionList,
     CK_SESSION_HANDLE hSession;
     CK_RV crv;
     CK_MECHANISM            mk_mech;
-    CK_VERSION              expected_version, version;
+    CK_VERSION              version;
     CK_OBJECT_CLASS         class = CKO_SECRET_KEY;
     CK_KEY_TYPE             type = CKK_GENERIC_SECRET;
     CK_BBOOL                derive_bool = true;
@@ -4625,8 +4625,6 @@ PKM_TLSMasterKeyDerive( CK_FUNCTION_LIST_PTR pFunctionList,
     case CKM_TLS_MASTER_KEY_DERIVE:
         attrs[3].pValue = NULL;
         attrs[3].ulValueLen = 0;
-        expected_version.major = 3;
-        expected_version.minor = 1;
 
         mkd_params.RandomInfo.pClientRandom = (unsigned char * ) TLSClientRandom;
         mkd_params.RandomInfo.ulClientRandomLen =

@@ -100,11 +100,26 @@
 
           issuerName = this.mapIssuerOrganization(cert.issuerOrganization);
           if (!issuerName) issuerName = cert.issuerName;
-        
+
+          var protocolVersion = " (unknown)";
+          switch(status.protocolVersion) {
+            case 0:
+              protocolVersion = " (SSL3)";
+              break;
+            case 1:
+              protocolVersion = " (TLS1.0)";
+              break;
+            case 2:
+              protocolVersion = " (TLS1.1)";
+              break;
+            case 3:
+              protocolVersion = " (TLS1.2)";
+              break;
+          }
           return {
             hostName : hName,
             cAName : issuerName,
-            encryptionAlgorithm : status.cipherName,
+            encryptionAlgorithm : status.cipherName+protocolVersion,
             encryptionStrength : status.secretKeyLength,
             isBroken : isBroken,
             cert : cert

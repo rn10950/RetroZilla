@@ -97,8 +97,8 @@ static struct RSABlindingParamsListStr blindingParamsList = { 0 };
 static PRBool nssRSAUseBlinding = PR_TRUE;
 
 static SECStatus
-rsa_build_from_primes(mp_int *p, mp_int *q, 
-		mp_int *e, PRBool needPublicExponent, 
+rsa_build_from_primes(const mp_int *p, const mp_int *q,
+		mp_int *e, PRBool needPublicExponent,
 		mp_int *d, PRBool needPrivateExponent,
 		RSAPrivateKey *key, unsigned int keySizeInBits)
 {
@@ -116,6 +116,12 @@ rsa_build_from_primes(mp_int *p, mp_int *q,
     CHECK_MPI_OK( mp_init(&psub1) );
     CHECK_MPI_OK( mp_init(&qsub1) );
     CHECK_MPI_OK( mp_init(&tmp)   );
+    /* p and q must be distinct. */
+    if (mp_cmp(p, q) == 0) {
+	PORT_SetError(SEC_ERROR_NEED_RANDOM);
+	rv = SECFailure;
+	goto cleanup;
+    }
     /* 1.  Compute n = p*q */
     CHECK_MPI_OK( mp_mul(p, q, &n) );
     /*     verify that the modulus has the desired number of bits */
@@ -242,7 +248,7 @@ RSA_NewKey(int keySizeInBits, SECItem *publicExponent)
     PLArenaPool *arena = NULL;
     /* Require key size to be a multiple of 16 bits. */
     if (!publicExponent || keySizeInBits % 16 != 0 ||
-	    BAD_RSA_KEY_SIZE(keySizeInBits/8, publicExponent->len)) {
+	    BAD_RSA_KEY_SIZE((unsigned int)keySizeInBits/8, publicExponent->len)) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return NULL;
     }
@@ -280,7 +286,11 @@ RSA_NewKey(int keySizeInBits, SECItem *publicExponent)
 	PORT_SetError(0);
 	CHECK_SEC_OK( generate_prime(&p, primeLen) );
 	CHECK_SEC_OK( generate_prime(&q, primeLen) );
-	/* Assure q < p */
+	/* Assure p > q */
+	/* NOTE: PKCS #1 does not require p > q, and NSS doesn't use any
+	 * implementation optimization that requires p > q. We can remove
+	 * this code in the future.
+	 */
 	if (mp_cmp(&p, &q) < 0)
 	    mp_exch(&p, &q);
 	/* Attempt to use these primes to generate a key */
@@ -762,7 +772,11 @@ RSA_PopulatePrivateKey(RSAPrivateKey *key)
 	}
      }
 
-     /* force p to the the larger prime */
+     /* Assure p > q */
+     /* NOTE: PKCS #1 does not require p > q, and NSS doesn't use any
+      * implementation optimization that requires p > q. We can remove
+      * this code in the future.
+      */
      if (mp_cmp(&p, &q) < 0)
 	mp_exch(&p, &q);
 
@@ -1093,7 +1107,7 @@ get_blinding_params(RSAPrivateKey *key, mp_int *n, unsigned int modLen,
 {
     RSABlindingParams *rsabp           = NULL;
     blindingParams    *bpUnlinked      = NULL;
-    blindingParams    *bp, *prevbp     = NULL;
+    blindingParams    *bp;
     PRCList           *el;
     SECStatus          rv              = SECSuccess;
     mp_err             err             = MP_OKAY;
@@ -1183,7 +1197,6 @@ get_blinding_params(RSAPrivateKey *key, mp_int *n, unsigned int modLen,
 	}
 	/* We did not find a usable set of blinding params.  Can we make one? */
 	/* Find a free bp struct. */
-	prevbp = NULL;
 	if ((bp = rsabp->free) != NULL) {
 	    /* unlink this bp */
 	    rsabp->free  = bp->next;
@@ -1353,33 +1366,8 @@ RSA_PrivateKeyOpDoubleChecked(RSAPrivateKey *key,
     return rsa_PrivateKeyOp(key, output, input, PR_TRUE);
 }
 
-static SECStatus
-swap_in_key_value(PLArenaPool *arena, mp_int *mpval, SECItem *buffer)
-{
-    int len;
-    mp_err err = MP_OKAY;
-    memset(buffer->data, 0, buffer->len);
-    len = mp_unsigned_octet_size(mpval);
-    if (len <= 0) return SECFailure;
-    if ((unsigned int)len <= buffer->len) {
-	/* The new value is no longer than the old buffer, so use it */
-	err = mp_to_unsigned_octets(mpval, buffer->data, len);
-	if (err >= 0) err = MP_OKAY;
-	buffer->len = len;
-    } else if (arena) {
-	/* The new value is longer, but working within an arena */
-	(void)SECITEM_AllocItem(arena, buffer, len);
-	err = mp_to_unsigned_octets(mpval, buffer->data, len);
-	if (err >= 0) err = MP_OKAY;
-    } else {
-	/* The new value is longer, no arena, can't handle this key */
-	return SECFailure;
-    }
-    return (err == MP_OKAY) ? SECSuccess : SECFailure;
-}
-
 SECStatus
-RSA_PrivateKeyCheck(RSAPrivateKey *key)
+RSA_PrivateKeyCheck(const RSAPrivateKey *key)
 {
     mp_int p, q, n, psub1, qsub1, e, d, d_p, d_q, qInv, res;
     mp_err   err = MP_OKAY;
@@ -1406,6 +1394,17 @@ RSA_PrivateKeyCheck(RSAPrivateKey *key)
     CHECK_MPI_OK( mp_init(&d_q)  );
     CHECK_MPI_OK( mp_init(&qInv) );
     CHECK_MPI_OK( mp_init(&res)  );
+
+    if (!key->modulus.data || !key->prime1.data || !key->prime2.data ||
+        !key->publicExponent.data || !key->privateExponent.data ||
+        !key->exponent1.data || !key->exponent2.data ||
+        !key->coefficient.data) {
+        /* call RSA_PopulatePrivateKey first, if the application wishes to
+         * recover these parameters */
+        err = MP_BADARG;
+        goto cleanup;
+    }
+
     SECITEM_TO_MPINT(key->modulus,         &n);
     SECITEM_TO_MPINT(key->prime1,          &p);
     SECITEM_TO_MPINT(key->prime2,          &q);
@@ -1414,18 +1413,10 @@ RSA_PrivateKeyCheck(RSAPrivateKey *key)
     SECITEM_TO_MPINT(key->exponent1,       &d_p);
     SECITEM_TO_MPINT(key->exponent2,       &d_q);
     SECITEM_TO_MPINT(key->coefficient,     &qInv);
-    /* p > q  */
-    if (mp_cmp(&p, &q) <= 0) {
-	/* mind the p's and q's (and d_p's and d_q's) */
-	SECItem tmp;
-	mp_exch(&p, &q);
-	mp_exch(&d_p,&d_q);
-	tmp = key->prime1;
-	key->prime1 = key->prime2;
-	key->prime2 = tmp;
-	tmp = key->exponent1;
-	key->exponent1 = key->exponent2;
-	key->exponent2 = tmp;
+    /* p and q must be distinct. */
+    if (mp_cmp(&p, &q) == 0) {
+	rv = SECFailure;
+	goto cleanup;
     }
 #define VERIFY_MPI_EQUAL(m1, m2) \
     if (mp_cmp(m1, m2) != 0) {   \
@@ -1437,9 +1428,6 @@ RSA_PrivateKeyCheck(RSAPrivateKey *key)
 	rv = SECFailure;         \
 	goto cleanup;            \
     }
-    /*
-     * The following errors cannot be recovered from.
-     */
     /* n == p * q */
     CHECK_MPI_OK( mp_mul(&p, &q, &res) );
     VERIFY_MPI_EQUAL(&res, &n);
@@ -1457,28 +1445,16 @@ RSA_PrivateKeyCheck(RSAPrivateKey *key)
     /* d*e == 1 mod q-1 */
     CHECK_MPI_OK( mp_mulmod(&d, &e, &qsub1, &res) );
     VERIFY_MPI_EQUAL_1(&res);
-    /*
-     * The following errors can be recovered from.
-     */
     /* d_p == d mod p-1 */
     CHECK_MPI_OK( mp_mod(&d, &psub1, &res) );
-    if (mp_cmp(&d_p, &res) != 0) {
-	/* swap in the correct value */
-	CHECK_SEC_OK( swap_in_key_value(key->arena, &res, &key->exponent1) );
-    }
+    VERIFY_MPI_EQUAL(&res, &d_p);
     /* d_q == d mod q-1 */
     CHECK_MPI_OK( mp_mod(&d, &qsub1, &res) );
-    if (mp_cmp(&d_q, &res) != 0) {
-	/* swap in the correct value */
-	CHECK_SEC_OK( swap_in_key_value(key->arena, &res, &key->exponent2) );
-    }
+    VERIFY_MPI_EQUAL(&res, &d_q);
     /* q * q**-1 == 1 mod p */
     CHECK_MPI_OK( mp_mulmod(&q, &qInv, &p, &res) );
-    if (mp_cmp_d(&res, 1) != 0) {
-	/* compute the correct value */
-	CHECK_MPI_OK( mp_invmod(&q, &p, &qInv) );
-	CHECK_SEC_OK( swap_in_key_value(key->arena, &qInv, &key->coefficient) );
-    }
+    VERIFY_MPI_EQUAL_1(&res);
+
 cleanup:
     mp_clear(&n);
     mp_clear(&p);

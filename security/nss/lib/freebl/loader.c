@@ -80,6 +80,8 @@ getLibName(void)
 }
 
 #elif defined(HPUX) && !defined(NSS_USE_64) && !defined(__ia64)
+#include <unistd.h>
+
 /* This code tests to see if we're running on a PA2.x CPU.
 ** It returns true (1) if so, and false (0) otherwise.
 */
@@ -130,7 +132,6 @@ freebl_LoadDSO( void )
   handle = loader_LoadLibrary(name);
   if (handle) {
     PRFuncPtr address = PR_FindFunctionSymbol(handle, "FREEBL_GetVector");
-    PRStatus status;
     if (address) {
       FREEBLGetVectorFn  * getVector = (FREEBLGetVectorFn *)address;
       const FREEBLVector * dsoVector = getVector();
@@ -147,8 +148,14 @@ freebl_LoadDSO( void )
 	}
       }
     }
-    status = PR_UnloadLibrary(handle);
-    PORT_Assert(PR_SUCCESS == status);
+#ifdef DEBUG
+    {
+      PRStatus status = PR_UnloadLibrary(blLib);
+      PORT_Assert(PR_SUCCESS == status);
+    }
+#else
+    PR_UnloadLibrary(blLib);
+#endif
   }
   return PR_FAILURE;
 }
@@ -212,7 +219,7 @@ RSA_PrivateKeyOpDoubleChecked(RSAPrivateKey *key,
 }
 
 SECStatus
-RSA_PrivateKeyCheck(RSAPrivateKey *key)
+RSA_PrivateKeyCheck(const RSAPrivateKey *key)
 {
   if (!vector && PR_SUCCESS != freebl_RunLoaderOnce())
       return SECFailure;
@@ -899,8 +906,12 @@ BL_Unload(void)
   if (blLib) {
       disableUnload = PR_GetEnv("NSS_DISABLE_UNLOAD");
       if (!disableUnload) {
+#ifdef DEBUG
           PRStatus status = PR_UnloadLibrary(blLib);
           PORT_Assert(PR_SUCCESS == status);
+#else
+          PR_UnloadLibrary(blLib);
+#endif
       }
       blLib = NULL;
   }
@@ -2091,3 +2102,29 @@ SECStatus RSA_CheckSignRecover(RSAPublicKey *key,
   return (vector->p_RSA_CheckSignRecover)(key, output, outputLen, maxOutputLen,
                                           sig, sigLen);
 }
+
+SECStatus EC_FillParams(PLArenaPool *arena,
+                        const SECItem *encodedParams,
+                        ECParams *params)
+{
+  if (!vector && PR_SUCCESS != freebl_RunLoaderOnce())
+      return SECFailure;
+  return (vector->p_EC_FillParams)(arena, encodedParams, params);
+}
+
+SECStatus EC_DecodeParams(const SECItem *encodedParams,
+                          ECParams **ecparams)
+{
+  if (!vector && PR_SUCCESS != freebl_RunLoaderOnce())
+      return SECFailure;
+  return (vector->p_EC_DecodeParams)(encodedParams, ecparams);
+}
+
+SECStatus EC_CopyParams(PLArenaPool *arena, ECParams *dstParams,
+                        const ECParams *srcParams)
+{
+  if (!vector && PR_SUCCESS != freebl_RunLoaderOnce())
+      return SECFailure;
+  return (vector->p_EC_CopyParams)(arena, dstParams,  srcParams);
+}
+

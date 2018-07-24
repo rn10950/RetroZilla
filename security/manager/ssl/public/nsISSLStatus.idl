@@ -47,4 +47,5 @@ interface nsISSLStatus : nsISupports {
   readonly attribute string cipherName;
   readonly attribute unsigned long keyLength;
   readonly attribute unsigned long secretKeyLength;
+  readonly attribute unsigned long protocolVersion;
 };

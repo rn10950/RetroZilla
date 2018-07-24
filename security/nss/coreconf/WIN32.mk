@@ -24,15 +24,23 @@ else
 	CC           = cl
 	CCC          = cl
 	LINK         = link
+	LDFLAGS     += -nologo
 	AR           = lib
-	AR          += -NOLOGO -OUT:$@
+	AR          += -nologo -OUT:$@
 	RANLIB       = echo
 	BSDECHO      = echo
 	RC           = rc.exe
 	MT           = mt.exe
+	# Check for clang-cl
+	CLANG_CL    := $(shell expr `$(CC) -? 2>&1 | grep -w clang | wc -l` \> 0)
 	# Determine compiler version
-	CC_VERSION  := $(shell $(CC) 2>&1 | sed -ne \
+	ifeq ($(CLANG_CL),1)
+	    # clang-cl pretends to be MSVC 2012.
+	    CC_VERSION  := 17.00.00.00
+	else
+	    CC_VERSION  := $(shell $(CC) 2>&1 | sed -ne \
 		's|.* \([0-9]\+\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?\).*|\1|p')
+	endif
 	# Change the dots to spaces.
 	_CC_VERSION_WORDS := $(subst ., ,$(CC_VERSION))
 	_CC_VMAJOR  := $(word 1,$(_CC_VERSION_WORDS))
@@ -41,7 +49,13 @@ else
 	_CC_BUILD   := $(word 4,$(_CC_VERSION_WORDS))
 	_MSC_VER     = $(_CC_VMAJOR)$(_CC_VMINOR)
 	_MSC_VER_6   = 1200
-	_MSC_VER_GE_18 := $(shell expr $(_MSC_VER) \>= 1800)
+	# VC10 (2010) is 16.00.30319.01, VC10SP1 is 16.00.40219.01.
+	_MSC_VER_GE_10SP1 := $(shell expr $(_MSC_VER) \> 1600 \| \
+		$(_MSC_VER) = 1600 \& $(_CC_RELEASE) \>= 40219)
+	# VC11 (2012).
+	_MSC_VER_GE_11 := $(shell expr $(_MSC_VER) \>= 1700)
+	# VC12 (2013).
+	_MSC_VER_GE_12 := $(shell expr $(_MSC_VER) \>= 1800)
 	ifeq ($(_CC_VMAJOR),14)
 	    # -DYNAMICBASE is only supported on VC8SP1 or newer,
 	    # so be very specific here!
@@ -90,10 +104,7 @@ endif
 DLL_SUFFIX   = dll
 
 ifdef NS_USE_GCC
-    # The -mnop-fun-dllimport flag allows us to avoid a drawback of
-    # the dllimport attribute that a pointer to a function marked as
-    # dllimport cannot be used as as a constant address.
-    OS_CFLAGS += -mwindows -mms-bitfields -mnop-fun-dllimport
+    OS_CFLAGS += -mwindows -mms-bitfields
     _GEN_IMPORT_LIB=-Wl,--out-implib,$(IMPORT_LIBRARY)
     DLLFLAGS  += -mwindows -o $@ -shared -Wl,--export-all-symbols $(if $(IMPORT_LIBRARY),$(_GEN_IMPORT_LIB))
     ifdef BUILD_OPT
@@ -123,8 +134,26 @@ else # !NS_USE_GCC
     ifdef USE_DYNAMICBASE
 	OS_DLLFLAGS += -DYNAMICBASE
     endif
+    #
+    # Define USE_DEBUG_RTL if you want to use the debug runtime library
+    # (RTL) in the debug build.
+    # Define USE_STATIC_RTL if you want to use the static RTL.
+    #
+    ifdef USE_DEBUG_RTL
+	ifdef USE_STATIC_RTL
+		OS_CFLAGS += -MTd
+	else
+		OS_CFLAGS += -MDd
+	endif
+	OS_CFLAGS += -D_CRTDBG_MAP_ALLOC
+    else
+	ifdef USE_STATIC_RTL
+		OS_CFLAGS += -MT
+	else
+		OS_CFLAGS += -MD
+	endif
+    endif
     ifdef BUILD_OPT
-	OS_CFLAGS  += -MD
 	ifeq (11,$(ALLOW_OPT_CODE_SIZE)$(OPT_CODE_SIZE))
 		OPTIMIZER += -O1
 	else
@@ -142,15 +171,6 @@ else # !NS_USE_GCC
 		LDFLAGS += -DEBUG -OPT:REF
 	endif
     else
-	#
-	# Define USE_DEBUG_RTL if you want to use the debug runtime library
-	# (RTL) in the debug build
-	#
-	ifdef USE_DEBUG_RTL
-		OS_CFLAGS += -MDd -D_CRTDBG_MAP_ALLOC
-	else
-		OS_CFLAGS += -MD
-	endif
 	OPTIMIZER += -Zi -Fd$(OBJDIR)/ -Od
 	NULLSTRING :=
 	SPACE      := $(NULLSTRING) # end of the line
@@ -173,7 +193,12 @@ ifneq ($(_MSC_VER),$(_MSC_VER_6))
      -we4015 -we4028 -we4033 -we4035 -we4045 -we4047 -we4053 -we4054 -we4063 \
      -we4064 -we4078 -we4087 -we4090 -we4098 -we4390 -we4551 -we4553 -we4715
 
-    ifeq ($(_MSC_VER_GE_18),1)
+    # NSS has too many of these to fix, downgrade the warning
+    # Disable C4267: conversion from 'size_t' to 'type', possible loss of data
+    # Disable C4244: conversion from 'type1' to 'type2', possible loss of data
+    # Disable C4018: 'expression' : signed/unsigned mismatch
+    OS_CFLAGS += -w44267 -w44244 -w44018
+    ifeq ($(_MSC_VER_GE_12),1)
 	OS_CFLAGS += -FS
     endif
 endif # !MSVC6
@@ -188,8 +213,22 @@ endif
 ifeq (,$(filter-out x386 x86_64,$(CPU_ARCH)))
 ifdef USE_64
 	DEFINES += -D_AMD64_
+	# Use subsystem 5.02 to allow running on Windows XP.
+	ifeq ($(_MSC_VER_GE_11),1)
+		LDFLAGS += -SUBSYSTEM:CONSOLE,5.02
+	endif
 else
 	DEFINES += -D_X86_
+	# VS2012 defaults to -arch:SSE2. Use -arch:IA32 to avoid requiring
+	# SSE2. Clang-cl gets confused by -arch:IA32, so don't add it.
+	# (See https://llvm.org/bugs/show_bug.cgi?id=24335)
+	# Use subsystem 5.01 to allow running on Windows XP.
+	ifeq ($(_MSC_VER_GE_11),1)
+		ifneq ($(CLANG_CL),1)
+			OS_CFLAGS += -arch:IA32
+		endif
+		LDFLAGS += -SUBSYSTEM:CONSOLE,5.01
+	endif
 endif
 endif
 ifeq ($(CPU_ARCH), ALPHA)
@@ -218,10 +257,10 @@ ifdef NS_USE_GCC
 else
 ifdef USE_64
 	AS	= ml64.exe
-	ASFLAGS = -Cp -Sn -Zi $(INCLUDES)
+	ASFLAGS = -nologo -Cp -Sn -Zi $(INCLUDES)
 else
 	AS	= ml.exe
-	ASFLAGS = -Cp -Sn -Zi -coff $(INCLUDES)
+	ASFLAGS = -nologo -Cp -Sn -Zi -coff $(INCLUDES)
 endif
 endif
 

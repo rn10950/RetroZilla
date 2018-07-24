@@ -1,3 +1,4 @@
+/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /*
  * This file is PRIVATE to SSL and should be the first thing included by
  * any SSL implementation file.
@@ -153,6 +154,15 @@ typedef enum { SSLAppOpRead = 0,
 
 #define EXPORT_RSA_KEY_LENGTH 64	/* bytes */
 
+/* The minimum server key sizes accepted by the clients.
+ * Not 1024 to be conservative. */
+#define SSL_RSA_MIN_MODULUS_BITS 1023
+/* 1023 to avoid cases where p = 2q+1 for a 512-bit q turns out to be
+ * only 1023 bits and similar.  We don't have good data on whether this
+ * happens because NSS used to count bit lengths incorrectly. */
+#define SSL_DH_MIN_P_BITS 1023
+#define SSL_DSA_MIN_P_BITS 1023
+
 #define INITIAL_DTLS_TIMEOUT_MS   1000  /* Default value from RFC 4347 = 1s*/
 #define MAX_DTLS_TIMEOUT_MS      60000  /* 1 minute */
 #define DTLS_FINISHED_TIMER_MS  120000  /* Time to wait in FINISHED state */
@@ -170,6 +180,7 @@ typedef struct ssl3CertNodeStr          ssl3CertNode;
 typedef struct ssl3BulkCipherDefStr     ssl3BulkCipherDef;
 typedef struct ssl3MACDefStr            ssl3MACDef;
 typedef struct ssl3KeyPairStr		ssl3KeyPair;
+typedef struct ssl3DHParamsStr          ssl3DHParams;
 
 struct ssl3CertNodeStr {
     struct ssl3CertNodeStr *next;
@@ -288,13 +299,19 @@ typedef struct {
 #endif
 } ssl3CipherSuiteCfg;
 
-#ifdef NSS_ENABLE_ECC
-#define ssl_V3_SUITES_IMPLEMENTED 61
+#ifndef NSS_DISABLE_ECC
+#define ssl_V3_SUITES_IMPLEMENTED 64
 #else
-#define ssl_V3_SUITES_IMPLEMENTED 37
-#endif /* NSS_ENABLE_ECC */
+#define ssl_V3_SUITES_IMPLEMENTED 40
+#endif /* NSS_DISABLE_ECC */
 
 #define MAX_DTLS_SRTP_CIPHER_SUITES 4
+
+/* MAX_SIGNATURE_ALGORITHMS allows for a large number of combinations of
+ * SSLSignType and SSLHashType, but not all combinations (specifically, this
+ * doesn't allow space for combinations with MD5). */
+#define MAX_SIGNATURE_ALGORITHMS 15
+
 
 typedef struct sslOptionsStr {
     /* If SSL_SetNextProtoNego has been called, then this contains the
@@ -326,6 +343,9 @@ typedef struct sslOptionsStr {
     unsigned int enableOCSPStapling     : 1;  /* 25 */
     unsigned int enableNPN              : 1;  /* 26 */
     unsigned int enableALPN             : 1;  /* 27 */
+    unsigned int reuseServerECDHEKey    : 1;  /* 28 */
+    unsigned int enableFallbackSCSV     : 1;  /* 29 */
+    unsigned int enableServerDhe        : 1;  /* 30 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -653,9 +673,9 @@ struct sslSessionIDStr {
             SSL3KEAType           exchKeyType;
 				  /* key type used in exchange algorithm,
 				   * and to wrap the sym wrapping key. */
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 	    PRUint32              negotiatedECCurves;
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 
 	    /* The following values are NOT restored from the server's on-disk
 	     * session cache, but are restored from the client's cache.
@@ -723,9 +743,15 @@ typedef struct {
     SSL3KeyExchangeAlgorithm kea;
     SSL3KEAType              exchKeyType;
     SSL3SignType             signKeyType;
+    /* For export cipher suites:
+     * is_limited identifies a suite as having a limit on the key size.
+     * key_size_limit provides the corresponding limit. */
     PRBool                   is_limited;
-    int                      key_size_limit;
+    unsigned int key_size_limit;
     PRBool                   tls_keygen;
+    /* True if the key exchange for the suite is ephemeral.  Or to be more
+     * precise: true if the ServerKeyExchange message is always required. */
+    PRBool                   ephemeral;
 } ssl3KEADef;
 
 /*
@@ -885,9 +911,9 @@ const ssl3CipherSuiteDef *suite_def;
 	SSL3Finished      sFinished[2];
 	SSL3Opaque        data[72];
     }                     finishedMsgs;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     PRUint32              negotiatedECCurves; /* bit mask */
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 
     PRBool                authCertificatePending;
     /* Which function should SSL_RestartHandshake* call if we're blocked?
@@ -898,12 +924,14 @@ const ssl3CipherSuiteDef *suite_def;
     PRBool                cacheSID;
 
     PRBool                canFalseStart;   /* Can/did we False Start */
+    /* Which preliminaryinfo values have been set. */
+    PRUint32              preliminaryInfo;
 
     /* clientSigAndHash contains the contents of the signature_algorithms
      * extension (if any) from the client. This is only valid for TLS 1.2
      * or later. */
-    SSL3SignatureAndHashAlgorithm *clientSigAndHash;
-    unsigned int          numClientSigAndHash;
+    SSLSignatureAndHashAlg *clientSigAndHash;
+    unsigned int numClientSigAndHash;
 
     /* This group of values is used for DTLS */
     PRUint16              sendMessageSeq;  /* The sending message sequence
@@ -979,9 +1007,18 @@ struct ssl3StateStr {
     PRUint16             dtlsSRTPCiphers[MAX_DTLS_SRTP_CIPHER_SUITES];
     PRUint16             dtlsSRTPCipherCount;
     PRUint16             dtlsSRTPCipherSuite;	/* 0 if not selected */
+    PRBool               fatalAlertSent;
+    PRUint16             numDHEGroups;        /* used by server */
+    SSLDHEGroupType *    dheGroups;           /* used by server */
+    PRBool               dheWeakGroupEnabled; /* used by server */
+
+    /* TLS 1.2 introduces separate signature algorithm negotiation.
+     * This is our preference order. */
+    SSLSignatureAndHashAlg signatureAlgorithms[MAX_SIGNATURE_ALGORITHMS];
+    unsigned int signatureAlgorithmCount;
 };
 
-#define DTLS_MAX_MTU  1500      /* Ethernet MTU but without subtracting the
+#define DTLS_MAX_MTU  1500U     /* Ethernet MTU but without subtracting the
 				 * headers, so slightly larger than expected */
 #define IS_DTLS(ss) (ss->protocolVariant == ssl_variant_datagram)
 
@@ -996,6 +1033,11 @@ struct ssl3KeyPairStr {
     SECKEYPrivateKey *    privKey;
     SECKEYPublicKey *     pubKey;
     PRInt32               refCount;	/* use PR_Atomic calls for this. */
+};
+
+struct ssl3DHParamsStr {
+    SECItem prime; /* p */
+    SECItem base; /* g */
 };
 
 typedef struct SSLWrappedSymWrappingKeyStr {
@@ -1206,6 +1248,9 @@ const unsigned char *  preferredCipher;
 
     ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
 
+    const ssl3DHParams *dheParams;          /* DHE param */
+    ssl3KeyPair *       dheKeyPair;         /* DHE keys */
+
     /* Callbacks */
     SSLAuthCertificate        authCertificate;
     void                     *authCertificateArg;
@@ -1380,8 +1425,6 @@ extern SECStatus   ssl_GatherRecord1stHandshake(sslSocket *ss);
 
 extern SECStatus   ssl2_HandleClientHelloMessage(sslSocket *ss);
 extern SECStatus   ssl2_HandleServerHelloMessage(sslSocket *ss);
-extern int         ssl2_StartGatherBytes(sslSocket *ss, sslGather *gs, 
-                                         unsigned int count);
 
 extern SECStatus   ssl_CreateSecurityInfo(sslSocket *ss);
 extern SECStatus   ssl_CopySecurityInfo(sslSocket *ss, sslSocket *os);
@@ -1536,7 +1579,11 @@ extern PRInt32   ssl3_SendRecord(sslSocket *ss, DTLSEpoch epoch,
  * runtime to determine which versions are supported by the version of libssl
  * in use.
  */
+#ifdef NSS_ENABLE_TLS_1_3
+#define SSL_LIBRARY_VERSION_MAX_SUPPORTED SSL_LIBRARY_VERSION_TLS_1_3
+#else
 #define SSL_LIBRARY_VERSION_MAX_SUPPORTED SSL_LIBRARY_VERSION_TLS_1_2
+#endif
 
 /* Rename this macro SSL_ALL_VERSIONS_DISABLED when SSL 2.0 is removed. */
 #define SSL3_ALL_VERSIONS_DISABLED(vrange) \
@@ -1596,7 +1643,9 @@ int ssl3_GatherCompleteHandshake(sslSocket *ss, int flags);
  */
 extern SECStatus ssl3_CreateRSAStepDownKeys(sslSocket *ss);
 
-#ifdef NSS_ENABLE_ECC
+extern SECStatus ssl3_SelectDHParams(sslSocket *ss);
+
+#ifndef NSS_DISABLE_ECC
 extern void      ssl3_FilterECCipherSuitesByServerCerts(sslSocket *ss);
 extern PRBool    ssl3_IsECCEnabled(sslSocket *ss);
 extern SECStatus ssl3_DisableECCSuites(sslSocket * ss, 
@@ -1651,7 +1700,7 @@ extern SECStatus ssl3_ECName2Params(PLArenaPool *arena, ECName curve,
 ECName	ssl3_GetCurveWithECKeyStrength(PRUint32 curvemsk, int requiredECCbits);
 
 
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 
 extern SECStatus ssl3_CipherPrefSetDefault(ssl3CipherSuite which, PRBool on);
 extern SECStatus ssl3_CipherPrefGetDefault(ssl3CipherSuite which, PRBool *on);
@@ -1686,7 +1735,7 @@ extern SECStatus ssl3_NegotiateVersion(sslSocket *ss,
 
 extern SECStatus ssl_GetPeerInfo(sslSocket *ss);
 
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 /* ECDH functions */
 extern SECStatus ssl3_SendECDHClientKeyExchange(sslSocket * ss, 
 			     SECKEYPublicKey * svrPubKey);
@@ -1696,11 +1745,11 @@ extern SECStatus ssl3_HandleECDHClientKeyExchange(sslSocket *ss,
 				     SSL3Opaque *b, PRUint32 length,
                                      SECKEYPublicKey *srvrPubKey,
                                      SECKEYPrivateKey *srvrPrivKey);
-extern SECStatus ssl3_SendECDHServerKeyExchange(sslSocket *ss,
-			const SSL3SignatureAndHashAlgorithm *sigAndHash);
+extern SECStatus ssl3_SendECDHServerKeyExchange(
+    sslSocket *ss, const SSLSignatureAndHashAlg *sigAndHash);
 #endif
 
-extern SECStatus ssl3_ComputeCommonKeyHash(SECOidTag hashAlg,
+extern SECStatus ssl3_ComputeCommonKeyHash(SSLHashType hashAlg,
 				PRUint8 * hashBuf,
 				unsigned int bufLen, SSL3Hashes *hashes, 
 				PRBool bypassPKCS11);
@@ -1714,21 +1763,22 @@ extern SECStatus ssl3_AppendHandshakeNumber(sslSocket *ss, PRInt32 num,
 			PRInt32 lenSize);
 extern SECStatus ssl3_AppendHandshakeVariable( sslSocket *ss, 
 			const SSL3Opaque *src, PRInt32 bytes, PRInt32 lenSize);
-extern SECStatus ssl3_AppendSignatureAndHashAlgorithm(sslSocket *ss,
-			const SSL3SignatureAndHashAlgorithm* sigAndHash);
+extern SECStatus ssl3_AppendSignatureAndHashAlgorithm(
+    sslSocket *ss, const SSLSignatureAndHashAlg* sigAndHash);
 extern SECStatus ssl3_ConsumeHandshake(sslSocket *ss, void *v, PRInt32 bytes, 
 			SSL3Opaque **b, PRUint32 *length);
 extern PRInt32   ssl3_ConsumeHandshakeNumber(sslSocket *ss, PRInt32 bytes, 
 			SSL3Opaque **b, PRUint32 *length);
 extern SECStatus ssl3_ConsumeHandshakeVariable(sslSocket *ss, SECItem *i, 
 			PRInt32 bytes, SSL3Opaque **b, PRUint32 *length);
-extern SECOidTag ssl3_TLSHashAlgorithmToOID(int hashFunc);
+extern PRBool ssl3_IsSupportedSignatureAlgorithm(
+    const SSLSignatureAndHashAlg *alg);
 extern SECStatus ssl3_CheckSignatureAndHashAlgorithmConsistency(
-			const SSL3SignatureAndHashAlgorithm *sigAndHash,
-			CERTCertificate* cert);
-extern SECStatus ssl3_ConsumeSignatureAndHashAlgorithm(sslSocket *ss,
-			SSL3Opaque **b, PRUint32 *length,
-			SSL3SignatureAndHashAlgorithm *out);
+    sslSocket *ss, const SSLSignatureAndHashAlg *sigAndHash,
+    CERTCertificate* cert);
+extern SECStatus ssl3_ConsumeSignatureAndHashAlgorithm(
+    sslSocket *ss, SSL3Opaque **b, PRUint32 *length,
+    SSLSignatureAndHashAlg *out);
 extern SECStatus ssl3_SignHashes(SSL3Hashes *hash, SECKEYPrivateKey *key, 
 			SECItem *buf, PRBool isTLS);
 extern SECStatus ssl3_VerifySignedHashes(SSL3Hashes *hash, 
@@ -1771,7 +1821,7 @@ extern SECStatus ssl_ConfigSecureServer(sslSocket *ss, CERTCertificate *cert,
                                         const CERTCertificateList *certChain,
                                         ssl3KeyPair *keyPair, SSLKEAType kea);
 
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 extern PRInt32 ssl3_SendSupportedCurvesXtn(sslSocket *ss,
 			PRBool append, PRUint32 maxBytes);
 extern PRInt32 ssl3_SendSupportedPointFormatsXtn(sslSocket *ss,

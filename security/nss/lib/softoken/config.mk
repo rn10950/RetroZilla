@@ -23,7 +23,7 @@ RESNAME = $(LIBRARY_NAME).rc
 #	-l$(SQLITE_LIB_NAME) 
 ifdef NS_USE_GCC
 EXTRA_SHARED_LIBS += \
-	-L$(DIST)/lib \
+	-L$(SQLITE_LIB_DIR) \
 	-L$(NSSUTIL_LIB_DIR) \
 	-lnssutil3 \
 	-L$(NSPR_LIB_DIR) \
@@ -36,7 +36,7 @@ else # ! NS_USE_GCC
 
 #	$(DIST)/lib/$(SQLITE_LIB_NAME).lib 
 EXTRA_SHARED_LIBS += \
-	$(DIST)/lib/sqlite3.lib \
+	$(SQLITE_LIB_DIR)/$(SQLITE_LIB_NAME).lib \
 	$(NSSUTIL_LIB_DIR)/nssutil3.lib \
 	$(NSPR_LIB_DIR)/$(NSPR31_LIB_PREFIX)plc4.lib \
 	$(NSPR_LIB_DIR)/$(NSPR31_LIB_PREFIX)plds4.lib \
@@ -49,7 +49,7 @@ else
 # $(PROGRAM) has NO explicit dependencies on $(EXTRA_SHARED_LIBS)
 # $(EXTRA_SHARED_LIBS) come before $(OS_LIBS), except on AIX.
 EXTRA_SHARED_LIBS += \
-	-L$(DIST)/lib \
+	-L$(SQLITE_LIB_DIR) \
 	-l$(SQLITE_LIB_NAME) \
 	-L$(NSSUTIL_LIB_DIR) \
 	-lnssutil3 \
@@ -62,8 +62,4 @@ endif
 
 ifeq ($(OS_TARGET),AIX)
 OS_LIBS += -lpthread
-endif
-
-ifeq ($(OS_TARGET),SunOS)
-OS_LIBS += -lbsm 
 endif

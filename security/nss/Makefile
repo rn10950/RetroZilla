@@ -61,6 +61,9 @@ endif
 ifdef BUILD_OPT
 NSPR_CONFIGURE_OPTS += --disable-debug --enable-optimize
 endif
+ifdef USE_X32
+NSPR_CONFIGURE_OPTS += --enable-x32
+endif
 ifdef USE_64
 NSPR_CONFIGURE_OPTS += --enable-64bit
 endif
@@ -69,6 +72,9 @@ NSPR_CONFIGURE_OPTS += --enable-win32-target=WIN95
 endif
 ifdef USE_DEBUG_RTL
 NSPR_CONFIGURE_OPTS += --enable-debug-rtl
+endif
+ifdef USE_STATIC_RTL
+NSPR_CONFIGURE_OPTS += --enable-static-rtl
 endif
 ifdef NS_USE_GCC
 NSPR_COMPILERS = CC=gcc CXX=g++
