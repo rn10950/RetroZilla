@@ -146,6 +146,7 @@ SSL_GetPreliminaryChannelInfo(PRFileDesc *fd,
 #define C_NULL  "NULL", calg_null
 #define C_SJ 	"SKIPJACK", calg_sj
 #define C_AESGCM "AES-GCM", calg_aes_gcm
+#define C_CAMELLIAGCM "CAMELLIA-GCM", calg_camellia_gcm
 
 #define B_256	256, 256, 256
 #define B_128	128, 128, 128
@@ -213,7 +214,9 @@ static const SSLCipherSuiteInfo suiteInfo[] = {
 #ifndef NSS_DISABLE_ECC
 /* ECC cipher suites */
 {0,CS(TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256), S_RSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
+{0,CS(TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256), S_RSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
 {0,CS(TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256), S_ECDSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
+{0,CS(TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256), S_ECDSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
 
 {0,CS(TLS_ECDH_ECDSA_WITH_NULL_SHA),          S_ECDSA, K_ECDH, C_NULL, B_0, M_SHA, 0, 0, 0, },
 {0,CS(TLS_ECDH_ECDSA_WITH_RC4_128_SHA),       S_ECDSA, K_ECDH, C_RC4, B_128, M_SHA, 0, 0, 0, },

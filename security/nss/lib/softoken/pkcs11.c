@@ -363,6 +363,7 @@ static const struct mechanismList mechanisms[] = {
      {CKM_CAMELLIA_MAC, 	{16, 32, CKF_SN_VR},            PR_TRUE},
      {CKM_CAMELLIA_MAC_GENERAL,	{16, 32, CKF_SN_VR},            PR_TRUE},
      {CKM_CAMELLIA_CBC_PAD,	{16, 32, CKF_EN_DE_WR_UN},      PR_TRUE},
+     {CKM_CAMELLIA_GCM, 	{16, 32, CKF_EN_DE},            PR_TRUE},
      /* ------------------------- SEED Operations --------------------------- */
      {CKM_SEED_KEY_GEN,		{16, 16, CKF_GENERATE},		PR_TRUE},
      {CKM_SEED_ECB,		{16, 16, CKF_EN_DE_WR_UN},	PR_TRUE},
