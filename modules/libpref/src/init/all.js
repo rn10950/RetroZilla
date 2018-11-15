@@ -2390,3 +2390,6 @@ pref("print.print_command", "lp -c -s ${MOZ_PRINTER_NAME:+'-d '}${MOZ_PRINTER_NA
 #ifdef MOZ_X11
 pref("network.gnomevfs.supported-protocols", "smb:,sftp:");
 #endif
+
+// restrict gopher port to port 70 only
+pref("network.gopher.port-restricted", true);

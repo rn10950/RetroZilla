@@ -122,13 +122,21 @@ nsGopherChannel::Init(nsIURI* uri, nsIProxyInfo* proxyInfo)
     if (NS_FAILED(rv))
         return rv;
 
+    PRBool restrictedPort = PR_TRUE;
+    nsCOMPtr<nsIPrefBranch> branch;
+    nsCOMPtr<nsIPrefService> prefs = do_GetService("@mozilla.org/preferences-service;1", &rv);
+    if (!NS_FAILED(rv)) {
+        branch = do_QueryInterface(prefs);
+
+        branch->GetBoolPref("network.gopher.port-restricted" , &restrictedPort);
+    }
     // For security reasons, don't allow anything expect the default
     // gopher port (70). See bug 71916 - bbaetz@cs.mcgill.ca
-/*
-    if (mPort==-1)
+    if(!restrictedPort) {
+        if (mPort==-1)
+            mPort=GOPHER_PORT;
+    } else
         mPort=GOPHER_PORT;
-*/
-    mPort=GOPHER_PORT;
 
     // No path given
     if (buffer[0]=='\0' || (buffer[0]=='/' && buffer[1]=='\0')) {
