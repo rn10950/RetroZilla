@@ -260,7 +260,7 @@ nsTextTransformer::Init(nsIFrame* aFrame,
     if (NS_STYLE_WHITESPACE_PRE == styleText->mWhiteSpace) {
       mMode = ePreformatted;
     }
-    else if (NS_STYLE_WHITESPACE_MOZ_PRE_WRAP == styleText->mWhiteSpace) {
+    else if (NS_STYLE_WHITESPACE_PRE_WRAP == styleText->mWhiteSpace) {
       mMode = ePreWrap;
     }
     mTextTransform = styleText->mTextTransform;
@@ -1569,7 +1569,7 @@ struct SelfTestData {
 static PRUint8 preModeValue[NUM_MODES] = {
   NS_STYLE_WHITESPACE_NORMAL,
   NS_STYLE_WHITESPACE_PRE,
-  NS_STYLE_WHITESPACE_MOZ_PRE_WRAP
+  NS_STYLE_WHITESPACE_PRE_WRAP
 };
 
 static PRUnichar test1text[] = {
@@ -1812,7 +1812,7 @@ nsTextTransformer::Init2(const nsTextFragment* aFrag,
   if (NS_STYLE_WHITESPACE_PRE == aWhiteSpace) {
     mMode = ePreformatted;
   }
-  else if (NS_STYLE_WHITESPACE_MOZ_PRE_WRAP == aWhiteSpace) {
+  else if (NS_STYLE_WHITESPACE_PRE_WRAP == aWhiteSpace) {
     mMode = ePreWrap;
   }
   mTextTransform = aTextTransform;

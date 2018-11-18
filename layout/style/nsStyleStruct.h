@@ -740,7 +740,7 @@ struct nsStyleText : public nsStyleStruct {
   
   PRBool WhiteSpaceIsSignificant() const {
     return mWhiteSpace == NS_STYLE_WHITESPACE_PRE ||
-           mWhiteSpace == NS_STYLE_WHITESPACE_MOZ_PRE_WRAP;
+           mWhiteSpace == NS_STYLE_WHITESPACE_PRE_WRAP;
   }
 };
 
