@@ -1980,6 +1980,10 @@ ssl3_CipherGCMBypass(ssl3KeyMaterial *keys,
     unsigned char      nonce[12];
     unsigned int       uOutLen;
     CK_GCM_PARAMS      gcmParams;
+    void *cx;
+    BLapiInitContextFunc initFn;
+    SSLCipher encode, decode;
+    SSLDestroy destroy;
 
     static const int   tagSize = 16;
     static const int   explicitNonceLen = 8;
@@ -2016,11 +2020,11 @@ ssl3_CipherGCMBypass(ssl3KeyMaterial *keys,
     gcmParams.ulAADLen = additionalDataLen;
     gcmParams.ulTagBits = tagSize * 8;
 
-    void *cx = keys->cipher_context;
-    BLapiInitContextFunc initFn = (BLapiInitContextFunc)NULL;
-    SSLCipher encode = (SSLCipher)NULL;
-    SSLCipher decode = (SSLCipher)NULL;
-    SSLDestroy destroy = (SSLDestroy)NULL;
+    cx = keys->cipher_context;
+    initFn = (BLapiInitContextFunc)NULL;
+    encode = (SSLCipher)NULL;
+    decode = (SSLCipher)NULL;
+    destroy = (SSLDestroy)NULL;
 
     switch (calg) {
         case calg_aes_gcm:
