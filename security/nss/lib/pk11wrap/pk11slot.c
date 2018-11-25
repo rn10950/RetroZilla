@@ -832,6 +832,7 @@ PK11_GetSlotList(CK_MECHANISM_TYPE type)
 	return &pk11_seedSlotList;
     case CKM_CAMELLIA_CBC:
     case CKM_CAMELLIA_ECB:
+    case CKM_CAMELLIA_GCM:
 	return &pk11_camelliaSlotList;
     case CKM_AES_CBC:
     case CKM_AES_CCM:

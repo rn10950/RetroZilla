@@ -68,11 +68,11 @@ static SECStatus Null_Cipher(void *ctx, unsigned char *output, int *outputLen,
 			     int maxOutputLen, const unsigned char *input,
 			     int inputLen);
 #ifndef NO_PKCS11_BYPASS
-static SECStatus ssl3_AESGCMBypass(ssl3KeyMaterial *keys, PRBool doDecrypt,
+static SECStatus ssl3_CipherGCMBypass(ssl3KeyMaterial *keys, PRBool doDecrypt,
 				   unsigned char *out, int *outlen, int maxout,
 				   const unsigned char *in, int inlen,
 				   const unsigned char *additionalData,
-				   int additionalDataLen);
+				   int additionalDataLen, SSLCipherAlgorithm calg);
 #endif
 
 #define MAX_SEND_BUF_LENGTH 32000 /* watch for 16-bit integer overflow */
@@ -92,6 +92,8 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
 #ifndef NSS_DISABLE_ECC
  { TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256, SSL_ALLOWED, PR_FALSE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
    /* TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA is out of order to work around
     * bug 946147.
     */
@@ -287,6 +289,7 @@ static const ssl3BulkCipherDef bulk_cipher_defs[] = {
     {cipher_camellia_256, calg_camellia,    32,32, type_block, 16,16, 0, 0},
     {cipher_seed,         calg_seed,        16,16, type_block, 16,16, 0, 0},
     {cipher_aes_128_gcm,  calg_aes_gcm,     16,16, type_aead,   4, 0,16, 8},
+    {cipher_camellia_128_gcm, calg_camellia_gcm,    16,16, type_aead,   4, 0,16, 8},
     {cipher_missing,      calg_null,         0, 0, type_stream, 0, 0, 0, 0},
 };
 
@@ -413,6 +416,8 @@ static const ssl3CipherSuiteDef cipher_suite_defs[] =
     {TLS_RSA_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_rsa},
     {TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_ecdhe_rsa},
     {TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_ecdhe_ecdsa},
+    {TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256, cipher_camellia_128_gcm, mac_aead, kea_ecdhe_rsa},
+    {TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256, cipher_camellia_128_gcm, mac_aead, kea_ecdhe_ecdsa},
 
     {TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_dhe_dss},
     {TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, cipher_aes_128, hmac_sha256, kea_dhe_dss},
@@ -482,6 +487,7 @@ static const SSLCipher2Mech alg2Mech[] = {
     { calg_camellia , CKM_CAMELLIA_CBC			},
     { calg_seed     , CKM_SEED_CBC			},
     { calg_aes_gcm  , CKM_AES_GCM			},
+    { calg_camellia_gcm , CKM_CAMELLIA_GCM      },
 /*  { calg_init     , (CK_MECHANISM_TYPE)0x7fffffffL    }  */
 };
 
@@ -522,6 +528,7 @@ const char * const ssl3_cipherName[] = {
     "Camellia-256",
     "SEED-CBC",
     "AES-128-GCM",
+    "Camellia-128-GCM",
     "missing"
 };
 
@@ -660,7 +667,9 @@ ssl3_CipherSuiteAllowedForVersionRange(
         return vrange->max == SSL_LIBRARY_VERSION_TLS_1_2;
 
     case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+    case TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256:
     case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+    case TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256:
     case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
     case TLS_DHE_DSS_WITH_AES_128_GCM_SHA256:
 	return vrange->max >= SSL_LIBRARY_VERSION_TLS_1_2;
@@ -1661,13 +1670,13 @@ ssl3_InitPendingContextsBypass(sslSocket *ss)
 
     calg = cipher_def->calg;
 
-    if (calg == ssl_calg_aes_gcm) {
+    if ( cipher_def == type_aead ) {
 	pwSpec->encode = NULL;
 	pwSpec->decode = NULL;
 	pwSpec->destroy = NULL;
 	pwSpec->encodeContext = NULL;
 	pwSpec->decodeContext = NULL;
-	pwSpec->aead = ssl3_AESGCMBypass;
+        pwSpec->aead = ssl3_CipherGCMBypass;
 	ssl3_InitCompressionContext(pwSpec);
 	return SECSuccess;
     }
@@ -1882,7 +1891,7 @@ ssl3_BuildRecordPseudoHeader(unsigned char *out,
 }
 
 static SECStatus
-ssl3_AESGCM(ssl3KeyMaterial *keys,
+ssl3_CipherGCM(ssl3KeyMaterial *keys,
 	    PRBool doDecrypt,
 	    unsigned char *out,
 	    int *outlen,
@@ -1890,13 +1899,15 @@ ssl3_AESGCM(ssl3KeyMaterial *keys,
 	    const unsigned char *in,
 	    int inlen,
 	    const unsigned char *additionalData,
-	    int additionalDataLen)
+        int additionalDataLen,
+        SSLCipherAlgorithm calg)
 {
     SECItem            param;
     SECStatus          rv = SECFailure;
     unsigned char      nonce[12];
     unsigned int       uOutLen;
     CK_GCM_PARAMS      gcmParams;
+    CK_MECHANISM_TYPE mechanism;
 
     static const int   tagSize = 16;
     static const int   explicitNonceLen = 8;
@@ -1931,11 +1942,20 @@ ssl3_AESGCM(ssl3KeyMaterial *keys,
     gcmParams.ulAADLen = additionalDataLen;
     gcmParams.ulTagBits = tagSize * 8;
 
+    switch (calg) {
+        case calg_aes_gcm:
+            mechanism = CKM_AES_GCM;
+            break;
+        case calg_camellia_gcm:
+            mechanism = CKM_CAMELLIA_GCM;
+            break;
+    }
+
     if (doDecrypt) {
-	rv = PK11_Decrypt(keys->write_key, CKM_AES_GCM, &param, out, &uOutLen,
+	rv = PK11_Decrypt(keys->write_key, mechanism, &param, out, &uOutLen,
 			  maxout, in, inlen);
     } else {
-	rv = PK11_Encrypt(keys->write_key, CKM_AES_GCM, &param, out, &uOutLen,
+	rv = PK11_Encrypt(keys->write_key, mechanism, &param, out, &uOutLen,
 			  maxout, in, inlen);
     }
     *outlen += (int) uOutLen;
@@ -1945,7 +1965,7 @@ ssl3_AESGCM(ssl3KeyMaterial *keys,
 
 #ifndef NO_PKCS11_BYPASS
 static SECStatus
-ssl3_AESGCMBypass(ssl3KeyMaterial *keys,
+ssl3_CipherGCMBypass(ssl3KeyMaterial *keys,
 		  PRBool doDecrypt,
 		  unsigned char *out,
 		  int *outlen,
@@ -1953,13 +1973,17 @@ ssl3_AESGCMBypass(ssl3KeyMaterial *keys,
 		  const unsigned char *in,
 		  int inlen,
 		  const unsigned char *additionalData,
-		  int additionalDataLen)
+          int additionalDataLen,
+          SSLCipherAlgorithm calg)
 {
     SECStatus          rv = SECFailure;
     unsigned char      nonce[12];
     unsigned int       uOutLen;
-    AESContext        *cx;
     CK_GCM_PARAMS      gcmParams;
+    void *cx;
+    BLapiInitContextFunc initFn;
+    SSLCipher encode, decode;
+    SSLDestroy destroy;
 
     static const int   tagSize = 16;
     static const int   explicitNonceLen = 8;
@@ -1996,8 +2020,28 @@ ssl3_AESGCMBypass(ssl3KeyMaterial *keys,
     gcmParams.ulAADLen = additionalDataLen;
     gcmParams.ulTagBits = tagSize * 8;
 
-    cx = (AESContext *)keys->cipher_context;
-    rv = AES_InitContext(cx, keys->write_key_item.data,
+    cx = keys->cipher_context;
+    initFn = (BLapiInitContextFunc)NULL;
+    encode = (SSLCipher)NULL;
+    decode = (SSLCipher)NULL;
+    destroy = (SSLDestroy)NULL;
+
+    switch (calg) {
+        case calg_aes_gcm:
+            initFn = (BLapiInitContextFunc)AES_InitContext;
+            encode  = (SSLCipher) AES_Encrypt;
+            decode  = (SSLCipher) AES_Decrypt;
+            destroy = (SSLDestroy) AES_DestroyContext;
+            break;
+        case calg_camellia_gcm:
+            initFn = (BLapiInitContextFunc)Camellia_InitContext;
+            encode  = (SSLCipher) Camellia_Encrypt;
+            decode  = (SSLCipher) Camellia_Decrypt;
+            destroy = (SSLDestroy) Camellia_DestroyContext;
+            break;
+    }
+
+    rv = (*initFn)(cx, keys->write_key_item.data,
 			 keys->write_key_item.len,
 			 (unsigned char *)&gcmParams, NSS_AES_GCM, !doDecrypt,
 			 AES_BLOCK_SIZE);
@@ -2005,11 +2049,11 @@ ssl3_AESGCMBypass(ssl3KeyMaterial *keys,
 	return rv;
     }
     if (doDecrypt) {
-	rv = AES_Decrypt(cx, out, &uOutLen, maxout, in, inlen);
+        rv = (*decode)(cx, out, &uOutLen, maxout, in, inlen);
     } else {
-	rv = AES_Encrypt(cx, out, &uOutLen, maxout, in, inlen);
+        rv = (*encode)(cx, out, &uOutLen, maxout, in, inlen);
     }
-    AES_DestroyContext(cx, PR_FALSE);
+    (*destroy)(cx, PR_FALSE);
     *outlen += (int) uOutLen;
 
     return rv;
@@ -2049,13 +2093,13 @@ ssl3_InitPendingContextsPKCS11(sslSocket *ss)
     pwSpec->client.write_mac_context = NULL;
     pwSpec->server.write_mac_context = NULL;
 
-    if (calg == calg_aes_gcm) {
+    if (cipher_def->type == type_aead) {
 	pwSpec->encode = NULL;
 	pwSpec->decode = NULL;
 	pwSpec->destroy = NULL;
 	pwSpec->encodeContext = NULL;
 	pwSpec->decodeContext = NULL;
-	pwSpec->aead = ssl3_AESGCM;
+	pwSpec->aead = ssl3_CipherGCM;
 	return SECSuccess;
     }
 
@@ -2629,7 +2673,7 @@ ssl3_CompressMACEncryptRecord(ssl3CipherSpec *   cwSpec,
 		&cipherBytes,                               /* out len */
 		wrBuf->space - headerLen,                   /* max out */
 		pIn, contentLen,                            /* input   */
-		pseudoHeader, pseudoHeaderLen);
+            pseudoHeader, pseudoHeaderLen, cipher_def->calg);
 	if (rv != SECSuccess) {
 	    PORT_SetError(SSL_ERROR_ENCRYPTION_FAILURE);
 	    return SECFailure;
@@ -4395,7 +4439,7 @@ static const struct {
  * If the hash is not recognised, SEC_OID_UNKNOWN is returned.
  *
  * See https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1 */
-SECOidTag
+static SECOidTag
 ssl3_TLSHashAlgorithmToOID(SSLHashType hashFunc)
 {
     unsigned int i;
@@ -11884,7 +11928,7 @@ ssl3_HandleRecord(sslSocket *ss, SSL3Ciphertext *cText, sslBuffer *databuf)
 		plaintext->space,                 /* maxout */
 		cText->buf->buf,                  /* in */
 		cText->buf->len,                  /* inlen */
-		header, headerLen);
+		header, headerLen, cipher_def->calg);
 	if (rv != SECSuccess) {
 	    good = 0;
 	}
