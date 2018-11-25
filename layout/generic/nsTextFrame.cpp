@@ -631,7 +631,7 @@ public:
       mNumJustifiableCharacterReceivingExtraJot = 0;
       mExtraSpacePerJustifiableCharacter = 0;
       mPreformatted = (NS_STYLE_WHITESPACE_PRE == mText->mWhiteSpace) ||
-        (NS_STYLE_WHITESPACE_MOZ_PRE_WRAP == mText->mWhiteSpace);
+        (NS_STYLE_WHITESPACE_PRE_WRAP == mText->mWhiteSpace);
 
       mJustifying = (NS_STYLE_TEXT_ALIGN_JUSTIFY == mText->mTextAlign) &&
         !mPreformatted;
@@ -5907,7 +5907,7 @@ nsTextFrame::Reflow(nsPresContext*          aPresContext,
   }
 
   PRBool wrapping = (NS_STYLE_WHITESPACE_NORMAL == ts.mText->mWhiteSpace) ||
-    (NS_STYLE_WHITESPACE_MOZ_PRE_WRAP == ts.mText->mWhiteSpace);
+    (NS_STYLE_WHITESPACE_PRE_WRAP == ts.mText->mWhiteSpace);
 
   // Set whitespace skip flag
   PRBool skipWhitespace = PR_FALSE;
@@ -6179,7 +6179,7 @@ nsTextFrame::TrimTrailingWhiteSpace(nsPresContext* aPresContext,
   const nsStyleText* textStyle = GetStyleText();
   if (mContentLength &&
       (NS_STYLE_WHITESPACE_PRE != textStyle->mWhiteSpace) &&
-      (NS_STYLE_WHITESPACE_MOZ_PRE_WRAP != textStyle->mWhiteSpace)) {
+      (NS_STYLE_WHITESPACE_PRE_WRAP != textStyle->mWhiteSpace)) {
 
     // Get the text fragments that make up our content
     nsCOMPtr<nsITextContent> tc = do_QueryInterface(mContent);
