@@ -112,7 +112,7 @@ if (!defined($official)) {$official="";}
 if (!defined($milestone)) {$milestone="";}
 if (!defined($module)) {$module="";}
 if (!defined($binary)) {$binary="";}
-if (!defined($displayname)) {$displayname="Mozilla";}
+if (!defined($displayname)) {$displayname="RetroZilla";}
 if (!defined($depth)) {$depth=".";}
 if (!defined($rcinclude)) {$rcinclude="";}
 if (!defined($objdir)) {$objdir=".";}
@@ -257,8 +257,8 @@ if ($official eq "1") {
 }
 
 my $copyright = "License: MPL 1.1/GPL 2.0/LGPL 2.1";
-my $company = "Mozilla Foundation";
-my $trademarks = "Mozilla";
+my $company = "RetroZilla";
+my $trademarks = "RetroZilla";
 my $productname = $displayname;
 
 

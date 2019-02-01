@@ -462,7 +462,7 @@ NS_CreateNativeAppSupport( nsINativeAppSupport **aResult ) {
 }
 
 // Constants
-#define MOZ_DDE_APPLICATION    "Mozilla"
+#define MOZ_DDE_APPLICATION    "RetroZilla"
 #define MOZ_STARTUP_MUTEX_NAME "StartupMutex"
 #define MOZ_DDE_START_TIMEOUT 30000
 #define MOZ_DDE_STOP_TIMEOUT  15000
