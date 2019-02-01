@@ -841,7 +841,10 @@ TARGET_MD_ARCH=unix
 DIRENT_INO=d_ino
 CYGWIN_WRAPPER=
 WIN_TOP_SRC=
-MOZ_USER_DIR=".mozilla"
+:i
+
+
+MOZ_USER_DIR=".retrozilla"
 HOST_AR='$(AR)'
 HOST_AR_FLAGS='$(AR_FLAGS)'
 
@@ -1497,7 +1500,7 @@ case "$target" in
     _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Wno-multichar"
     _MOZ_USE_RTTI=1
     USE_DEPENDENT_LIBS=
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
     ;;
 
 *-bsdi*)
@@ -1751,7 +1754,7 @@ case "$target" in
     USE_SHORT_LIBNAME=1
     MOZ_ENABLE_COREXFONTS=
     MOZ_ENABLE_POSTSCRIPT=
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
 ;;
 
 
@@ -1842,7 +1845,7 @@ case "$target" in
     BIN_SUFFIX='.exe'
     USE_SHORT_LIBNAME=1
     MOZ_ENABLE_POSTSCRIPT=
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
 
     dnl Hardcode to win95 for now - cls
     TARGET_NSPR_MDCPUCFG='\"md/_win95.cfg\"'
@@ -2077,7 +2080,7 @@ case "$target" in
     MOZ_ENABLE_POSTSCRIPT=
     RC=rc.exe
     RCFLAGS='-n'
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
 
     if test "$MOZTOOLS"; then
         MOZ_TOOLS_DIR=`echo $MOZTOOLS | sed -e 's|\\\\|/|g'`
@@ -4037,7 +4040,7 @@ mac|cocoa)
     TK_CFLAGS="-I${MACOS_SDK_DIR}/Developer/Headers/FlatCarbon"
     CFLAGS="$CFLAGS $TK_CFLAGS"
     CXXFLAGS="$CXXFLAGS $TK_CFLAGS"
-    MOZ_USER_DIR="Mozilla"
+    MOZ_USER_DIR="RetroZilla"
     AC_DEFINE(XP_MACOSX)
     AC_DEFINE(TARGET_CARBON)
     AC_DEFINE(TARGET_API_MAC_CARBON)
@@ -4450,8 +4453,8 @@ xulrunner)
   ;;
 
 macbrowser) 
-  MOZ_APP_NAME=mozilla
-  MOZ_APP_DISPLAYNAME=Mozilla
+  MOZ_APP_NAME=retrozilla
+  MOZ_APP_DISPLAYNAME=RetroZilla
   MOZ_APP_VERSION=$MOZILLA_VERSION
   MOZ_STORAGE=1
   MOZ_EXTENSIONS_DEFAULT=" cookie xmlextras universalchardet typeaheadfind transformiix permissions spellcheck auth"
@@ -4459,8 +4462,8 @@ macbrowser)
   ;;
 
 standalone) 
-  MOZ_APP_NAME=mozilla
-  MOZ_APP_DISPLAYNAME=Mozilla
+  MOZ_APP_NAME=retrozilla
+  MOZ_APP_DISPLAYNAME=RetroZilla
   MOZ_APP_VERSION=$MOZILLA_VERSION
   ;;
 
