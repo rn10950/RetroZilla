@@ -210,8 +210,6 @@ static const CK_ATTRIBUTE lg_StaticFalseAttr =
   LG_DEF_ATTRIBUTE(&lg_staticFalseValue,sizeof(lg_staticFalseValue));
 static const CK_ATTRIBUTE lg_StaticNullAttr = LG_DEF_ATTRIBUTE(NULL,0);
 char lg_StaticOneValue = 1;
-static const CK_ATTRIBUTE lg_StaticOneAttr = 
-  LG_DEF_ATTRIBUTE(&lg_StaticOneValue,sizeof(lg_StaticOneValue));
 
 /*
  * helper functions which get the database and call the underlying 
@@ -423,21 +421,16 @@ lg_GetPubItem(NSSLOWKEYPublicKey *pubKey) {
     case NSSLOWKEYDHKey:
 	    pubItem = &pubKey->u.dh.publicValue;
 	    break;
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case NSSLOWKEYECKey:
 	    pubItem = &pubKey->u.ec.publicValue;
 	    break;
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     default:
 	    break;
     }
     return pubItem;
 }
-
-static const SEC_ASN1Template lg_SerialTemplate[] = {
-    { SEC_ASN1_INTEGER, offsetof(NSSLOWCERTCertificate,serialNumber) },
-    { 0 }
-};
 
 static CK_RV
 lg_FindRSAPublicKeyAttribute(NSSLOWKEYPublicKey *key, CK_ATTRIBUTE_TYPE type,
@@ -551,7 +544,7 @@ lg_FindDHPublicKeyAttribute(NSSLOWKEYPublicKey *key, CK_ATTRIBUTE_TYPE type,
     return lg_invalidAttribute(attribute);
 }
 
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 static CK_RV
 lg_FindECPublicKeyAttribute(NSSLOWKEYPublicKey *key, CK_ATTRIBUTE_TYPE type,
 				CK_ATTRIBUTE *attribute)
@@ -601,7 +594,7 @@ lg_FindECPublicKeyAttribute(NSSLOWKEYPublicKey *key, CK_ATTRIBUTE_TYPE type,
     }
     return lg_invalidAttribute(attribute);
 }
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 
 
 static CK_RV
@@ -653,10 +646,10 @@ lg_FindPublicKeyAttribute(LGObjectCache *obj, CK_ATTRIBUTE_TYPE type,
 	return lg_FindDSAPublicKeyAttribute(key,type,attribute);
     case NSSLOWKEYDHKey:
 	return lg_FindDHPublicKeyAttribute(key,type,attribute);
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case NSSLOWKEYECKey:
 	return lg_FindECPublicKeyAttribute(key,type,attribute);
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     default:
 	break;
     }
@@ -945,7 +938,7 @@ lg_FindDHPrivateKeyAttribute(NSSLOWKEYPrivateKey *key, CK_ATTRIBUTE_TYPE type,
     return lg_invalidAttribute(attribute);
 }
 
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
 static CK_RV
 lg_FindECPrivateKeyAttribute(NSSLOWKEYPrivateKey *key, CK_ATTRIBUTE_TYPE type,
 				CK_ATTRIBUTE *attribute, SDB *sdbpw)
@@ -983,7 +976,7 @@ lg_FindECPrivateKeyAttribute(NSSLOWKEYPrivateKey *key, CK_ATTRIBUTE_TYPE type,
     }
     return lg_invalidAttribute(attribute);
 }
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
 
 static CK_RV
 lg_FindPrivateKeyAttribute(LGObjectCache *obj, CK_ATTRIBUTE_TYPE type,
@@ -1030,10 +1023,10 @@ lg_FindPrivateKeyAttribute(LGObjectCache *obj, CK_ATTRIBUTE_TYPE type,
 	return lg_FindDSAPrivateKeyAttribute(key,type,attribute,obj->sdb);
     case NSSLOWKEYDHKey:
 	return lg_FindDHPrivateKeyAttribute(key,type,attribute,obj->sdb);
-#ifdef NSS_ENABLE_ECC
+#ifndef NSS_DISABLE_ECC
     case NSSLOWKEYECKey:
 	return lg_FindECPrivateKeyAttribute(key,type,attribute,obj->sdb);
-#endif /* NSS_ENABLE_ECC */
+#endif /* NSS_DISABLE_ECC */
     default:
 	break;
     }
@@ -1372,7 +1365,7 @@ lg_GetAttributeValue(SDB *sdb, CK_OBJECT_HANDLE handle, CK_ATTRIBUTE *templ,
 {
     LGObjectCache *obj = lg_NewObjectCache(sdb, NULL, handle & ~LG_TOKEN_MASK);
     CK_RV crv, crvCollect = CKR_OK;
-    int i;
+    unsigned int i;
 
     if (obj == NULL) {
 	return CKR_OBJECT_HANDLE_INVALID;
@@ -1434,7 +1427,7 @@ lg_tokenMatch(SDB *sdb, const SECItem *dbKey, CK_OBJECT_HANDLE class,
 {
     PRBool match = PR_TRUE;
     LGObjectCache *obj = lg_NewObjectCache(sdb, dbKey, class);
-    int i;
+    unsigned int i;
 
     if (obj == NULL) {
 	return PR_FALSE;
@@ -1758,7 +1751,7 @@ lg_SetAttributeValue(SDB *sdb, CK_OBJECT_HANDLE handle,
     LGObjectCache *obj = lg_NewObjectCache(sdb, NULL, handle & ~LG_TOKEN_MASK);
     CK_RV crv, crvCollect = CKR_OK;
     PRBool writePrivate = PR_FALSE;
-    int i;
+    unsigned int i;
 
     if (obj == NULL) {
 	return CKR_OBJECT_HANDLE_INVALID;

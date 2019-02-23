@@ -283,9 +283,9 @@ const char *const stateLabels[] = {
 // TEMPORARY HARD CODED FUNCTIONS 
 ///////////////////////////////////////////////////////////////////////////////////////////
 #ifdef XP_WIN
-static char *XP_AppCodeName = "Mozilla";
+static char *XP_AppCodeName = "RetroZilla";
 #else
-static const char *XP_AppCodeName = "Mozilla";
+static const char *XP_AppCodeName = "RetroZilla";
 #endif
 #define NET_IS_SPACE(x) ((x)==' ' || (x)=='\t')
 

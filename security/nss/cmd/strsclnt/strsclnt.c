@@ -59,30 +59,30 @@ int ssl2CipherSuites[] = {
 int ssl3CipherSuites[] = {
     -1, /* SSL_FORTEZZA_DMS_WITH_FORTEZZA_CBC_SHA* a */
     -1, /* SSL_FORTEZZA_DMS_WITH_RC4_128_SHA     * b */
-    SSL_RSA_WITH_RC4_128_MD5,                   /* c */
-    SSL_RSA_WITH_3DES_EDE_CBC_SHA,              /* d */
-    SSL_RSA_WITH_DES_CBC_SHA,                   /* e */
-    SSL_RSA_EXPORT_WITH_RC4_40_MD5,             /* f */
-    SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5,         /* g */
+    TLS_RSA_WITH_RC4_128_MD5,                   /* c */
+    TLS_RSA_WITH_3DES_EDE_CBC_SHA,              /* d */
+    TLS_RSA_WITH_DES_CBC_SHA,                   /* e */
+    TLS_RSA_EXPORT_WITH_RC4_40_MD5,             /* f */
+    TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,         /* g */
     -1, /* SSL_FORTEZZA_DMS_WITH_NULL_SHA        * h */
-    SSL_RSA_WITH_NULL_MD5,                      /* i */
+    TLS_RSA_WITH_NULL_MD5,                      /* i */
     SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA,         /* j */
     SSL_RSA_FIPS_WITH_DES_CBC_SHA,              /* k */
     TLS_RSA_EXPORT1024_WITH_DES_CBC_SHA, 	/* l */
     TLS_RSA_EXPORT1024_WITH_RC4_56_SHA,		/* m */
-    SSL_RSA_WITH_RC4_128_SHA,                   /* n */
+    TLS_RSA_WITH_RC4_128_SHA,                   /* n */
     TLS_DHE_DSS_WITH_RC4_128_SHA,		/* o */
-    SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA,		/* p */
-    SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA,		/* q */
-    SSL_DHE_RSA_WITH_DES_CBC_SHA,		/* r */
-    SSL_DHE_DSS_WITH_DES_CBC_SHA,		/* s */
+    TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,		/* p */
+    TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,		/* q */
+    TLS_DHE_RSA_WITH_DES_CBC_SHA,		/* r */
+    TLS_DHE_DSS_WITH_DES_CBC_SHA,		/* s */
     TLS_DHE_DSS_WITH_AES_128_CBC_SHA, 	    	/* t */
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA,       	/* u */
     TLS_RSA_WITH_AES_128_CBC_SHA,     	    	/* v */
     TLS_DHE_DSS_WITH_AES_256_CBC_SHA, 	    	/* w */
     TLS_DHE_RSA_WITH_AES_256_CBC_SHA,       	/* x */
     TLS_RSA_WITH_AES_256_CBC_SHA,     	    	/* y */
-    SSL_RSA_WITH_NULL_SHA,			/* z */
+    TLS_RSA_WITH_NULL_SHA,			/* z */
     0
 };
 
@@ -498,7 +498,6 @@ init_thread_data(void)
 
 PRBool useModelSocket = PR_TRUE;
 
-static const char stopCmd[] = { "GET /stop " };
 static const char outHeader[] = {
     "HTTP/1.0 200 OK\r\n"
     "Server: Netscape-Enterprise/2.0a\r\n"
@@ -567,8 +566,8 @@ do_writes(
 {
     PRFileDesc *	ssl_sock	= (PRFileDesc *)a;
     lockedVars *	lv 		= (lockedVars *)b;
-    int			sent  		= 0;
-    int 		count		= 0;
+    unsigned int sent = 0;
+    int count = 0;
 
     while (sent < bigBuf.len) {
 
@@ -712,7 +711,7 @@ PRInt32 lastFullHandshakePeerID;
 void
 myHandshakeCallback(PRFileDesc *socket, void *arg) 
 {
-    PR_ATOMIC_SET(&lastFullHandshakePeerID, (PRInt32) arg);
+    PR_ATOMIC_SET(&lastFullHandshakePeerID, (PRInt32)((char *)arg - (char *)NULL));
 }
 
 #endif
@@ -732,7 +731,6 @@ do_connects(
     PRFileDesc *        tcp_sock	= 0;
     PRStatus	        prStatus;
     PRUint32            sleepInterval	= 50; /* milliseconds */
-    SECStatus   	result;
     int                 rv 		= SECSuccess;
     PRSocketOptionData  opt;
 
@@ -839,7 +837,8 @@ retry:
         PR_snprintf(sockPeerIDString, sizeof(sockPeerIDString), "ID%d",
                     thisPeerID);
         SSL_SetSockPeerID(ssl_sock, sockPeerIDString);
-        SSL_HandshakeCallback(ssl_sock, myHandshakeCallback, (void*)thisPeerID);
+        SSL_HandshakeCallback(ssl_sock, myHandshakeCallback,
+                              (char *)NULL + thisPeerID);
 #else
             /* force a full handshake by setting the no cache option */
             SSL_OptionSet(ssl_sock, SSL_NO_CACHE, 1);
@@ -854,9 +853,9 @@ retry:
     PR_ATOMIC_INCREMENT(&numConnected);
 
     if (bigBuf.data != NULL) {
-	result = handle_fdx_connection( ssl_sock, tid);
+	(void)handle_fdx_connection( ssl_sock, tid);
     } else {
-	result = handle_connection( ssl_sock, tid);
+	(void)handle_connection( ssl_sock, tid);
     }
 
     PR_ATOMIC_DECREMENT(&numConnected);

@@ -27,8 +27,8 @@ static SECMODListLock *moduleLock = NULL;
 
 int secmod_PrivateModuleCount = 0;
 
-extern PK11DefaultArrayEntry PK11_DefaultArray[];
-extern int num_pk11_default_mechanisms;
+extern const PK11DefaultArrayEntry PK11_DefaultArray[];
+extern const int num_pk11_default_mechanisms;
 
 
 void
@@ -1185,7 +1185,7 @@ end_wait:
 SECStatus
 SECMOD_CancelWait(SECMODModule *mod)
 {
-    unsigned long controlMask = mod->evControlMask;
+    unsigned long controlMask;
     SECStatus rv = SECSuccess;
     CK_RV crv;
 

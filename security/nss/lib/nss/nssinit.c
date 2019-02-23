@@ -491,10 +491,6 @@ struct NSSInitContextStr {
 #define NSS_INIT_MAGIC 0x1413A91C
 static SECStatus nss_InitShutdownList(void);
 
-#ifdef DEBUG
-static CERTCertificate dummyCert;
-#endif
-
 /* All initialized to zero in BSS */
 static PRCallOnceType nssInitOnce;
 static PZLock *nssInitLock;
@@ -571,8 +567,11 @@ nss_Init(const char *configdir, const char *certPrefix, const char *keyPrefix,
      * functions */
 
     if (!isReallyInitted) {
+#ifdef DEBUG
+        CERTCertificate dummyCert;
 	/* New option bits must not change the size of CERTCertificate. */
 	PORT_Assert(sizeof(dummyCert.options) == sizeof(void *));
+#endif
 
 	if (SECSuccess != cert_InitLocks()) {
 	    goto loser;
@@ -1091,14 +1090,6 @@ nss_Shutdown(void)
 	shutdownRV = SECFailure;
     }
     pk11sdr_Shutdown();
-    /*
-     * A thread's error stack is automatically destroyed when the thread
-     * terminates, except for the primordial thread, whose error stack is
-     * destroyed by PR_Cleanup.  Since NSS is usually shut down by the
-     * primordial thread and many NSS-based apps don't call PR_Cleanup,
-     * we destroy the calling thread's error stack here.
-     */
-    nss_DestroyErrorStack();
     nssArena_Shutdown();
     if (status == PR_FAILURE) {
 	if (NSS_GetError() == NSS_ERROR_BUSY) {
@@ -1106,6 +1097,16 @@ nss_Shutdown(void)
 	}
 	shutdownRV = SECFailure;
     }
+    /*
+     * A thread's error stack is automatically destroyed when the thread
+     * terminates, except for the primordial thread, whose error stack is
+     * destroyed by PR_Cleanup.  Since NSS is usually shut down by the
+     * primordial thread and many NSS-based apps don't call PR_Cleanup,
+     * we destroy the calling thread's error stack here. This must be
+     * done after any NSS_GetError call, otherwise NSS_GetError will
+     * create the error stack again.
+     */
+    nss_DestroyErrorStack();
     nssIsInitted = PR_FALSE;
     temp = nssInitContextList;
     nssInitContextList = NULL;
@@ -1228,8 +1229,7 @@ NSS_IsInitialized(void)
 }
 	
 
-extern const char __nss_base_rcsid[];
-extern const char __nss_base_sccsid[];
+extern const char __nss_base_version[];
 
 PRBool
 NSS_VersionCheck(const char *importedVersion)
@@ -1245,9 +1245,8 @@ NSS_VersionCheck(const char *importedVersion)
      */
     int vmajor = 0, vminor = 0, vpatch = 0, vbuild = 0;
     const char *ptr = importedVersion;
-    volatile char c; /* force a reference that won't get optimized away */
-
-    c = __nss_base_rcsid[0] + __nss_base_sccsid[0]; 
+#define NSS_VERSION_VARIABLE __nss_base_version
+#include "verref.h"
 
     while (isdigit(*ptr)) {
         vmajor = 10 * vmajor + *ptr - '0';

@@ -178,8 +178,8 @@ SECKEY_CreateDHPrivateKey(SECKEYDHParams *param, SECKEYPublicKey **pubk, void *c
     PK11SlotInfo *slot;
 
     if (!param || !param->base.data || !param->prime.data ||
-        param->prime.len < 512/8 || param->base.len == 0 || 
-        param->base.len > param->prime.len + 1 || 
+        SECKEY_BigIntegerBitLength(&param->prime) < DH_MIN_P_BITS ||
+        param->base.len == 0 || param->base.len > param->prime.len + 1 ||
 	(param->base.len == 1 && param->base.data[0] == 0)) {
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	return NULL;
@@ -941,61 +941,76 @@ SECKEY_ECParamsToBasePointOrderLen(const SECItem *encodedParams)
     }
 }
 
+/* The number of bits in the number from the first non-zero bit onward. */
+unsigned
+SECKEY_BigIntegerBitLength(const SECItem *number)
+{
+    const unsigned char *p;
+    unsigned octets;
+    unsigned bits;
+
+    if (!number || !number->data) {
+        PORT_SetError(SEC_ERROR_INVALID_KEY);
+        return 0;
+    }
+
+    p = number->data;
+    octets = number->len;
+    while (octets > 0 && !*p) {
+        ++p;
+        --octets;
+    }
+    if (octets == 0) {
+        return 0;
+    }
+    /* bits = 7..1 because we know at least one bit is set already */
+    /* Note: This could do a binary search, but this is faster for keys if we
+     * assume that good keys will have the MSB set. */
+    for (bits = 7; bits > 0; --bits) {
+        if (*p & (1 << bits)) {
+            break;
+        }
+    }
+    return octets * 8 + bits - 7;
+}
+
 /* returns key strength in bytes (not bits) */
 unsigned
 SECKEY_PublicKeyStrength(const SECKEYPublicKey *pubk)
 {
-    unsigned char b0;
-    unsigned size;
-
-    /* interpret modulus length as key strength */
-    if (!pubk)
-    	goto loser;
-    switch (pubk->keyType) {
-    case rsaKey:
-	if (!pubk->u.rsa.modulus.data) break;
-    	b0 = pubk->u.rsa.modulus.data[0];
-    	return b0 ? pubk->u.rsa.modulus.len : pubk->u.rsa.modulus.len - 1;
-    case dsaKey:
-	if (!pubk->u.dsa.publicValue.data) break;
-    	b0 = pubk->u.dsa.publicValue.data[0];
-    	return b0 ? pubk->u.dsa.publicValue.len :
-	    pubk->u.dsa.publicValue.len - 1;
-    case dhKey:
-	if (!pubk->u.dh.publicValue.data) break;
-    	b0 = pubk->u.dh.publicValue.data[0];
-    	return b0 ? pubk->u.dh.publicValue.len :
-	    pubk->u.dh.publicValue.len - 1;
-    case ecKey:
-	/* Get the key size in bits and adjust */
-	size =	SECKEY_ECParamsToKeySize(&pubk->u.ec.DEREncodedParams);
-	return (size + 7)/8;
-    default:
-	break;
-    }
-loser:
-    PORT_SetError(SEC_ERROR_INVALID_KEY);
-    return 0;
+    return (SECKEY_PublicKeyStrengthInBits(pubk) + 7) / 8;
 }
 
 /* returns key strength in bits */
 unsigned
 SECKEY_PublicKeyStrengthInBits(const SECKEYPublicKey *pubk)
 {
-    unsigned size;
+    unsigned bitSize = 0;
+
+    if (!pubk) {
+        PORT_SetError(SEC_ERROR_INVALID_KEY);
+        return 0;
+    }
+
+    /* interpret modulus length as key strength */
     switch (pubk->keyType) {
     case rsaKey:
+        bitSize = SECKEY_BigIntegerBitLength(&pubk->u.rsa.modulus);
+        break;
     case dsaKey:
+        bitSize = SECKEY_BigIntegerBitLength(&pubk->u.dsa.publicValue);
+        break;
     case dhKey:
-	return SECKEY_PublicKeyStrength(pubk) * 8; /* 1 byte = 8 bits */
+        bitSize = SECKEY_BigIntegerBitLength(&pubk->u.dh.publicValue);
+        break;
     case ecKey:
-	size = SECKEY_ECParamsToKeySize(&pubk->u.ec.DEREncodedParams);
-	return size;
+        bitSize = SECKEY_ECParamsToKeySize(&pubk->u.ec.DEREncodedParams);
+        break;
     default:
-	break;
+        PORT_SetError(SEC_ERROR_INVALID_KEY);
+        break;
     }
-    PORT_SetError(SEC_ERROR_INVALID_KEY);
-    return 0;
+    return bitSize;
 }
 
 /* returns signature length in bytes (not bits) */
@@ -1213,17 +1228,12 @@ SECKEY_ConvertToPublicKey(SECKEYPrivateKey *privk)
     return NULL;
 }
 
-CERTSubjectPublicKeyInfo *
-SECKEY_CreateSubjectPublicKeyInfo(SECKEYPublicKey *pubk)
+static CERTSubjectPublicKeyInfo *
+seckey_CreateSubjectPublicKeyInfo_helper(SECKEYPublicKey *pubk)
 {
     CERTSubjectPublicKeyInfo *spki;
     PLArenaPool *arena;
     SECItem params = { siBuffer, NULL, 0 };
-
-    if (!pubk) {
-        PORT_SetError(SEC_ERROR_INVALID_ARGS);
-        return NULL;
-    }
 
     arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
     if (arena == NULL) {
@@ -1332,6 +1342,26 @@ SECKEY_CreateSubjectPublicKeyInfo(SECKEYPublicKey *pubk)
     return NULL;
 }
 
+CERTSubjectPublicKeyInfo *
+SECKEY_CreateSubjectPublicKeyInfo(const SECKEYPublicKey *pubk)
+{
+    CERTSubjectPublicKeyInfo *spki;
+    SECKEYPublicKey *tempKey;
+
+    if (!pubk) {
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return NULL;
+    }
+
+    tempKey = SECKEY_CopyPublicKey(pubk);
+    if (!tempKey) {
+        return NULL;
+    }
+    spki = seckey_CreateSubjectPublicKeyInfo_helper(tempKey);
+    SECKEY_DestroyPublicKey(tempKey);
+    return spki;
+}
+
 void
 SECKEY_DestroySubjectPublicKeyInfo(CERTSubjectPublicKeyInfo *spki)
 {
@@ -1340,70 +1370,8 @@ SECKEY_DestroySubjectPublicKeyInfo(CERTSubjectPublicKeyInfo *spki)
     }
 }
 
-/*
- * this only works for RSA keys... need to do something
- * similiar to CERT_ExtractPublicKey for other key times.
- */
-SECKEYPublicKey *
-SECKEY_DecodeDERPublicKey(const SECItem *pubkder)
-{
-    PLArenaPool *arena;
-    SECKEYPublicKey *pubk;
-    SECStatus rv;
-    SECItem newPubkder;
-
-    arena = PORT_NewArena (DER_DEFAULT_CHUNKSIZE);
-    if (arena == NULL) {
-	PORT_SetError (SEC_ERROR_NO_MEMORY);
-	return NULL;
-    }
-
-    pubk = (SECKEYPublicKey *) PORT_ArenaZAlloc (arena, sizeof (SECKEYPublicKey));
-    if (pubk != NULL) {
-	pubk->arena = arena;
-	pubk->pkcs11Slot = NULL;
-	pubk->pkcs11ID = 0;
-	prepare_rsa_pub_key_for_asn1(pubk);
-        /* copy the DER into the arena, since Quick DER returns data that points
-           into the DER input, which may get freed by the caller */
-        rv = SECITEM_CopyItem(arena, &newPubkder, pubkder);
-        if ( rv == SECSuccess ) {
-	    rv = SEC_QuickDERDecodeItem(arena, pubk, SECKEY_RSAPublicKeyTemplate,
-				&newPubkder);
-        }
-	if (rv == SECSuccess)
-	    return pubk;
-	SECKEY_DestroyPublicKey (pubk);
-    } else {
-	PORT_SetError (SEC_ERROR_NO_MEMORY);
-    }
-
-    PORT_FreeArena (arena, PR_FALSE);
-    return NULL;
-}
-
-/*
- * Decode a base64 ascii encoded DER encoded public key.
- */
-SECKEYPublicKey *
-SECKEY_ConvertAndDecodePublicKey(const char *pubkstr)
-{
-    SECKEYPublicKey *pubk;
-    SECStatus rv;
-    SECItem der;
-
-    rv = ATOB_ConvertAsciiToItem (&der, pubkstr);
-    if (rv != SECSuccess)
-	return NULL;
-
-    pubk = SECKEY_DecodeDERPublicKey (&der);
-
-    PORT_Free (der.data);
-    return pubk;
-}
-
 SECItem *
-SECKEY_EncodeDERSubjectPublicKeyInfo(SECKEYPublicKey *pubk)
+SECKEY_EncodeDERSubjectPublicKeyInfo(const SECKEYPublicKey *pubk)
 {
     CERTSubjectPublicKeyInfo *spki=NULL;
     SECItem *spkiDER=NULL;
@@ -1597,7 +1565,7 @@ SECKEY_DestroyPrivateKeyInfo(SECKEYPrivateKeyInfo *pvk,
 	     * this yet.
 	     */
 	    PORT_Memset(pvk->privateKey.data, 0, pvk->privateKey.len);
-	    PORT_Memset((char *)pvk, 0, sizeof(*pvk));
+	    PORT_Memset(pvk, 0, sizeof(*pvk));
 	    if(freeit == PR_TRUE) {
 		PORT_FreeArena(poolp, PR_TRUE);
 	    } else {
@@ -1607,7 +1575,7 @@ SECKEY_DestroyPrivateKeyInfo(SECKEYPrivateKeyInfo *pvk,
 	    SECITEM_ZfreeItem(&pvk->version, PR_FALSE);
 	    SECITEM_ZfreeItem(&pvk->privateKey, PR_FALSE);
 	    SECOID_DestroyAlgorithmID(&pvk->algorithm, PR_FALSE);
-	    PORT_Memset((char *)pvk, 0, sizeof(*pvk));
+	    PORT_Memset(pvk, 0, sizeof(*pvk));
 	    if(freeit == PR_TRUE) {
 		PORT_Free(pvk);
 	    }
@@ -1628,7 +1596,7 @@ SECKEY_DestroyEncryptedPrivateKeyInfo(SECKEYEncryptedPrivateKeyInfo *epki,
 	     * this yet.
 	     */
 	    PORT_Memset(epki->encryptedData.data, 0, epki->encryptedData.len);
-	    PORT_Memset((char *)epki, 0, sizeof(*epki));
+	    PORT_Memset(epki, 0, sizeof(*epki));
 	    if(freeit == PR_TRUE) {
 		PORT_FreeArena(poolp, PR_TRUE);
 	    } else {
@@ -1637,7 +1605,7 @@ SECKEY_DestroyEncryptedPrivateKeyInfo(SECKEYEncryptedPrivateKeyInfo *epki,
 	} else {
 	    SECITEM_ZfreeItem(&epki->encryptedData, PR_FALSE);
 	    SECOID_DestroyAlgorithmID(&epki->algorithm, PR_FALSE);
-	    PORT_Memset((char *)epki, 0, sizeof(*epki));
+	    PORT_Memset(epki, 0, sizeof(*epki));
 	    if(freeit == PR_TRUE) {
 		PORT_Free(epki);
 	    }
@@ -1757,7 +1725,7 @@ SECKEY_ImportDERPublicKey(const SECItem *derKey, CK_KEY_TYPE type)
 finish:
     if (rv != SECSuccess) {
         if (arena != NULL) {
-            PORT_FreeArena(arena, PR_TRUE);
+            PORT_FreeArena(arena, PR_FALSE);
         }
         pubk = NULL;
     }

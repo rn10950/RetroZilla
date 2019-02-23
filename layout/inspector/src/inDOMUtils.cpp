@@ -108,8 +108,7 @@ inDOMUtils::IsIgnorableWhitespace(nsIDOMCharacterData *aDataNode,
   presShell->GetPrimaryFrameFor(content, &frame);
   if (frame) {
     const nsStyleText* text = frame->GetStyleText();
-    *aReturn = text->mWhiteSpace != NS_STYLE_WHITESPACE_PRE &&
-               text->mWhiteSpace != NS_STYLE_WHITESPACE_MOZ_PRE_WRAP;
+    *aReturn = !text->WhiteSpaceIsSignificant();
   }
   else {
     // empty inter-tag text node without frame, e.g., in between <table>\n<tr>

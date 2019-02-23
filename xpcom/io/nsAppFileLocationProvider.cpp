@@ -86,7 +86,7 @@
 
 // define default product directory
 #if defined (XP_MAC) || defined (WINCE)
-#define DEFAULT_PRODUCT_DIR NS_LITERAL_CSTRING("Mozilla")
+#define DEFAULT_PRODUCT_DIR NS_LITERAL_CSTRING("RetroZilla")
 #else
 #define DEFAULT_PRODUCT_DIR NS_LITERAL_CSTRING(MOZ_USER_DIR)
 #endif

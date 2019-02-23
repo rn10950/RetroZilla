@@ -218,6 +218,7 @@ PK11_GetKeyType(CK_MECHANISM_TYPE type,unsigned long len)
     case CKM_CAMELLIA_MAC_GENERAL:
     case CKM_CAMELLIA_CBC_PAD:
     case CKM_CAMELLIA_KEY_GEN:
+    case CKM_CAMELLIA_GCM:
 	return CKK_CAMELLIA;
     case CKM_AES_ECB:
     case CKM_AES_CBC:
@@ -428,6 +429,7 @@ PK11_GetKeyGenWithSize(CK_MECHANISM_TYPE type, int size)
     case CKM_CAMELLIA_MAC_GENERAL:
     case CKM_CAMELLIA_CBC_PAD:
     case CKM_CAMELLIA_KEY_GEN:
+    case CKM_CAMELLIA_GCM:
 	return CKM_CAMELLIA_KEY_GEN;
     case CKM_AES_ECB:
     case CKM_AES_CBC:
@@ -1378,12 +1380,13 @@ pk11_GenerateNewParamWithKeyLen(CK_MECHANISM_TYPE type, int keyLen)
     SECItem iv;
     SECStatus rv;
 
-
     mech = (SECItem *) PORT_Alloc(sizeof(SECItem));
     if (mech == NULL) return NULL;
 
     rv = SECSuccess;
     mech->type = siBuffer;
+    mech->data = NULL;
+    mech->len = 0;
     switch (type) {
     case CKM_RC4:
     case CKM_SEED_ECB:
@@ -1396,8 +1399,6 @@ pk11_GenerateNewParamWithKeyLen(CK_MECHANISM_TYPE type, int keyLen)
     case CKM_CAST_ECB:
     case CKM_CAST3_ECB:
     case CKM_CAST5_ECB:
-	mech->data = NULL;
-	mech->len = 0;
 	break;
     case CKM_RC2_ECB:
 	rc2_ecb_params = (CK_RC2_PARAMS *)PORT_Alloc(sizeof(CK_RC2_PARAMS));
@@ -1445,8 +1446,6 @@ pk11_GenerateNewParamWithKeyLen(CK_MECHANISM_TYPE type, int keyLen)
 	return PK11_ParamFromIV(type,&iv);
     default:
 	if (pk11_lookup(type)->iv == 0) {
-	    mech->data = NULL;
-	    mech->len = 0;
 	    break;
 	}
     case CKM_SEED_CBC:

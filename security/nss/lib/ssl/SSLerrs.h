@@ -412,3 +412,25 @@ ER3(SSL_ERROR_DIGEST_FAILURE, (SSL_ERROR_BASE + 127),
 
 ER3(SSL_ERROR_INCORRECT_SIGNATURE_ALGORITHM, (SSL_ERROR_BASE + 128),
 "Incorrect signature algorithm specified in a digitally-signed element.")
+
+ER3(SSL_ERROR_NEXT_PROTOCOL_NO_CALLBACK, (SSL_ERROR_BASE + 129),
+"The next protocol negotiation extension was enabled, but the callback was cleared prior to being needed.")
+
+ER3(SSL_ERROR_NEXT_PROTOCOL_NO_PROTOCOL, (SSL_ERROR_BASE + 130),
+"The server supports no protocols that the client advertises in the ALPN extension.")
+
+ER3(SSL_ERROR_INAPPROPRIATE_FALLBACK_ALERT, (SSL_ERROR_BASE + 131),
+"The server rejected the handshake because the client downgraded to a lower "
+"TLS version than the server supports.")
+
+ER3(SSL_ERROR_WEAK_SERVER_CERT_KEY, (SSL_ERROR_BASE + 132),
+"The server certificate included a public key that was too weak.")
+
+ER3(SSL_ERROR_RX_SHORT_DTLS_READ, (SSL_ERROR_BASE + 133),
+"Not enough room in buffer for DTLS record.")
+
+ER3(SSL_ERROR_NO_SUPPORTED_SIGNATURE_ALGORITHM, (SSL_ERROR_BASE + 134),
+"No supported TLS signature algorithm was configured.")
+
+ER3(SSL_ERROR_UNSUPPORTED_SIGNATURE_ALGORITHM, (SSL_ERROR_BASE + 135),
+"The peer used an unsupported combination of signature and hash algorithm.")

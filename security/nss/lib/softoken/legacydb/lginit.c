@@ -22,15 +22,9 @@
 #endif
 
 /*
- * Version information for the 'ident' and 'what commands
- *
- * NOTE: the first component of the concatenated rcsid string
- * must not end in a '$' to prevent rcs keyword substitution.
+ * Version information
  */
-const char __nss_dbm_rcsid[] = "$Header: NSS " SOFTOKEN_VERSION _DEBUG_STRING
-        "  " __DATE__ " " __TIME__ " $";
-const char __nss_dbm_sccsid[] = "@(#)NSS " SOFTOKEN_VERSION _DEBUG_STRING
-        "  " __DATE__ " " __TIME__;
+const char __nss_dbm_version[] = "Version: NSS " SOFTOKEN_VERSION _DEBUG_STRING;
 
 typedef struct LGPrivateStr {
     NSSLOWCERTCertDBHandle *certDB;
@@ -482,14 +476,14 @@ lg_Close(SDB *sdb)
 static PLHashNumber
 lg_HashNumber(const void *key)
 {
-    return (PLHashNumber) key;
+    return (PLHashNumber)((char *)key - (char *)NULL);
 }
 
 PRIntn
 lg_CompareValues(const void *v1, const void *v2)
 {
-    PLHashNumber value1 = (PLHashNumber) v1;
-    PLHashNumber value2 = (PLHashNumber) v2;
+    PLHashNumber value1 = lg_HashNumber(v1);
+    PLHashNumber value2 = lg_HashNumber(v2);
     return (value1 == value2);
 }
 
@@ -593,9 +587,9 @@ legacy_Open(const char *configdir, const char *certPrefix,
     CK_RV crv = CKR_OK;
     SECStatus rv;
     PRBool readOnly = (flags == SDB_RDONLY)? PR_TRUE: PR_FALSE;
-    volatile char c; /* force a reference that won't get optimized away */
 
-    c = __nss_dbm_rcsid[0] + __nss_dbm_sccsid[0];
+#define NSS_VERSION_VARIABLE __nss_dbm_version
+#include "verref.h"
 
     rv = SECOID_Init();
     if (SECSuccess != rv) {

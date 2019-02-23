@@ -53,7 +53,7 @@ BITMAP IDB_SPLASH "splash.bmp"
 
 STRINGTABLE DISCARDABLE
 BEGIN
-    ID_DDE_APPLICATION_NAME,            "Mozilla"
+    ID_DDE_APPLICATION_NAME,            "RetroZilla"
 END
 
 #ifdef MOZ_STATIC_BUILD

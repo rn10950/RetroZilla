@@ -20,15 +20,9 @@
 #endif
 
 /*
- * Version information for the 'ident' and 'what commands
- *
- * NOTE: the first component of the concatenated rcsid string
- * must not end in a '$' to prevent rcs keyword substitution.
+ * Version information
  */
-const char __nss_util_rcsid[] = "$Header: NSS " NSSUTIL_VERSION _DEBUG_STRING
-        "  " __DATE__ " " __TIME__ " $";
-const char __nss_util_sccsid[] = "@(#)NSS " NSSUTIL_VERSION _DEBUG_STRING
-        "  " __DATE__ " " __TIME__;
+const char __nss_util_version[] = "Version: NSS " NSSUTIL_VERSION _DEBUG_STRING;
 
 /* MISSI Mosaic Object ID space */
 /* USGov algorithm OID space: { 2 16 840 1 101 } */
@@ -492,9 +486,6 @@ CONST_OID aes256_KEY_WRAP[]			= { AES, 45 };
 CONST_OID camellia128_CBC[]			= { CAMELLIA_ENCRYPT_OID, 2};
 CONST_OID camellia192_CBC[]			= { CAMELLIA_ENCRYPT_OID, 3};
 CONST_OID camellia256_CBC[]			= { CAMELLIA_ENCRYPT_OID, 4};
-CONST_OID camellia128_KEY_WRAP[]		= { CAMELLIA_WRAP_OID, 2};
-CONST_OID camellia192_KEY_WRAP[]		= { CAMELLIA_WRAP_OID, 3};
-CONST_OID camellia256_KEY_WRAP[]		= { CAMELLIA_WRAP_OID, 4};
 
 CONST_OID sha256[]                              = { SHAXXX, 1 };
 CONST_OID sha384[]                              = { SHAXXX, 2 };
@@ -1878,7 +1869,7 @@ static PLHashTable *oidmechhash = NULL;
 static PLHashNumber
 secoid_HashNumber(const void *key)
 {
-    return (PLHashNumber) key;
+    return (PLHashNumber)((char *)key - (char *)NULL);
 }
 
 static void
@@ -1919,9 +1910,9 @@ SECOID_Init(void)
     const SECOidData *oid;
     int i;
     char * envVal;
-    volatile char c; /* force a reference that won't get optimized away */
 
-    c = __nss_util_rcsid[0] + __nss_util_sccsid[0];
+#define NSS_VERSION_VARIABLE __nss_util_version
+#include "verref.h"
 
     if (oidhash) {
 	return SECSuccess; /* already initialized */
@@ -1931,12 +1922,12 @@ SECOID_Init(void)
 	/* initialize any policy flags that are disabled by default */
 	xOids[SEC_OID_MD2                           ].notPolicyFlags = ~0;
 	xOids[SEC_OID_MD4                           ].notPolicyFlags = ~0;
-	xOids[SEC_OID_MD5                           ].notPolicyFlags = ~0;
+	/*xOids[SEC_OID_MD5                           ].notPolicyFlags = ~0;*/
 	xOids[SEC_OID_PKCS1_MD2_WITH_RSA_ENCRYPTION ].notPolicyFlags = ~0;
 	xOids[SEC_OID_PKCS1_MD4_WITH_RSA_ENCRYPTION ].notPolicyFlags = ~0;
-	xOids[SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION ].notPolicyFlags = ~0;
+	/*xOids[SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION ].notPolicyFlags = ~0;*/
 	xOids[SEC_OID_PKCS5_PBE_WITH_MD2_AND_DES_CBC].notPolicyFlags = ~0;
-	xOids[SEC_OID_PKCS5_PBE_WITH_MD5_AND_DES_CBC].notPolicyFlags = ~0;
+	/*xOids[SEC_OID_PKCS5_PBE_WITH_MD5_AND_DES_CBC].notPolicyFlags = ~0;*/
     }
 
     envVal = PR_GetEnv("NSS_HASH_ALG_SUPPORT");

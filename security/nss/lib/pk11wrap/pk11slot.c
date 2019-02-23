@@ -29,9 +29,10 @@
  * to make the config files understand more entries, add them
  * to this table.
  */
-PK11DefaultArrayEntry PK11_DefaultArray[] = {
+const PK11DefaultArrayEntry PK11_DefaultArray[] = {
 	{ "RSA", SECMOD_RSA_FLAG, CKM_RSA_PKCS },
 	{ "DSA", SECMOD_DSA_FLAG, CKM_DSA },
+	{ "ECC", SECMOD_ECC_FLAG, CKM_ECDSA },
 	{ "DH", SECMOD_DH_FLAG, CKM_DH_PKCS_DERIVE },
 	{ "RC2", SECMOD_RC2_FLAG, CKM_RC2_CBC },
 	{ "RC4", SECMOD_RC4_FLAG, CKM_RC4 },
@@ -56,7 +57,7 @@ PK11DefaultArrayEntry PK11_DefaultArray[] = {
 const int num_pk11_default_mechanisms = 
                 sizeof(PK11_DefaultArray) / sizeof(PK11_DefaultArray[0]);
 
-PK11DefaultArrayEntry *
+const PK11DefaultArrayEntry *
 PK11_GetDefaultArray(int *size)
 {
     if (size) {
@@ -554,10 +555,10 @@ PK11_FindSlotsByNames(const char *dllName, const char* slotName,
                     break;
                 }
                 if ((PR_FALSE == presentOnly || PK11_IsPresent(tmpSlot)) &&
-                    ( (!tokenName) || (tmpSlot->token_name &&
-                    (0==PORT_Strcmp(tmpSlot->token_name, tokenName)))) &&
-                    ( (!slotName) || (tmpSlot->slot_name &&
-                    (0==PORT_Strcmp(tmpSlot->slot_name, slotName)))) ) {
+                    ( (!tokenName) ||
+                      (0==PORT_Strcmp(tmpSlot->token_name, tokenName)) ) &&
+                    ( (!slotName) ||
+                      (0==PORT_Strcmp(tmpSlot->slot_name, slotName)) ) ) {
                     if (tmpSlot) {
                         PK11_AddSlotToList(slotList, tmpSlot, PR_TRUE);
                         slotcount++;
@@ -831,6 +832,7 @@ PK11_GetSlotList(CK_MECHANISM_TYPE type)
 	return &pk11_seedSlotList;
     case CKM_CAMELLIA_CBC:
     case CKM_CAMELLIA_ECB:
+    case CKM_CAMELLIA_GCM:
 	return &pk11_camelliaSlotList;
     case CKM_AES_CBC:
     case CKM_AES_CCM:
@@ -948,9 +950,10 @@ PK11_LoadSlotList(PK11SlotInfo *slot, PK11PreSlotInfo *psi, int count)
  * returns: SECSuccess if nothing to do or add/delete is successful
  */
 SECStatus
-PK11_UpdateSlotAttribute(PK11SlotInfo *slot, PK11DefaultArrayEntry *entry,
-                        PRBool add)  
-                        /* add: PR_TRUE if want to turn on */
+PK11_UpdateSlotAttribute(PK11SlotInfo *slot,
+                         const PK11DefaultArrayEntry *entry,
+                         PRBool add)
+                         /* add: PR_TRUE if want to turn on */
 {
     SECStatus result = SECSuccess;
     PK11SlotList *slotList = PK11_GetSlotList(entry->mechanism);
@@ -1103,7 +1106,6 @@ PK11_InitToken(PK11SlotInfo *slot, PRBool loadCerts)
 {
     CK_TOKEN_INFO tokenInfo;
     CK_RV crv;
-    char *tmp;
     SECStatus rv;
     PRStatus status;
 
@@ -1137,8 +1139,8 @@ PK11_InitToken(PK11SlotInfo *slot, PRBool loadCerts)
     if (slot->isActiveCard) {
 	slot->protectedAuthPath = PR_FALSE;
     }
-    tmp = PK11_MakeString(NULL,slot->token_name,
-			(char *)tokenInfo.label, sizeof(tokenInfo.label));
+    (void)PK11_MakeString(NULL,slot->token_name,
+			  (char *)tokenInfo.label, sizeof(tokenInfo.label));
     slot->minPassword = tokenInfo.ulMinPinLen;
     slot->maxPassword = tokenInfo.ulMaxPinLen;
     PORT_Memcpy(slot->serial,tokenInfo.serialNumber,sizeof(slot->serial));
@@ -1347,7 +1349,6 @@ void
 PK11_InitSlot(SECMODModule *mod, CK_SLOT_ID slotID, PK11SlotInfo *slot)
 {
     SECStatus rv;
-    char *tmp;
     CK_SLOT_INFO slotInfo;
 
     slot->functionList = mod->functionList;
@@ -1369,7 +1370,7 @@ PK11_InitSlot(SECMODModule *mod, CK_SLOT_ID slotID, PK11SlotInfo *slot)
 			 * works because modules keep implicit references
 			 * from their slots, and won't unload and disappear
 			 * until all their slots have been freed */
-    tmp = PK11_MakeString(NULL,slot->slot_name,
+    (void)PK11_MakeString(NULL,slot->slot_name,
 	 (char *)slotInfo.slotDescription, sizeof(slotInfo.slotDescription));
     slot->isHW = (PRBool)((slotInfo.flags & CKF_HW_SLOT) == CKF_HW_SLOT);
 #define ACTIVE_CARD "ActivCard SA"
@@ -1500,6 +1501,12 @@ PK11_GetDisabledReason(PK11SlotInfo *slot)
 /* returns PR_TRUE if successfully disable the slot */
 /* returns PR_FALSE otherwise */
 PRBool PK11_UserDisableSlot(PK11SlotInfo *slot) {
+
+    /* Prevent users from disabling the internal module. */
+    if (slot->isInternal) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return PR_FALSE;
+    }
 
     slot->defaultFlags |= PK11_DISABLE_FLAG;
     slot->disabled = PR_TRUE;
@@ -2044,7 +2051,7 @@ PK11_GetBestSlotMultipleWithAttributes(CK_MECHANISM_TYPE *type,
     PK11SlotInfo *slot = NULL;
     PRBool freeit = PR_FALSE;
     PRBool listNeedLogin = PR_FALSE;
-    int i;
+    unsigned int i;
     SECStatus rv;
 
     list = PK11_GetSlotList(type[0]);
