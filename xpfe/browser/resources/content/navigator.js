@@ -2165,8 +2165,26 @@ function handleURLBarRevert()
   return isScrolling; 
 }
 
+
+
+function isURL(str) {
+  return (str.indexOf("\.") != -1 || str.indexOf(":") != -1) && str.indexOf("?") != 0;
+	//return true;
+}
+
+
+
 function handleURLBarCommand(aUserAction, aTriggeringEvent)
 {
+  if(!isURL(gURLBar.value))
+  {
+		var searchstr = gURLBar.value;
+		if(searchstr.indexOf("?") == 0)
+		searchstr = searchstr.substr(1);
+		//alert("not a valid url defaulting to search");
+		OpenSearch(null, searchstr, false, false);
+		return;
+  }
   try {
     addToUrlbarHistory(gURLBar.value);
   } catch (ex) {
