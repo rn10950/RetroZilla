@@ -67,7 +67,7 @@
     <RDF:li resource="NC:SearchCategory?engine=urn:search:engine:google.src" />
     <RDF:li resource="NC:SearchCategory?engine=urn:search:engine:dmoz.src" />
     <RDF:li resource="NC:SearchCategory?engine=urn:search:engine:jeeves.src" />
-    <RDF:li resource="NC:SearchCategory?engine=urn:search:engine:startpage.src" />
+    <!--<RDF:li resource="NC:SearchCategory?engine=urn:search:engine:startpage.src" />-->
   </RDF:Seq>
 
 </RDF:RDF>

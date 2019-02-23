@@ -108,7 +108,7 @@ var err;
 var communicatorFolder;
 
 srDest = 1;
-err    = initInstall("Quality Feedback Utility", "Quality Feedback Utility", "2.1.0.0000000000"); 
+err    = initInstall("Quality Feedback Utility", "Quality Feedback Utility", "2.2.0.0000000000"); 
 logComment("initInstall: " + err);
 
 communicatorFolder = getFolder("Communicator");
@@ -120,7 +120,7 @@ if(verifyDiskSpace(communicatorFolder, srDest))
 
   upgradeCleanup();
   err = addDirectory("",
-                     "2.1.0.0000000000",
+                     "2.2.0.0000000000",
                      "bin",              // dir name in jar to extract 
                      communicatorFolder, // Where to put this file (Returned from getFolder) 
                      "",                 // subdir name to create relative to communicatorFolder

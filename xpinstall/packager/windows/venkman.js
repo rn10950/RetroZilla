@@ -95,7 +95,7 @@ function getPlatform()
   return platformNode;
 }
 
-var err = initInstall("JavaScript Debugger", "Venkman", "2.1.0.0000000000"); 
+var err = initInstall("JavaScript Debugger", "Venkman", "2.2.0.0000000000"); 
 logComment("initInstall: " + err);
 
 addFile("Venkman Service",

@@ -191,7 +191,7 @@ function registerMainKeys(winreg)
   subkey  = regRootKey + "\\Uninstall";
   winreg.createKey(subkey,"");
   err     = winreg.setValueString(subkey, "Uninstall Log Folder", fProgram + "Uninstall");
-  err     = winreg.setValueString(subkey, "Description", "GRE (2.1)");
+  err     = winreg.setValueString(subkey, "Description", "GRE (2.2)");
 }
 
 // main
@@ -210,7 +210,7 @@ var regRootKey;
 regRootKey = new String(Install.arguments);
 
 srDest = 1;
-err    = initInstall("GRE", "GRE", "2.1.0.0000000000"); 
+err    = initInstall("GRE", "GRE", "2.2.0.0000000000"); 
 logComment("initInstall: " + err);
 
 fProgram  = getFolder("Program");
