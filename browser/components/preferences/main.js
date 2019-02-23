@@ -166,6 +166,7 @@ var gMainPane = {
   {
     var homePage = document.getElementById("browser.startup.homepage");
     homePage.value = homePage.defaultValue;
+	alert(homePage.value);
   },
 
   // DOWNLOADS

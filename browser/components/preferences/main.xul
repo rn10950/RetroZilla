@@ -72,6 +72,9 @@
       <preference id="pref.browser.homepage.disable_button.bookmark_page"
                   name="pref.browser.homepage.disable_button.bookmark_page"
                   type="bool"/>
+      <preference id="rzHome.autofocus"
+                  name="rzHome.autofocus"
+                  type="bool"/>
 
       <!-- Downloads -->
       <preference id="browser.download.manager.showWhenStarting"
@@ -146,6 +149,12 @@
                 id="restoreDefaultHomePage"
                 preference="pref.browser.homepage.disable_button.restore_default"/>
       </hbox>
+	  <hbox align="center">
+	    <checkbox id="rzHomeAutofocus"
+          label="&rzHomeAutofocus.label;"
+          accesskey="&rzHomeAutofocus.accesskey;"
+          prefstring="rzHome.autofocus"/>
+	  </hbox>
     </groupbox>
 
     <!-- Downloads -->

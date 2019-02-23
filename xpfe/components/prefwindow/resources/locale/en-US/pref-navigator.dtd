@@ -22,7 +22,7 @@
 <!ENTITY  useCurrentGroup.accesskey "G">
 <!ENTITY  browseFile.label          "Choose File...">
 <!ENTITY  browseFile.accesskey      "C">
-<!ENTITY  useDefault.label          "Restore Default">
+<!ENTITY  useDefault.label          "Use RetroZilla Home">
 <!ENTITY  useDefault.accesskey      "R">
 <!ENTITY  rzHomeAutofocus.label     "Automatically focus search bar on RetroZilla Home">
 <!ENTITY  rzHomeAutofocus.accesskey "t">

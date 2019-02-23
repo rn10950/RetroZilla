@@ -46,9 +46,18 @@ DIRS = base components locales extensions themes app
 
 include $(topsrcdir)/config/rules.mk
 
+# The lines below are instructions to build the installer.
+# The installer is currently disabled due to issues while building
+# caused by installer/windows/nsis/uninstall.nsi
+#
+# RetroZilla Browser is not really maintained aside from branding.
+# There is no official release. If you want to build the installer
+# for a third-party build (or if you want to attempt to fix the bug)
+# you are more than welcome to fix it and submit your fix to RetroZilla.
+
 ifeq ($(OS_ARCH),WINNT)
 ifdef MOZ_INSTALLER
-DIRS += installer/windows
+# DIRS += installer/windows
 
 ifdef MOZ_BRANDING_DIRECTORY
 DEFINES += -DOFFICIAL_BRANDING=1
@@ -56,8 +65,8 @@ endif
 
 # For Windows build the uninstaller during the application build since the
 # uninstaller is included with the application for mar file generation.
-libs::
-	$(MAKE) -C installer/windows uninstaller
+# libs::
+#	$(MAKE) -C installer/windows uninstaller
 
 endif
 endif

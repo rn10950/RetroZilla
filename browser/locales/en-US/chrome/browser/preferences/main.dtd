@@ -12,8 +12,10 @@
 <!ENTITY useMultiple.label         "Use Current Pages">
 <!ENTITY useBookmark.label         "Use Bookmark">
 <!ENTITY useBookmark.accesskey     "B">
-<!ENTITY restoreDefault.label      "Restore to Default">
+<!ENTITY restoreDefault.label      "Use RetroZilla Home">
 <!ENTITY restoreDefault.accesskey  "R">
+<!ENTITY rzHomeAutofocus.label     "Automatically focus search bar on RetroZilla Home">
+<!ENTITY rzHomeAutofocus.accesskey "t">
 
 <!ENTITY downloads.label     "Downloads">
 

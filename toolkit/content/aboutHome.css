@@ -1,0 +1,48 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+body, html {
+	border: 0px;
+	margin: 0px;
+}
+#rzLogo {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 60px;
+	margin-bottom: 20px;
+}
+#searchContainer {
+	width: 60%;
+	margin-left: auto;
+	margin-right: auto;
+	display: block;
+	text-align: center;
+}
+#rzSearch {
+	width: 70%;
+}
+#rzFooter {
+	position: absolute;
+	bottom: 0px;
+	width: 100%;
+}
+#rzFooterText {
+	text-align: center;
+}
+ /* updater styles */
+#updateNotifier {
+	display: none;
+	text-align: center;
+	font-weight: bold;
+}
+
+.showUpdate {
+	display: block !important;
+}
+
+a:link { color: blue; }
+a:hover { color: blue; }
+a:active { color: blue; }
+a:visited { color: blue; }

@@ -505,14 +505,30 @@ var nsBrowserContentHandler = {
   get startPage() {
     var prefb = Components.classes["@mozilla.org/preferences-service;1"]
                           .getService(nsIPrefBranch);
+    var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
+                              .getService(Components.interfaces.nsIURLFormatter);
 
-    var uri = prefb.getComplexValue("browser.startup.homepage",
+
+    var uri;
+    try {
+        uri = prefb.getComplexValue("browser.startup.homepage",
                                     nsIPrefLocalizedString).data;
+    } catch(e) { }
 
     if (!uri) {
-      prefb.clearUserPref("browser.startup.homepage");
-      uri = prefb.getComplexValue("browser.startup.homepage",
+  	try {
+      	    prefb.clearUserPref("browser.startup.homepage");
+            uri = prefb.getComplexValue("browser.startup.homepage",
                                   nsIPrefLocalizedString).data;
+	} catch (e) { }
+    }
+
+    if (! uri) {
+	try {
+	    uri = formatter.formatURLPref("browser.startup.homepage");
+	    if (uri == "about:blank") uri = "";
+	    return uri;
+	} catch (e) { }
     }
                                 
     var count;
