@@ -297,7 +297,7 @@
                 accesskey="&contributeCmd.accesskey;"
                 label="&contributeCmd.label;"
                 id="contributeCmd"
-                oncommand="openTopWin('http://rzcontribute.ddns.net')"/>
+                oncommand="openTopWin('https://github.com/rn10950/RetroZilla')"/>
 				
       <menuitem class="about"
                 accesskey="&aboutCommPluginsCmd.accesskey;"
