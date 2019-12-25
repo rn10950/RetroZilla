@@ -1670,7 +1670,7 @@ ssl3_InitPendingContextsBypass(sslSocket *ss)
 
     calg = cipher_def->calg;
 
-    if ( cipher_def == type_aead ) {
+    if ( cipher_def->type == type_aead ) {
 	pwSpec->encode = NULL;
 	pwSpec->decode = NULL;
 	pwSpec->destroy = NULL;
