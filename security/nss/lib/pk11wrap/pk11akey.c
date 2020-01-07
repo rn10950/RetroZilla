@@ -164,7 +164,6 @@ PK11_ImportPublicKey(PK11SlotInfo *slot, SECKEYPublicKey *pubKey,
 	    keyType = CKK_EC;
 	    PK11_SETATTRS(attrs, CKA_VERIFY, &cktrue, sizeof(CK_BBOOL));attrs++;
 	    PK11_SETATTRS(attrs, CKA_DERIVE, &cktrue, sizeof(CK_BBOOL));attrs++;
- 	    signedattr = attrs;
 	    PK11_SETATTRS(attrs, CKA_EC_PARAMS, 
 		          pubKey->u.ec.DEREncodedParams.data,
 		          pubKey->u.ec.DEREncodedParams.len); attrs++;
@@ -195,10 +194,14 @@ PK11_ImportPublicKey(PK11SlotInfo *slot, SECKEYPublicKey *pubKey,
 	}
 
 	templateCount = attrs - theTemplate;
-	signedcount = attrs - signedattr;
 	PORT_Assert(templateCount <= (sizeof(theTemplate)/sizeof(CK_ATTRIBUTE)));
-	for (attrs=signedattr; signedcount; attrs++, signedcount--) {
-		pk11_SignedToUnsigned(attrs);
+
+        if (pubKey->keyType != ecKey) {
+            PORT_Assert(signedattr);
+            signedcount = attrs - signedattr;
+            for (attrs = signedattr; signedcount; attrs++, signedcount--) {
+                pk11_SignedToUnsigned(attrs);
+            }
 	} 
         rv = PK11_CreateNewObject(slot, CK_INVALID_SESSION, theTemplate,
 				 	templateCount, isToken, &objectID);
@@ -956,9 +959,13 @@ pk11_loadPrivKeyWithFlags(PK11SlotInfo *slot,SECKEYPrivateKey *privKey,
 					&cktrue, &ckfalse);
 
      /* Not everyone can handle zero padded key values, give
-      * them the raw data as unsigned */
-     for (ap=attrs; extra_count; ap++, extra_count--) {
-	pk11_SignedToUnsigned(ap);
+      * them the raw data as unsigned. The exception is EC,
+      * where the values are encoded or zero-preserving
+      * per-RFC5915 */
+    if (privKey->keyType != ecKey) {
+        for (ap = attrs; extra_count; ap++, extra_count--) {
+            pk11_SignedToUnsigned(ap);
+        }
      }
 
      /* now Store the puppies */

@@ -443,6 +443,10 @@ typedef enum {
     /* The 'name' attribute type in X.520 */
     SEC_OID_AVA_NAME                        = 317,
 
+    SEC_OID_AES_128_GCM = 318,
+    SEC_OID_AES_192_GCM = 319,
+    SEC_OID_AES_256_GCM = 320,
+
     SEC_OID_TOTAL
 } SECOidTag;
 

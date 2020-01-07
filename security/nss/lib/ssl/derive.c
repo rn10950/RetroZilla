@@ -23,6 +23,9 @@
 #include "sslerr.h"
 
 #ifndef NO_PKCS11_BYPASS
+
+#error not patched for SHA384, see bug 923089
+
 /* make this a macro! */
 #ifdef NOT_A_MACRO
 static void

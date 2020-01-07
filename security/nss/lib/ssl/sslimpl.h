@@ -64,6 +64,7 @@ typedef SSLSignType     SSL3SignType;
 #define hmac_md5	ssl_hmac_md5
 #define hmac_sha	ssl_hmac_sha
 #define hmac_sha256	ssl_hmac_sha256
+#define hmac_sha384	ssl_hmac_sha384
 #define mac_aead	ssl_mac_aead
 
 #define SET_ERROR_CODE		/* reminder */
@@ -292,7 +293,7 @@ typedef struct {
 } ssl3CipherSuiteCfg;
 
 #ifndef NSS_DISABLE_ECC
-#define ssl_V3_SUITES_IMPLEMENTED 66
+#define ssl_V3_SUITES_IMPLEMENTED 67
 #else
 #define ssl_V3_SUITES_IMPLEMENTED 40
 #endif /* NSS_DISABLE_ECC */
@@ -478,6 +479,7 @@ typedef enum {
     cipher_camellia_256,
     cipher_seed,
     cipher_aes_128_gcm,
+    cipher_aes_256_gcm,
     cipher_camellia_128_gcm,
     cipher_missing              /* reserved for no such supported cipher */
     /* This enum must match ssl3_cipherName[] in ssl3con.c.  */
@@ -596,7 +598,7 @@ typedef struct {
     ssl3KeyMaterial    client;
     ssl3KeyMaterial    server;
     SECItem            msItem;
-    unsigned char      key_block[NUM_MIXERS * MD5_LENGTH];
+    unsigned char      key_block[NUM_MIXERS * HASH_LENGTH_MAX];
     unsigned char      raw_master_secret[56];
     SECItem            srvVirtName;    /* for server: name that was negotiated
                                         * with a client. For client - is

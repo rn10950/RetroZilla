@@ -282,6 +282,7 @@ PK11_ImportAndReturnPrivateKey(PK11SlotInfo *slot, SECKEYRawPrivateKey *lpk,
     PK11_SETATTRS(attrs, CKA_PRIVATE, isPrivate ? &cktrue : &ckfalse,
 						 sizeof(CK_BBOOL) ); attrs++;
 
+    PORT_Assert(lpk->keyType != ecKey); /* see bug 1558548 if this is needed */
     switch (lpk->keyType) {
     case rsaKey:
 	    keyType = CKK_RSA;

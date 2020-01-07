@@ -1159,8 +1159,7 @@ CK_RV NSC_EncryptUpdate(CK_SESSION_HANDLE hSession,
 	    }
 	    /* encrypt the current padded data */
     	    rv = (*context->update)(context->cipherInfo, pEncryptedPart, 
-		&padoutlen, context->blockSize, context->padBuf,
-							context->blockSize);
+		&padoutlen, maxout, context->padBuf, context->blockSize);
 	    if (rv != SECSuccess) {
 		return sftk_MapCryptError(PORT_GetError());
 	    }
@@ -6973,7 +6972,7 @@ key_and_mac_derive_fail:
 
 	rv = ECDH_Derive(&ecPoint, &privKey->u.ec.ecParams, &ecScalar,
 	                 withCofactor, &tmp); 
-	PORT_Free(ecScalar.data);
+	PORT_ZFree(ecScalar.data, ecScalar.len);
 	ecScalar.data = NULL;
 	if (privKey != sourceKey->objectInfo) {
 	   nsslowkey_DestroyPrivateKey(privKey);

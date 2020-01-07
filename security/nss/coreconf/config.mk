@@ -188,3 +188,9 @@ USE_UTIL_DIRECTLY = 1
 
 # Hide old, deprecated, TLS cipher suite names when building NSS
 DEFINES += -DSSL_DISABLE_DEPRECATED_CIPHER_SUITE_NAMES
+
+# build with NO_PKCS11_BYPASS by default
+ifndef NSS_PKCS11_BYPASS
+DEFINES += -DNO_PKCS11_BYPASS
+NSS_NO_PKCS11_BYPASS = 1
+endif

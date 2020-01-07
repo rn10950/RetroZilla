@@ -14,13 +14,14 @@ endif
 
 ifdef NSS_NO_PKCS11_BYPASS
 DEFINES += -DNO_PKCS11_BYPASS
-else
+#else
+endif
 CRYPTOLIB=$(SOFTOKEN_LIB_DIR)/$(LIB_PREFIX)freebl.$(LIB_SUFFIX)
 
 EXTRA_LIBS += \
 	$(CRYPTOLIB) \
 	$(NULL)
-endif
+#endif
 
 ifeq (,$(filter-out WIN%,$(OS_TARGET)))
 

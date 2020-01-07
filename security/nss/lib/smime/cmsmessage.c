@@ -73,6 +73,10 @@ NSS_CMSMessage_SetEncodingParams(NSSCMSMessage *cmsg,
 			NSSCMSGetDecryptKeyCallback decrypt_key_cb, void *decrypt_key_cb_arg,
 			SECAlgorithmID **detached_digestalgs, SECItem **detached_digests)
 {
+    if (cmsg == NULL) {
+        return;
+    }
+
     if (pwfn)
 	PK11_SetPasswordFunc(pwfn);
     cmsg->pwfn_arg = pwfn_arg;
@@ -88,6 +92,9 @@ NSS_CMSMessage_SetEncodingParams(NSSCMSMessage *cmsg,
 void
 NSS_CMSMessage_Destroy(NSSCMSMessage *cmsg)
 {
+    if (cmsg == NULL)
+        return;
+
     PORT_Assert (cmsg->refCount > 0);
     if (cmsg->refCount <= 0)	/* oops */
 	return;
@@ -127,6 +134,10 @@ NSS_CMSMessage_Copy(NSSCMSMessage *cmsg)
 PLArenaPool *
 NSS_CMSMessage_GetArena(NSSCMSMessage *cmsg)
 {
+    if (cmsg == NULL) {
+        return NULL;
+    }
+
     return cmsg->poolp;
 }
 
@@ -136,6 +147,10 @@ NSS_CMSMessage_GetArena(NSSCMSMessage *cmsg)
 NSSCMSContentInfo *
 NSS_CMSMessage_GetContentInfo(NSSCMSMessage *cmsg)
 {
+    if (cmsg == NULL) {
+        return NULL;
+    }
+
     return &(cmsg->contentInfo);
 }
 
@@ -147,9 +162,16 @@ NSS_CMSMessage_GetContentInfo(NSSCMSMessage *cmsg)
 SECItem *
 NSS_CMSMessage_GetContent(NSSCMSMessage *cmsg)
 {
+    NSSCMSContentInfo *cinfo;
+    SECItem           *pItem;
+
+    if (cmsg == NULL) {
+        return NULL;
+    }
+
     /* this is a shortcut */
-    NSSCMSContentInfo * cinfo = NSS_CMSMessage_GetContentInfo(cmsg);
-    SECItem           * pItem = NSS_CMSContentInfo_GetInnerContent(cinfo);
+    cinfo = NSS_CMSMessage_GetContentInfo(cmsg);
+    pItem = NSS_CMSContentInfo_GetInnerContent(cinfo);
     return pItem;
 }
 
@@ -163,6 +185,10 @@ NSS_CMSMessage_ContentLevelCount(NSSCMSMessage *cmsg)
 {
     int count = 0;
     NSSCMSContentInfo *cinfo;
+
+    if (cmsg == NULL) {
+        return 0;
+    }
 
     /* walk down the chain of contentinfos */
     for (cinfo = &(cmsg->contentInfo); cinfo != NULL; ) {
@@ -183,6 +209,10 @@ NSS_CMSMessage_ContentLevel(NSSCMSMessage *cmsg, int n)
     int count = 0;
     NSSCMSContentInfo *cinfo;
 
+    if (cmsg == NULL) {
+        return NULL;
+    }
+
     /* walk down the chain of contentinfos */
     for (cinfo = &(cmsg->contentInfo); cinfo != NULL && count < n; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
 	count++;
@@ -198,6 +228,10 @@ PRBool
 NSS_CMSMessage_ContainsCertsOrCrls(NSSCMSMessage *cmsg)
 {
     NSSCMSContentInfo *cinfo;
+
+    if (cmsg == NULL) {
+        return PR_FALSE;
+    }
 
     /* descend into CMS message */
     for (cinfo = &(cmsg->contentInfo); cinfo != NULL; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
@@ -218,6 +252,10 @@ PRBool
 NSS_CMSMessage_IsEncrypted(NSSCMSMessage *cmsg)
 {
     NSSCMSContentInfo *cinfo;
+
+    if (cmsg == NULL) {
+        return PR_FALSE;
+    }
 
     /* walk down the chain of contentinfos */
     for (cinfo = &(cmsg->contentInfo); cinfo != NULL; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo))
@@ -249,11 +287,18 @@ NSS_CMSMessage_IsSigned(NSSCMSMessage *cmsg)
 {
     NSSCMSContentInfo *cinfo;
 
+    if (cmsg == NULL) {
+        return PR_FALSE;
+    }
+
     /* walk down the chain of contentinfos */
     for (cinfo = &(cmsg->contentInfo); cinfo != NULL; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo))
     {
 	switch (NSS_CMSContentInfo_GetContentTypeTag(cinfo)) {
 	case SEC_OID_PKCS7_SIGNED_DATA:
+            if (cinfo->content.signedData == NULL) {
+                return PR_FALSE;
+            }
 	    if (!NSS_CMSArray_IsEmpty((void **)cinfo->content.signedData->signerInfos))
 		return PR_TRUE;
 	    break;

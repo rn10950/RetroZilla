@@ -115,7 +115,8 @@ typedef enum {
     ssl_hmac_md5      = 3, 	/* TLS HMAC version of mac_md5 */
     ssl_hmac_sha      = 4, 	/* TLS HMAC version of mac_sha */
     ssl_hmac_sha256   = 5,
-    ssl_mac_aead      = 6
+    ssl_mac_aead      = 6,
+    ssl_hmac_sha384   = 7
 } SSLMACAlgorithm;
 
 typedef enum {
