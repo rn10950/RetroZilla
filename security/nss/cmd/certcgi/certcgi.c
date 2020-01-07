@@ -508,8 +508,8 @@ get_serial_number(Pair  *data)
     if (find_field_bool(data, "serial-auto", PR_TRUE)) {
 	serialFile = fopen(filename, "r");
 	if (serialFile != NULL) {
-	    fread(&serial, sizeof(int), 1, serialFile);
-	    if (ferror(serialFile) != 0) {
+	    size_t nread = fread(&serial, sizeof(int), 1, serialFile);
+	    if (ferror(serialFile) != 0 || nread != 1) {
 		error_out("Error: Unable to read serial number file");
 	    }
 	    if (serial == -1) {

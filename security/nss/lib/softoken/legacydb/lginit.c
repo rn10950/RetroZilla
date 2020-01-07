@@ -601,7 +601,7 @@ legacy_Open(const char *configdir, const char *certPrefix,
     if (certDB) *certDB = NULL;
 
     if (certDB) {
-	NSSLOWCERTCertDBHandle *certdbPtr;
+	NSSLOWCERTCertDBHandle *certdbPtr = NULL;
 
 	crv = lg_OpenCertDB(configdir, certPrefix, readOnly, &certdbPtr);
 	if (crv != CKR_OK) {

@@ -196,6 +196,14 @@ SSL_IMPORT PRFileDesc *DTLS_ImportFD(PRFileDesc *model, PRFileDesc *fd);
  */
 #define SSL_ENABLE_SERVER_DHE 29
 
+/* Use draft-ietf-tls-session-hash. Controls whether we offer the
+ * extended_master_secret extension which, when accepted, hashes
+ * the handshake transcript into the master secret. This option is
+ * disabled by default.
+ */
+#define SSL_ENABLE_EXTENDED_MASTER_SECRET 30
+
+
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */
 SSL_IMPORT SECStatus SSL_Enable(PRFileDesc *fd, int option, PRBool on);

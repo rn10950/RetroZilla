@@ -2408,7 +2408,7 @@ sftk_getCertDB(SFTKSlot *slot)
     PZ_Lock(slot->slotLock);
     dbHandle = slot->certDB;
     if (dbHandle) {
-        PR_ATOMIC_INCREMENT(&dbHandle->ref);
+        (void)PR_ATOMIC_INCREMENT(&dbHandle->ref);
     }
     PZ_Unlock(slot->slotLock);
     return dbHandle;
@@ -2426,7 +2426,7 @@ sftk_getKeyDB(SFTKSlot *slot)
     SKIP_AFTER_FORK(PZ_Lock(slot->slotLock));
     dbHandle = slot->keyDB;
     if (dbHandle) {
-        PR_ATOMIC_INCREMENT(&dbHandle->ref);
+        (void)PR_ATOMIC_INCREMENT(&dbHandle->ref);
     }
     SKIP_AFTER_FORK(PZ_Unlock(slot->slotLock));
     return dbHandle;
@@ -2444,7 +2444,7 @@ sftk_getDBForTokenObject(SFTKSlot *slot, CK_OBJECT_HANDLE objectID)
     PZ_Lock(slot->slotLock);
     dbHandle = objectID & SFTK_KEYDB_TYPE ? slot->keyDB : slot->certDB;
     if (dbHandle) {
-        PR_ATOMIC_INCREMENT(&dbHandle->ref);
+        (void)PR_ATOMIC_INCREMENT(&dbHandle->ref);
     }
     PZ_Unlock(slot->slotLock);
     return dbHandle;

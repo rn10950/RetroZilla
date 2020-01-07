@@ -1143,7 +1143,7 @@ makeGfromIndex(HASH_HashType hashtype,
     unsigned int len;
     mp_err err = MP_OKAY;
     SECStatus rv = SECSuccess;
-    const SECHashObject *hashobj;
+    const SECHashObject *hashobj = NULL;
     void *hashcx = NULL;
 
     MP_DIGITS(&e) = 0;

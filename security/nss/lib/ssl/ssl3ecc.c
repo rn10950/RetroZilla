@@ -319,14 +319,6 @@ ssl3_SendECDHClientKeyExchange(sslSocket * ss, SECKEYPublicKey * svrPubKey)
     SECKEY_DestroyPrivateKey(privKey);
     privKey = NULL;
 
-    rv = ssl3_InitPendingCipherSpec(ss,  pms);
-    PK11_FreeSymKey(pms); pms = NULL;
-
-    if (rv != SECSuccess) {
-        ssl_MapLowLevelError(SSL_ERROR_CLIENT_KEY_EXCHANGE_FAILURE);
-        goto loser;
-    }
-
     rv = ssl3_AppendHandshakeHeader(ss, client_key_exchange,
                                         pubKey->u.ec.publicValue.len + 1);
     if (rv != SECSuccess) {
@@ -341,6 +333,14 @@ ssl3_SendECDHClientKeyExchange(sslSocket * ss, SECKEYPublicKey * svrPubKey)
 
     if (rv != SECSuccess) {
         goto loser;     /* err set by ssl3_AppendHandshake* */
+    }
+
+    rv = ssl3_InitPendingCipherSpec(ss,  pms);
+    PK11_FreeSymKey(pms); pms = NULL;
+
+    if (rv != SECSuccess) {
+        ssl_MapLowLevelError(SSL_ERROR_CLIENT_KEY_EXCHANGE_FAILURE);
+        goto loser;
     }
 
     rv = SECSuccess;

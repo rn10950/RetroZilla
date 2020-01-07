@@ -22,7 +22,7 @@ ec_GFp_nistp224_mod(const mp_int *a, mp_int *r, const GFMethod *meth)
 	mp_digit carry;
 #ifdef ECL_THIRTY_TWO_BIT
         mp_digit a6a = 0, a6b = 0,
-                a5a = 0, a5b = 0, a4a = 0, a4b = 0, a3a = 0, a3b = 0;
+                a5a = 0, a5b = 0, a4a = 0, a4b = 0, a3b = 0;
         mp_digit r0a, r0b, r1a, r1b, r2a, r2b, r3a;
 #else
 	mp_digit a6 = 0, a5 = 0, a4 = 0, a3b = 0, a5a = 0;

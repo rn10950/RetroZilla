@@ -347,6 +347,7 @@ typedef struct sslOptionsStr {
     unsigned int reuseServerECDHEKey    : 1;  /* 28 */
     unsigned int enableFallbackSCSV     : 1;  /* 29 */
     unsigned int enableServerDhe        : 1;  /* 30 */
+    unsigned int enableExtendedMS       : 1;  /* 31 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -520,6 +521,7 @@ typedef struct {
     PRUint16          wrapped_master_secret_len;
     PRUint8           msIsWrapped;
     PRUint8           resumable;
+    PRUint8           extendedMasterSecretUsed;
 } ssl3SidKeys; /* 52 bytes */
 
 typedef struct {
@@ -1073,6 +1075,7 @@ typedef struct SessionTicketStr {
     CK_MECHANISM_TYPE     msWrapMech;
     PRUint16              ms_length;
     SSL3Opaque            master_secret[48];
+    PRBool                extendedMasterSecretUsed;
     ClientIdentity        client_identity;
     SECItem               peer_cert;
     PRUint32              timestamp;
@@ -1598,7 +1601,7 @@ extern PRBool ssl3_VersionIsSupported(SSLProtocolVariant protocolVariant,
 extern SECStatus ssl3_KeyAndMacDeriveBypass(ssl3CipherSpec * pwSpec,
 		    const unsigned char * cr, const unsigned char * sr,
 		    PRBool isTLS, PRBool isExport);
-extern  SECStatus ssl3_MasterKeyDeriveBypass( ssl3CipherSpec * pwSpec,
+extern  SECStatus ssl3_MasterSecretDeriveBypass( ssl3CipherSpec * pwSpec,
 		    const unsigned char * cr, const unsigned char * sr,
 		    const SECItem * pms, PRBool isTLS, PRBool isRSA);
 
@@ -1849,7 +1852,7 @@ extern PRBool ssl_GetSessionTicketKeysPKCS11(SECKEYPrivateKey *svrPrivKey,
 
 /* Tell clients to consider tickets valid for this long. */
 #define TLS_EX_SESS_TICKET_LIFETIME_HINT    (2 * 24 * 60 * 60) /* 2 days */
-#define TLS_EX_SESS_TICKET_VERSION          (0x0100)
+#define TLS_EX_SESS_TICKET_VERSION          (0x0101)
 
 extern SECStatus ssl3_ValidateNextProtoNego(const unsigned char* data,
 					    unsigned int length);

@@ -3552,7 +3552,7 @@ int main(int argc, char **argv)
 	unsigned int keySize = 1024;
 	unsigned long exponent = 65537;
 	int rounds = 1;
-	int ret;
+	int ret = -1;
 	
 	if (bltest.options[opt_KeySize].activated) {
 	    keySize = PORT_Atoi(bltest.options[opt_KeySize].arg);

@@ -24,7 +24,7 @@
  * for SHA-1, SHA-224, and SHA-256 it's 440 bits.
  * for SHA-384 and SHA-512 it's 888 bits */
 #define PRNG_SEEDLEN      (440/PR_BITS_PER_BYTE)
-static const PRInt64 PRNG_MAX_ADDITIONAL_BYTES = LL_INIT(0x1, 0x0);
+#define PRNG_MAX_ADDITIONAL_BYTES PR_INT64(0x100000000)
 						/* 2^35 bits or 2^32 bytes */
 #define PRNG_MAX_REQUEST_SIZE 0x10000		/* 2^19 bits or 2^16 bytes */
 #define PRNG_ADDITONAL_DATA_CACHE_SIZE (8*1024) /* must be less than
