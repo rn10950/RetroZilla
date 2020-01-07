@@ -94,19 +94,19 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
    /*      cipher_suite                     policy       enabled   isPresent */
 
 #ifndef NSS_DISABLE_ECC
- { TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, SSL_ALLOWED, PR_FALSE, PR_FALSE},
- { TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256, SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
    /* TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA is out of order to work around
     * bug 946147.
     */
- { TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,    SSL_ALLOWED, PR_FALSE, PR_FALSE},
- { TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,    SSL_ALLOWED, PR_FALSE, PR_FALSE},
- { TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,      SSL_ALLOWED, PR_FALSE, PR_FALSE},
- { TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, SSL_ALLOWED, PR_FALSE, PR_FALSE},
- { TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
- { TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,      SSL_ALLOWED, PR_FALSE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,    SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,    SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,      SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,      SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,     SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,        SSL_ALLOWED, PR_FALSE, PR_FALSE},
@@ -4731,6 +4731,11 @@ ssl3_ComputeHandshakeHashes(sslSocket *     ss,
     SSL3Opaque    sha_inner[MAX_MAC_LENGTH];
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss) );
+    if (ss->ssl3.hs.hashType == handshake_hash_unknown) {
+        PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
+        return SECFailure;
+    }
+
     hashes->hashAlg = ssl_hash_none;
 
 #ifndef NO_PKCS11_BYPASS
@@ -4768,7 +4773,6 @@ ssl3_ComputeHandshakeHashes(sslSocket *     ss,
                 PORT_SetError(SSL_ERROR_RX_UNEXPECTED_HANDSHAKE);
                 return SECFailure;
             }
-
 
 	    s[0] = (unsigned char)(sender >> 24);
 	    s[1] = (unsigned char)(sender >> 16);
@@ -4905,7 +4909,6 @@ tls12_loser:
                 PORT_SetError(SSL_ERROR_RX_UNEXPECTED_HANDSHAKE);
                 return SECFailure;
             }
-
 
 	    s[0] = (unsigned char)(sender >> 24);
 	    s[1] = (unsigned char)(sender >> 16);
@@ -6958,7 +6961,6 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 
     	peerKey = PORT_ArenaZNew(arena, SECKEYPublicKey);
     	if (peerKey == NULL) {
-            PORT_FreeArena(arena, PR_FALSE);
 	    goto no_memory;
 	}
 
@@ -6969,7 +6971,6 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	if (SECITEM_CopyItem(arena, &peerKey->u.rsa.modulus,        &modulus) ||
 	    SECITEM_CopyItem(arena, &peerKey->u.rsa.publicExponent, &exponent))
 	{
-            PORT_FreeArena(arena, PR_FALSE);
 	    goto no_memory;
         }
     	ss->sec.peerKey = peerKey;
@@ -7069,7 +7070,7 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    goto no_memory;
 	}
 
-    	ss->sec.peerKey = peerKey = PORT_ArenaZNew(arena, SECKEYPublicKey);
+    	peerKey = PORT_ArenaZNew(arena, SECKEYPublicKey);
     	if (peerKey == NULL) {
 	    goto no_memory;
 	}
@@ -7083,7 +7084,6 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    SECITEM_CopyItem(arena, &peerKey->u.dh.base,         &dh_g) ||
 	    SECITEM_CopyItem(arena, &peerKey->u.dh.publicValue,  &dh_Ys))
 	{
-            PORT_FreeArena(arena, PR_FALSE);
 	    goto no_memory;
         }
     	ss->sec.peerKey = peerKey;
@@ -7106,10 +7106,16 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 alert_loser:
     (void)SSL3_SendAlert(ss, alert_fatal, desc);
 loser:
+    if (arena) {
+        PORT_FreeArena(arena, PR_FALSE);
+    }
     PORT_SetError( errCode );
     return SECFailure;
 
 no_memory:	/* no-memory error has already been set. */
+    if (arena) {
+        PORT_FreeArena(arena, PR_FALSE);
+    }
     ssl_MapLowLevelError(SSL_ERROR_SERVER_KEY_EXCHANGE_FAILURE);
     return SECFailure;
 }
@@ -9555,6 +9561,13 @@ ssl3_HandleCertificateVerify(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	goto alert_loser;
     }
 
+    if (!hashes) {
+        PORT_Assert(0);
+	desc    = internal_error;
+	errCode = SEC_ERROR_LIBRARY_FAILURE;
+	goto alert_loser;
+    }
+
     if (isTLS12) {
 	rv = ssl3_ConsumeSignatureAndHashAlgorithm(ss, &b, &length,
 						   &sigAndHash);
@@ -11215,6 +11228,13 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	return SECFailure;
     }
 
+    if (!hashes) {
+        PORT_Assert(0);
+	SSL3_SendAlert(ss, alert_fatal, internal_error);
+        PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
+        return SECFailure;
+    }
+
     isTLS = (PRBool)(ss->ssl3.crSpec->version > SSL_LIBRARY_VERSION_3_0);
     if (isTLS) {
 	TLSFinished tlsFinished;
@@ -11440,6 +11460,7 @@ ssl3_HandleHandshakeMessage(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     SECStatus         rv 	= SECSuccess;
     SSL3HandshakeType type 	= ss->ssl3.hs.msg_type;
     SSL3Hashes        hashes;	/* computed hashes are put here. */
+    SSL3Hashes       *hashesPtr = NULL;  /* Set when hashes are computed */
     PRUint8           hdr[4];
     PRUint8           dtlsData[8];
 
@@ -11450,7 +11471,8 @@ ssl3_HandleHandshakeMessage(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      * current message.
      */
     ssl_GetSpecReadLock(ss);	/************************************/
-    if((type == finished) || (type == certificate_verify)) {
+    if(((type == finished) && (ss->ssl3.hs.ws == wait_finished)) ||
+       ((type == certificate_verify) && (ss->ssl3.hs.ws == wait_cert_verify))) {
 	SSL3Sender      sender = (SSL3Sender)0;
 	ssl3CipherSpec *rSpec  = ss->ssl3.prSpec;
 
@@ -11459,6 +11481,9 @@ ssl3_HandleHandshakeMessage(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    rSpec  = ss->ssl3.crSpec;
 	}
 	rv = ssl3_ComputeHandshakeHashes(ss, rSpec, &hashes, sender);
+        if (rv == SECSuccess) {
+            hashesPtr = &hashes;
+        }
     }
     ssl_ReleaseSpecReadLock(ss); /************************************/
     if (rv != SECSuccess) {
@@ -11609,7 +11634,7 @@ ssl3_HandleHandshakeMessage(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	    PORT_SetError(SSL_ERROR_RX_UNEXPECTED_CERT_VERIFY);
 	    return SECFailure;
 	}
-	rv = ssl3_HandleCertificateVerify(ss, b, length, &hashes);
+	rv = ssl3_HandleCertificateVerify(ss, b, length, hashesPtr);
 	break;
     case client_key_exchange:
 	if (!ss->sec.isServer) {
@@ -11628,7 +11653,7 @@ ssl3_HandleHandshakeMessage(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	rv = ssl3_HandleNewSessionTicket(ss, b, length);
 	break;
     case finished:
-        rv = ssl3_HandleFinished(ss, b, length, &hashes);
+        rv = ssl3_HandleFinished(ss, b, length, hashesPtr);
 	break;
     default:
 	(void)SSL3_SendAlert(ss, alert_fatal, unexpected_message);

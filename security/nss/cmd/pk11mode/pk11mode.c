@@ -2090,8 +2090,8 @@ CK_RV PKM_Mechanism(CK_FUNCTION_LIST_PTR pFunctionList,
     }
     PKM_LogIt("C_GetMechanismList returned the mechanism types:\n");
     if (verbose) {
-        for (i = 1; i <= mechanismCount; i++) {
-            mechName = getName(pMechanismList[(i-1)], ConstMechanism);
+        for (i = 0; i < mechanismCount; i++) {
+            mechName = getName(pMechanismList[(i)], ConstMechanism);
 
             /* output two mechanism name on each line */
             /* currently the longest known mechansim name length is 37 */
@@ -2100,7 +2100,7 @@ CK_RV PKM_Mechanism(CK_FUNCTION_LIST_PTR pFunctionList,
             } else {
                 printf("Unknown mechanism: 0x%08lX ", pMechanismList[i]);
             }    
-            if ((i != 0) && ((i % 2) == 0 )) printf("\n");
+            if ((i % 2) == 1 ) printf("\n");
         }
         printf("\n\n");
     }

@@ -3381,13 +3381,10 @@ AddCertToPermDB(NSSLOWCERTCertDBHandle *handle, NSSLOWCERTCertificate *cert,
 loser:
     /* don't leave partial entry in the database */
     if ( state > 0 ) {
-	rv = DeleteDBCertEntry(handle, &cert->certKey);
+	DeleteDBCertEntry(handle, &cert->certKey);
     }
     if ( ( state > 1 ) && donnentry ) {
-	rv = DeleteDBNicknameEntry(handle, nickname);
-    }
-    if ( state > 2 ) {
-	rv = DeleteDBSubjectEntry(handle, &cert->derSubject);
+	DeleteDBNicknameEntry(handle, nickname);
     }
     if ( certEntry ) {
 	DestroyDBEntry((certDBEntry *)certEntry);

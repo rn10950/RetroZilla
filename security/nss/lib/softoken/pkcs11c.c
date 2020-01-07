@@ -2577,6 +2577,7 @@ finish_rsa:
 	}
 	intpointer = PORT_New(CK_ULONG);
 	if (intpointer == NULL) {
+	    PORT_Free(ctx);
 	    crv = CKR_HOST_MEMORY;
 	    break;
 	}
@@ -2606,6 +2607,7 @@ finish_rsa:
 	}
 	intpointer = PORT_New(CK_ULONG);
 	if (intpointer == NULL) {
+	    PORT_Free(ctx);
 	    crv = CKR_HOST_MEMORY;
 	    break;
 	}

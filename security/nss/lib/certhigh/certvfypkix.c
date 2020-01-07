@@ -1454,7 +1454,6 @@ cert_pkixSetParam(PKIX_ProcessingParams *procParams,
     CERTCertListNode *node;
     PKIX_PL_Cert *certPkix = NULL;
     PKIX_TrustAnchor *trustAnchor = NULL;
-    PKIX_PL_Date *revDate = NULL;
     PKIX_RevocationChecker *revChecker = NULL;
     PKIX_PL_NssContext *nssContext = (PKIX_PL_NssContext *)plContext;
 
@@ -1663,9 +1662,6 @@ cert_pkixSetParam(PKIX_ProcessingParams *procParams,
 
     if (date != NULL) 
         PKIX_PL_Object_DecRef((PKIX_PL_Object *)date, plContext);
-
-    if (revDate != NULL) 
-        PKIX_PL_Object_DecRef((PKIX_PL_Object *)revDate, plContext);
 
     if (revChecker != NULL) 
         PKIX_PL_Object_DecRef((PKIX_PL_Object *)revChecker, plContext);

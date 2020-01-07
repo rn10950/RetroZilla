@@ -1381,6 +1381,7 @@ pk11_keyIDHash_populate(void *wincx)
     }
     moduleLock = SECMOD_GetDefaultModuleListLock();
     if (!moduleLock) {
+	SECITEM_FreeItem(slotid, PR_TRUE);
 	PORT_SetError(SEC_ERROR_NOT_INITIALIZED);
 	return PR_FAILURE;
     }
