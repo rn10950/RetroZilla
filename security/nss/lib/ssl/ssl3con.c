@@ -24,6 +24,8 @@
 #include "prerror.h"
 #include "pratom.h"
 #include "prthread.h"
+#include "nss.h"
+#include "nssoptions.h"
 
 #include "pk11func.h"
 #include "secmod.h"
@@ -4518,6 +4520,7 @@ ssl3_ConsumeHandshakeVariable(sslSocket *ss, SECItem *i, PRInt32 bytes,
     PORT_Assert(bytes <= 3);
     i->len  = 0;
     i->data = NULL;
+    i->type = siBuffer;
     count = ssl3_ConsumeHandshakeNumber(ss, bytes, b, length);
     if (count < 0) { 		/* Can't test for SECSuccess here. */
     	return SECFailure;
@@ -6985,13 +6988,19 @@ ssl3_HandleServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
         unsigned dh_p_bits;
         unsigned dh_g_bits;
         unsigned dh_Ys_bits;
+        PRInt32  minDH;
 
     	rv = ssl3_ConsumeHandshakeVariable(ss, &dh_p, 2, &b, &length);
     	if (rv != SECSuccess) {
 	    goto loser;		/* malformed. */
 	}
+
+	rv = NSS_OptionGet(NSS_DH_MIN_KEY_SIZE, &minDH);
+	if (rv != SECSuccess) {
+            minDH = SSL_DH_MIN_P_BITS;
+	}
         dh_p_bits = SECKEY_BigIntegerBitLength(&dh_p);
-        if (dh_p_bits < SSL_DH_MIN_P_BITS) {
+        if (dh_p_bits < minDH) {
 	    errCode = SSL_ERROR_WEAK_SERVER_EPHEMERAL_DH_KEY;
 	    goto alert_loser;
 	}
@@ -10710,19 +10719,40 @@ ssl3_AuthCertificate(sslSocket *ss)
 	ss->sec.keaType       = ss->ssl3.hs.kea_def->exchKeyType;
 	if (pubKey) {
 	    KeyType pubKeyType;
+	    PRInt32  minKey;
 	    ss->sec.keaKeyBits = ss->sec.authKeyBits =
 		SECKEY_PublicKeyStrengthInBits(pubKey);
             pubKeyType = SECKEY_GetPublicKeyType(pubKey);
+	    minKey = ss->sec.authKeyBits;
+	    switch (pubKeyType) {
+	    case rsaKey:
+	    case rsaPssKey:
+	    case rsaOaepKey:
+		rv = NSS_OptionGet(NSS_RSA_MIN_KEY_SIZE, &minKey);
+		if (rv != SECSuccess) {
+		    minKey = SSL_RSA_MIN_MODULUS_BITS;
+		}
+		break;
+	    case dsaKey:
+		rv = NSS_OptionGet(NSS_DSA_MIN_KEY_SIZE, &minKey);
+		if (rv != SECSuccess) {
+		    minKey = SSL_DSA_MIN_P_BITS;
+		}
+		break;
+	    case dhKey:
+		rv = NSS_OptionGet(NSS_DH_MIN_KEY_SIZE, &minKey);
+		if (rv != SECSuccess) {
+		    minKey = SSL_DH_MIN_P_BITS;
+		}
+		break;
+	    default:
+		break;
+	    }
+
             /* Too small: not good enough. Send a fatal alert. */
             /* We aren't checking EC here on the understanding that we only
              * support curves we like, a decision that might need revisiting. */
-            if (((pubKeyType == rsaKey || pubKeyType == rsaPssKey ||
-                  pubKeyType == rsaOaepKey) &&
-                  ss->sec.authKeyBits < SSL_RSA_MIN_MODULUS_BITS) ||
-                (pubKeyType == dsaKey &&
-                 ss->sec.authKeyBits < SSL_DSA_MIN_P_BITS) ||
-                (pubKeyType == dhKey &&
-                 ss->sec.authKeyBits < SSL_DH_MIN_P_BITS)) {
+            if ( ss->sec.authKeyBits < minKey) {
                 PORT_SetError(SSL_ERROR_WEAK_SERVER_CERT_KEY);
                 (void)SSL3_SendAlert(ss, alert_fatal,
                                      ss->version >= SSL_LIBRARY_VERSION_TLS_1_0

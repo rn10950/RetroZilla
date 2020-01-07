@@ -1441,6 +1441,7 @@ pk11_FindCertObjectByRecipientNew(PK11SlotInfo *slot, NSSCMSRecipient **recipien
 		                   sizeof(CK_SLOT_ID) + sizeof(SECMODModuleID));
 		    if (!slotid) {
 			PORT_SetError(SEC_ERROR_NO_MEMORY);
+			PK11_FreeSlotList(sl);
 			return NULL;
 		    }
 		    for (le = sl->head; le; le = le->next) {

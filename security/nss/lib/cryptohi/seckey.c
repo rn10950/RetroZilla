@@ -1904,3 +1904,22 @@ SECKEY_CacheStaticFlags(SECKEYPrivateKey* key)
     }
     return rv;
 }
+
+SECOidTag
+SECKEY_GetECCOid(const SECKEYECParams * params)
+{
+    SECItem oid = { siBuffer, NULL, 0};
+    SECOidData *oidData = NULL;
+
+    /* 
+     * params->data needs to contain the ASN encoding of an object ID (OID)
+     * representing a named curve. Here, we strip away everything
+     * before the actual OID and use the OID to look up a named curve.
+     */
+    if (params->data[0] != SEC_ASN1_OBJECT_ID) return 0;
+    oid.len = params->len - 2;
+    oid.data = params->data + 2;
+    if ((oidData = SECOID_FindOID(&oid)) == NULL) return 0;
+
+    return oidData->offset;
+}

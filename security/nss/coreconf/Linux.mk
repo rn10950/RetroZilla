@@ -26,8 +26,11 @@ ifeq ($(OS_TARGET),Android)
 ifndef ANDROID_NDK
 	$(error Must set ANDROID_NDK to the path to the android NDK first)
 endif
+ifndef ANDROID_TOOLCHAIN_VERSION
+	$(error Must set ANDROID_TOOLCHAIN_VERSION to the requested version number)
+endif
 	ANDROID_PREFIX=$(OS_TEST)-linux-androideabi
-	ANDROID_TARGET=$(ANDROID_PREFIX)-4.4.3
+	ANDROID_TARGET=$(ANDROID_PREFIX)-$(ANDROID_TOOLCHAIN_VERSION)
 	# should autodetect which linux we are on, currently android only
 	# supports linux-x86 prebuilts
 	ANDROID_TOOLCHAIN=$(ANDROID_NDK)/toolchains/$(ANDROID_TARGET)/prebuilt/linux-x86

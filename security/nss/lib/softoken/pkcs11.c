@@ -2762,7 +2762,7 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
     case SECMOD_MODULE_DB_FUNCTION_FIND:
 	if (secmod == NULL) {
 	    PORT_SetError(SEC_ERROR_INVALID_ARGS);
-	    return NULL;
+	    goto loser;
 	}
 	if (rw && (dbType != NSS_DB_TYPE_LEGACY) && 
 	    (dbType != NSS_DB_TYPE_MULTIACCESS)) {
@@ -2805,7 +2805,7 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
     case SECMOD_MODULE_DB_FUNCTION_ADD:
 	if (secmod == NULL) {
 	    PORT_SetError(SEC_ERROR_INVALID_ARGS);
-	    return NULL;
+	    goto loser;
 	}
 	rvstr = (sftkdbCall_AddSecmodDB(appName,filename,secmod,
 			(char *)args,rw) == SECSuccess) ? &success: NULL;
@@ -2813,7 +2813,7 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
     case SECMOD_MODULE_DB_FUNCTION_DEL:
 	if (secmod == NULL) {
 	    PORT_SetError(SEC_ERROR_INVALID_ARGS);
-	    return NULL;
+	    goto loser;
 	}
 	rvstr = (sftkdbCall_DeleteSecmodDB(appName,filename,secmod,
 			(char *)args,rw) == SECSuccess) ? &success: NULL;
@@ -2823,6 +2823,8 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
 			(char **)args,rw) == SECSuccess) ? &success: NULL;
 	break;
     }
+
+loser:
     if (secmod) PR_smprintf_free(secmod);
     if (appName) PORT_Free(appName);
     if (filename) PORT_Free(filename);

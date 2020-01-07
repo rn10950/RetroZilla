@@ -1058,6 +1058,9 @@ nssCertificateCollection_Create (
 {
     nssPKIObjectCollection *collection;
     collection = nssPKIObjectCollection_Create(td, NULL, nssPKIMonitor);
+    if (!collection) {
+        return NULL;
+    }
     collection->objectType = pkiObjectType_Certificate;
     collection->destroyObject = cert_destroyObject;
     collection->getUIDFromObject = cert_getUIDFromObject;
@@ -1164,6 +1167,9 @@ nssCRLCollection_Create (
 {
     nssPKIObjectCollection *collection;
     collection = nssPKIObjectCollection_Create(td, NULL, nssPKILock);
+    if (!collection) {
+        return NULL;
+    }
     collection->objectType = pkiObjectType_CRL;
     collection->destroyObject = crl_destroyObject;
     collection->getUIDFromObject = crl_getUIDFromObject;

@@ -422,12 +422,12 @@ ssl3_HandleServerNameXtn(sslSocket * ss, PRUint16 ex_type, SECItem *data)
     }
     /* length of server_name_list */
     listLenBytes = ssl3_ConsumeHandshakeNumber(ss, 2, &data->data, &data->len);
-    if (listLenBytes < 0 || listLenBytes != data->len) {
-        (void)ssl3_DecodeError(ss);
+    if (listLenBytes < 0) {
         return SECFailure;
     }
-    if (listLenBytes == 0) {
-        return SECSuccess; /* ignore an empty extension */
+    if (listLenBytes == 0 || listLenBytes != data->len) {
+        (void)ssl3_DecodeError(ss);
+        return SECFailure;
     }
     ldata = *data;
     /* Calculate the size of the array.*/
@@ -451,9 +451,6 @@ ssl3_HandleServerNameXtn(sslSocket * ss, PRUint16 ex_type, SECItem *data)
             return SECFailure;
         }
         listCount += 1;
-    }
-    if (!listCount) {
-        return SECFailure;  /* nothing we can act on */
     }
     names = PORT_ZNewArray(SECItem, listCount);
     if (!names) {
@@ -1099,7 +1096,7 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
     CK_MECHANISM_TYPE    cipherMech = CKM_AES_CBC;
     PK11Context         *aes_ctx_pkcs11;
     CK_MECHANISM_TYPE    macMech = CKM_SHA256_HMAC;
-    PK11Context         *hmac_ctx_pkcs11;
+    PK11Context         *hmac_ctx_pkcs11 = NULL;
     unsigned char        computed_mac[TLS_EX_SESS_TICKET_MAC_LENGTH];
     unsigned int         computed_mac_length;
     unsigned char        iv[AES_BLOCK_SIZE];
@@ -1364,14 +1361,18 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
             goto loser;
 
         rv = PK11_DigestBegin(hmac_ctx_pkcs11);
+        if (rv != SECSuccess) goto loser;
         rv = PK11_DigestOp(hmac_ctx_pkcs11, key_name,
             SESS_TICKET_KEY_NAME_LEN);
+        if (rv != SECSuccess) goto loser;
         rv = PK11_DigestOp(hmac_ctx_pkcs11, iv, sizeof(iv));
+        if (rv != SECSuccess) goto loser;
         rv = PK11_DigestOp(hmac_ctx_pkcs11, (unsigned char *)length_buf, 2);
+        if (rv != SECSuccess) goto loser;
         rv = PK11_DigestOp(hmac_ctx_pkcs11, ciphertext.data, ciphertext.len);
+        if (rv != SECSuccess) goto loser;
         rv = PK11_DigestFinal(hmac_ctx_pkcs11, computed_mac,
             &computed_mac_length, sizeof(computed_mac));
-        PK11_DestroyContext(hmac_ctx_pkcs11, PR_TRUE);
         if (rv != SECSuccess) goto loser;
     }
 
@@ -1400,6 +1401,8 @@ ssl3_SendNewSessionTicket(sslSocket *ss)
     if (rv != SECSuccess) goto loser;
 
 loser:
+    if (hmac_ctx_pkcs11)
+        PK11_DestroyContext(hmac_ctx_pkcs11, PR_TRUE);
     if (plaintext_item.data)
         SECITEM_FreeItem(&plaintext_item, PR_FALSE);
     if (ciphertext.data)

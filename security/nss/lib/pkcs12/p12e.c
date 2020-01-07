@@ -1487,6 +1487,8 @@ sec_pkcs12_encoder_start_context(SEC_PKCS12ExportContext *p12exp)
     SECStatus rv;
     SECItem ignore = {0};
     void *mark;
+    SECItem *salt = NULL;
+    SECItem *params = NULL;
 
     if(!p12exp || !p12exp->safeInfos) {
 	return NULL;
@@ -1552,11 +1554,10 @@ sec_pkcs12_encoder_start_context(SEC_PKCS12ExportContext *p12exp)
 	/* init password pased integrity mode */
 	if(p12exp->integrityEnabled) {
 	    SECItem  pwd = {siBuffer,NULL, 0};
-	    SECItem *salt = sec_pkcs12_generate_salt();
 	    PK11SymKey *symKey;
-	    SECItem *params;
 	    CK_MECHANISM_TYPE integrityMechType;
 	    CK_MECHANISM_TYPE hmacMechType;
+	    salt = sec_pkcs12_generate_salt();
 
 	    /* zero out macData and set values */
 	    PORT_Memset(&p12enc->mac, 0, sizeof(sec_PKCS12MacData));
@@ -1567,13 +1568,11 @@ sec_pkcs12_encoder_start_context(SEC_PKCS12ExportContext *p12exp)
 	    }
 	    if(SECITEM_CopyItem(p12exp->arena, &(p12enc->mac.macSalt), salt) 
 			!= SECSuccess) {
-		/* XXX salt is leaked */
 		PORT_SetError(SEC_ERROR_NO_MEMORY);
 		goto loser;
 	    }   
 	    if (!SEC_ASN1EncodeInteger(p12exp->arena, &(p12enc->mac.iter),
 				       NSS_PBE_DEFAULT_ITERATION_COUNT)) {
-		/* XXX salt is leaked */
 		goto loser;
 	    }
 
@@ -1581,7 +1580,6 @@ sec_pkcs12_encoder_start_context(SEC_PKCS12ExportContext *p12exp)
 	    if(!sec_pkcs12_convert_item_to_unicode(NULL, &pwd, 
 			p12exp->integrityInfo.pwdInfo.password, PR_TRUE, 
 			PR_TRUE, PR_TRUE)) {
-		/* XXX salt is leaked */
 		goto loser;
 	    }
 	    /*
@@ -1603,7 +1601,6 @@ sec_pkcs12_encoder_start_context(SEC_PKCS12ExportContext *p12exp)
 	    case SEC_OID_MD2:
 		integrityMechType = CKM_NETSCAPE_PBE_MD2_HMAC_KEY_GEN;  break;
 	    default:
-		/* XXX params is leaked */
 		goto loser;
 	    }
 
@@ -1645,6 +1642,12 @@ loser:
     sec_pkcs12_encoder_destroy_context(p12enc);
     if (p12exp->arena != NULL)
 	PORT_ArenaRelease(p12exp->arena, mark);
+	if (salt) {
+		SECITEM_ZfreeItem(salt, PR_TRUE);
+	}
+	if (params) {
+		PK11_DestroyPBEParams(params);
+	}
 
     return NULL;
 }

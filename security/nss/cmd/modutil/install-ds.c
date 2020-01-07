@@ -471,6 +471,9 @@ loser:
 		PR_Free(_this->arch);
 		_this->arch = NULL;
 	}
+	if(copy) {
+		PR_Free(copy);
+	}
 
 	return errStr;
 }

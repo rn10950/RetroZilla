@@ -197,7 +197,8 @@ ifneq ($(_MSC_VER),$(_MSC_VER_6))
     # Disable C4267: conversion from 'size_t' to 'type', possible loss of data
     # Disable C4244: conversion from 'type1' to 'type2', possible loss of data
     # Disable C4018: 'expression' : signed/unsigned mismatch
-    OS_CFLAGS += -w44267 -w44244 -w44018
+    # Disable C4312: 'type cast': conversion from 'type1' to 'type2' of greater size
+    OS_CFLAGS += -w44267 -w44244 -w44018 -w44312
     ifeq ($(_MSC_VER_GE_12),1)
 	OS_CFLAGS += -FS
     endif
