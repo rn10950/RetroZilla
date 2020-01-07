@@ -127,7 +127,7 @@ else # !NS_USE_GCC
 		 -D_CRT_NONSTDC_NO_WARNINGS
     OS_DLLFLAGS += -nologo -DLL -SUBSYSTEM:WINDOWS
     ifndef NSS_ENABLE_WERROR
-        NSS_ENABLE_WERROR = 1
+        NSS_ENABLE_WERROR = 0
     endif
     ifeq ($(NSS_ENABLE_WERROR),1)
         OS_CFLAGS += -WX
