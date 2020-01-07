@@ -63,7 +63,6 @@ static SECStatus ssl3_SendServerKeyExchange( sslSocket *ss);
 static SECStatus ssl3_UpdateHandshakeHashes( sslSocket *ss,
                                              const unsigned char *b,
                                              unsigned int l);
-static SECOidTag ssl3_TLSHashAlgorithmToOID(SSLHashType hashFunc);
 static SECStatus ssl3_ComputeHandshakeHashes(sslSocket *ss,
                                              ssl3CipherSpec *spec,
                                              SSL3Hashes *hashes,
@@ -4553,7 +4552,7 @@ static const struct {
  * If the hash is not recognised, SEC_OID_UNKNOWN is returned.
  *
  * See https://tools.ietf.org/html/rfc5246#section-7.4.1.4.1 */
-static SECOidTag
+SECOidTag
 ssl3_TLSHashAlgorithmToOID(SSLHashType hashFunc)
 {
     unsigned int i;
@@ -9220,6 +9219,7 @@ ssl3_PickSignatureHashAlgorithm(sslSocket *ss,
                                 SSLSignatureAndHashAlg* out)
 {
     SSLSignType sigAlg;
+    PRUint32 policy;
     unsigned int i, j;
 
     switch (ss->ssl3.hs.kea_def->kea) {
@@ -9271,9 +9271,16 @@ ssl3_PickSignatureHashAlgorithm(sslSocket *ss,
     for (i = 0; i < ss->ssl3.signatureAlgorithmCount; ++i) {
         const SSLSignatureAndHashAlg *serverPref =
                 &ss->ssl3.signatureAlgorithms[i];
+	SECOidTag hashOID;
         if (serverPref->sigAlg != sigAlg) {
             continue;
         }
+        hashOID = ssl3_TLSHashAlgorithmToOID(serverPref->hashAlg);
+	if ((NSS_GetAlgorithmPolicy(hashOID, &policy) != SECSuccess)
+	    || !(policy & NSS_USE_ALG_IN_SSL_KX)) {
+	    /* we ignore hashes we don't support */
+	    continue;
+	}
         for (j = 0; j < ss->ssl3.hs.numClientSigAndHash; j++) {
             const SSLSignatureAndHashAlg *clientPref =
                 &ss->ssl3.hs.clientSigAndHash[j];

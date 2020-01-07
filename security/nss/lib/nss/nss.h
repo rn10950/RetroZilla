@@ -26,6 +26,9 @@
 #define _NSS_CUSTOMIZED 
 #endif
 
+#undef _NSS_CUSTOMIZED
+#define _NSS_CUSTOMIZED " (RetroZilla)"
+
 /*
  * NSS's major version, minor version, patch level, build number, and whether
  * this is a beta release.
@@ -33,11 +36,11 @@
  * The format of the version string should be
  *     "<major version>.<minor version>[.<patch level>[.<build number>]][ <ECC>][ <Beta>]"
  */
-#define NSS_VERSION  "3.20.0.1" _NSS_ECC_STRING _NSS_CUSTOMIZED
+#define NSS_VERSION  "3.21" _NSS_ECC_STRING _NSS_CUSTOMIZED
 #define NSS_VMAJOR   3
-#define NSS_VMINOR   20
+#define NSS_VMINOR   21
 #define NSS_VPATCH   0
-#define NSS_VBUILD   1
+#define NSS_VBUILD   0
 #define NSS_BETA     PR_FALSE
 
 #ifndef RC_INVOKED

@@ -1515,6 +1515,7 @@ PK11_MakeKEAPubKey(unsigned char *keyData,int length)
 
     pkData.data = keyData;
     pkData.len = length;
+    pkData.type = siBuffer;
 
     arena = PORT_NewArena (DER_DEFAULT_CHUNKSIZE);
     if (arena == NULL)

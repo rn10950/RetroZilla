@@ -3698,6 +3698,7 @@ nsc_SetupHMACKeyGen(CK_MECHANISM_PTR pMechanism, NSSPKCS5PBEParameter **pbe)
 
     salt.data = (unsigned char *)pbe_params->pSalt;
     salt.len = (unsigned int)pbe_params->ulSaltLen;
+    salt.type = siBuffer;
     rv = SECITEM_CopyItem(arena,&params->salt,&salt);
     if (rv != SECSuccess) {
 	PORT_FreeArena(arena,PR_TRUE);

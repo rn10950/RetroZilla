@@ -1983,6 +1983,7 @@ gatherNicknames(CERTCertificate *cert, void *arg)
 
     tempNick.data = (unsigned char *)cert->nickname;
     tempNick.len = PORT_Strlen(cert->nickname) + 1;
+    tempNick.type = siAsciiString;
 
     /* do we already have the nickname in the list? */
     if(nickArg->nNicks > 0) {

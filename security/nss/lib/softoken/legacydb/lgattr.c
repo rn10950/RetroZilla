@@ -1776,6 +1776,7 @@ lg_SetAttributeValue(SDB *sdb, CK_OBJECT_HANDLE handle,
 	if (rv != SECSuccess) {
 	    crv = CKR_DEVICE_ERROR;
 	}
+	PORT_Free(label);
     }
 
     lg_DestroyObjectCache(obj);

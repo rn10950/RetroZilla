@@ -2410,17 +2410,29 @@ ssl3_ClientSendSigAlgsXtn(sslSocket *ss, PRBool append, PRUint32 maxBytes)
 {
     PRInt32 extension_length;
     unsigned int i;
+    PRInt32 pos=0;
+    PRUint32 policy;
     PRUint8 buf[MAX_SIGNATURE_ALGORITHMS * 2];
 
     if (ss->version < SSL_LIBRARY_VERSION_TLS_1_2) {
         return 0;
     }
 
+    for (i=0; i < ss->ssl3.signatureAlgorithmCount; i++) {
+	SECOidTag hashOID = ssl3_TLSHashAlgorithmToOID(
+				ss->ssl3.signatureAlgorithms[i].hashAlg);
+	if ((NSS_GetAlgorithmPolicy(hashOID, & policy) != SECSuccess) ||
+		(policy & NSS_USE_ALG_IN_SSL_KX)) {
+	    buf[pos++] = ss->ssl3.signatureAlgorithms[i].hashAlg;
+	    buf[pos++] = ss->ssl3.signatureAlgorithms[i].sigAlg;
+	}
+    }
+
     extension_length =
         2 /* extension type */ +
         2 /* extension length */ +
         2 /* supported_signature_algorithms length */ +
-        ss->ssl3.signatureAlgorithmCount * 2;
+        pos;
 
     if (maxBytes < extension_length) {
         PORT_Assert(0);
@@ -2438,10 +2450,6 @@ ssl3_ClientSendSigAlgsXtn(sslSocket *ss, PRBool append, PRUint32 maxBytes)
             return -1;
         }
 
-        for (i = 0; i < ss->ssl3.signatureAlgorithmCount; ++i) {
-            buf[i * 2] = ss->ssl3.signatureAlgorithms[i].hashAlg;
-            buf[i * 2 + 1] = ss->ssl3.signatureAlgorithms[i].sigAlg;
-        }
         rv = ssl3_AppendHandshakeVariable(ss, buf, extension_length - 6, 2);
         if (rv != SECSuccess) {
             return -1;

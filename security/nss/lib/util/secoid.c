@@ -1887,14 +1887,14 @@ handleHashAlgSupport(char * envVal)
 		*nextArg++ = '\0';
 	    }
 	}
-	notEnable = (*arg == '-') ? NSS_USE_ALG_IN_CERT_SIGNATURE : 0;
+	notEnable = (*arg == '-') ? (NSS_USE_ALG_IN_CERT_SIGNATURE|NSS_USE_ALG_IN_SSL_KX) : 0;
 	if ((*arg == '+' || *arg == '-') && *++arg) { 
 	    int i;
 
 	    for (i = 1; i < SEC_OID_TOTAL; i++) {
 	        if (oids[i].desc && strstr(arg, oids[i].desc)) {
 		     xOids[i].notPolicyFlags = notEnable |
-		    (xOids[i].notPolicyFlags & ~NSS_USE_ALG_IN_CERT_SIGNATURE);
+		    (xOids[i].notPolicyFlags & ~(NSS_USE_ALG_IN_CERT_SIGNATURE|NSS_USE_ALG_IN_SSL_KX));
 		}
 	    }
 	}

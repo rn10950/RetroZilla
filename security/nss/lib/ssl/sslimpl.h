@@ -1954,6 +1954,8 @@ ssl3_TLSPRFWithMasterSecret(ssl3CipherSpec *spec,
                             const char *label, unsigned int labelLen,
                             const unsigned char *val, unsigned int valLen,
                             unsigned char *out, unsigned int outLen);
+extern SECOidTag
+ssl3_TLSHashAlgorithmToOID(SSLHashType hashFunc);
 
 #ifdef TRACE
 #define SSL_TRACE(msg) ssl_Trace msg
