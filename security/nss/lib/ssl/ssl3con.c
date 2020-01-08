@@ -550,6 +550,7 @@ const char * const ssl3_cipherName[] = {
     "Camellia-256",
     "SEED-CBC",
     "AES-128-GCM",
+    "AES-256-GCM",
     "Camellia-128-GCM",
     "missing"
 };
