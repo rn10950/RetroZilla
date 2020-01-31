@@ -560,7 +560,7 @@ const char * const ssl3_cipherName[] = {
     "SEED-CBC",
     "AES-128-GCM",
     "AES-256-GCM",
-    "ChaCha20-Ploy1305",
+    "ChaCha20-Poly1305",
     "Camellia-128-GCM",
     "missing"
 };
