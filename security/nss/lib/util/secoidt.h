@@ -447,6 +447,8 @@ typedef enum {
     SEC_OID_AES_192_GCM = 319,
     SEC_OID_AES_256_GCM = 320,
 
+    SEC_OID_CHACHA20_POLY1305          = 321,
+
     SEC_OID_TOTAL
 } SECOidTag;
 

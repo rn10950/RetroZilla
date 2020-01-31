@@ -57,6 +57,7 @@ typedef SSLSignType     SSL3SignType;
 #define calg_seed	ssl_calg_seed
 #define calg_aes_gcm    ssl_calg_aes_gcm
 #define calg_camellia_gcm    ssl_calg_camellia_gcm
+#define calg_chacha20   ssl_calg_chacha20
 
 #define mac_null	ssl_mac_null
 #define mac_md5 	ssl_mac_md5
@@ -293,9 +294,9 @@ typedef struct {
 } ssl3CipherSuiteCfg;
 
 #ifndef NSS_DISABLE_ECC
-#define ssl_V3_SUITES_IMPLEMENTED 67
+#define ssl_V3_SUITES_IMPLEMENTED 70
 #else
-#define ssl_V3_SUITES_IMPLEMENTED 40
+#define ssl_V3_SUITES_IMPLEMENTED 41
 #endif /* NSS_DISABLE_ECC */
 
 #define MAX_DTLS_SRTP_CIPHER_SUITES 4
@@ -480,6 +481,7 @@ typedef enum {
     cipher_seed,
     cipher_aes_128_gcm,
     cipher_aes_256_gcm,
+    cipher_chacha20,
     cipher_camellia_128_gcm,
     cipher_missing              /* reserved for no such supported cipher */
     /* This enum must match ssl3_cipherName[] in ssl3con.c.  */

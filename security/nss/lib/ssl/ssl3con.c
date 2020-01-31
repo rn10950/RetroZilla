@@ -111,6 +111,8 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
  { TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256, SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
    /* TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA is out of order to work around
     * bug 946147.
     */
@@ -127,6 +129,7 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
 #endif /* NSS_DISABLE_ECC */
 
  { TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,     SSL_ALLOWED, PR_TRUE,  PR_FALSE},
+ { TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,SSL_ALLOWED,PR_TRUE,  PR_FALSE},
  { TLS_DHE_DSS_WITH_AES_128_GCM_SHA256,     SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_DHE_RSA_WITH_AES_128_CBC_SHA,        SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_DHE_DSS_WITH_AES_128_CBC_SHA,        SSL_ALLOWED, PR_TRUE,  PR_FALSE},
@@ -307,6 +310,7 @@ static const ssl3BulkCipherDef bulk_cipher_defs[] = {
     {cipher_seed,         calg_seed,        16,16, type_block, 16,16, 0, 0},
     {cipher_aes_128_gcm,  calg_aes_gcm,     16,16, type_aead,   4, 0,16, 8},
     {cipher_aes_256_gcm,  calg_aes_gcm,     32,32, type_aead,   4, 0,16, 8},
+    {cipher_chacha20,     calg_chacha20,    32,32, type_aead,  12, 0,16, 0},
     {cipher_camellia_128_gcm, calg_camellia_gcm,    16,16, type_aead,   4, 0,16, 8},
     {cipher_missing,      calg_null,         0, 0, type_stream, 0, 0, 0, 0},
 };
@@ -443,6 +447,10 @@ static const ssl3CipherSuiteDef cipher_suite_defs[] =
     {TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, cipher_aes_128, hmac_sha256, kea_dhe_dss},
     {TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, cipher_aes_256, hmac_sha256, kea_dhe_dss},
 
+    {TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, cipher_chacha20, mac_aead, kea_dhe_rsa},
+    {TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, cipher_chacha20, mac_aead, kea_ecdhe_rsa},
+    {TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, cipher_chacha20, mac_aead, kea_ecdhe_ecdsa},
+
 #ifndef NSS_DISABLE_ECC
     {TLS_ECDH_ECDSA_WITH_NULL_SHA,        cipher_null, mac_sha, kea_ecdh_ecdsa},
     {TLS_ECDH_ECDSA_WITH_RC4_128_SHA,      cipher_rc4, mac_sha, kea_ecdh_ecdsa},
@@ -507,6 +515,7 @@ static const SSLCipher2Mech alg2Mech[] = {
     { calg_camellia , CKM_CAMELLIA_CBC			},
     { calg_seed     , CKM_SEED_CBC			},
     { calg_aes_gcm  , CKM_AES_GCM			},
+    { calg_chacha20 , CKM_NSS_CHACHA20_POLY1305         },
     { calg_camellia_gcm , CKM_CAMELLIA_GCM      },
 /*  { calg_init     , (CK_MECHANISM_TYPE)0x7fffffffL    }  */
 };
@@ -551,6 +560,7 @@ const char * const ssl3_cipherName[] = {
     "SEED-CBC",
     "AES-128-GCM",
     "AES-256-GCM",
+    "ChaCha20-Ploy1305",
     "Camellia-128-GCM",
     "missing"
 };
@@ -696,6 +706,9 @@ ssl3_CipherSuiteAllowedForVersionRange(
     case TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256:
     case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
     case TLS_DHE_DSS_WITH_AES_128_GCM_SHA256:
+    case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:
+    case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+    case TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
 	return vrange->max >= SSL_LIBRARY_VERSION_TLS_1_2;
 
     /* RFC 4492: ECC cipher suites need TLS extensions to negotiate curves and
@@ -1811,6 +1824,7 @@ ssl3_InitPendingContextsBypass(sslSocket *ss)
     case ssl_calg_idea:
     case ssl_calg_fortezza:
     case ssl_calg_aes_gcm:
+    case ssl_calg_chacha20:
         break;
     }
 
@@ -1933,8 +1947,9 @@ ssl3_CipherGCM(ssl3KeyMaterial *keys,
     CK_GCM_PARAMS      gcmParams;
     CK_MECHANISM_TYPE mechanism;
 
-    static const int   tagSize = 16;
-    static const int   explicitNonceLen = 8;
+    const int tagSize = bulk_cipher_defs[cipher_aes_128_gcm].tag_size;
+    const int explicitNonceLen =
+        bulk_cipher_defs[cipher_aes_128_gcm].explicit_nonce_size;
 
     /* See https://tools.ietf.org/html/rfc5288#section-3 for details of how the
      * nonce is formed. */
@@ -2009,8 +2024,9 @@ ssl3_CipherGCMBypass(ssl3KeyMaterial *keys,
     SSLCipher encode, decode;
     SSLDestroy destroy;
 
-    static const int   tagSize = 16;
-    static const int   explicitNonceLen = 8;
+    const int tagSize = bulk_cipher_defs[cipher_aes_128_gcm].tag_size;
+    const int explicitNonceLen =
+        bulk_cipher_defs[cipher_aes_128_gcm].explicit_nonce_size;
 
     /* See https://tools.ietf.org/html/rfc5288#section-3 for details of how the
      * nonce is formed. */
@@ -2084,6 +2100,55 @@ ssl3_CipherGCMBypass(ssl3KeyMaterial *keys,
 }
 #endif
 
+static SECStatus
+ssl3_ChaCha20Poly1305(ssl3KeyMaterial *keys, PRBool doDecrypt,
+                      unsigned char *out, int *outlen, int maxout,
+                      const unsigned char *in, int inlen,
+                      const unsigned char *additionalData,
+                      int additionalDataLen, SSLCipherAlgorithm calg)
+{
+    size_t i;
+    SECItem param;
+    SECStatus rv = SECFailure;
+    unsigned int uOutLen;
+    unsigned char nonce[12];
+    CK_NSS_AEAD_PARAMS aeadParams;
+
+    const int tagSize = bulk_cipher_defs[cipher_chacha20].tag_size;
+
+    /* See
+     * https://tools.ietf.org/html/draft-ietf-tls-chacha20-poly1305-04#section-2
+     * for details of how the nonce is formed. */
+    PORT_Memcpy(nonce, keys->write_iv, 12);
+
+    /* XOR the last 8 bytes of the IV with the sequence number. */
+    PORT_Assert(additionalDataLen >= 8);
+    for (i = 0; i < 8; ++i) {
+        nonce[4 + i] ^= additionalData[i];
+    }
+
+    param.type = siBuffer;
+    param.len = sizeof(aeadParams);
+    param.data = (unsigned char *)&aeadParams;
+    memset(&aeadParams, 0, sizeof(aeadParams));
+    aeadParams.pNonce = nonce;
+    aeadParams.ulNonceLen = sizeof(nonce);
+    aeadParams.pAAD = (unsigned char *)additionalData;
+    aeadParams.ulAADLen = additionalDataLen;
+    aeadParams.ulTagLen = tagSize;
+
+    if (doDecrypt) {
+        rv = PK11_Decrypt(keys->write_key, CKM_NSS_CHACHA20_POLY1305, &param,
+                          out, &uOutLen, maxout, in, inlen);
+    } else {
+        rv = PK11_Encrypt(keys->write_key, CKM_NSS_CHACHA20_POLY1305, &param,
+                          out, &uOutLen, maxout, in, inlen);
+    }
+    *outlen = (int)uOutLen;
+
+    return rv;
+}
+
 /* Initialize encryption and MAC contexts for pending spec.
  * Master Secret already is derived.
  * Caller holds Spec write lock.
@@ -2123,7 +2188,18 @@ ssl3_InitPendingContextsPKCS11(sslSocket *ss)
 	pwSpec->destroy = NULL;
 	pwSpec->encodeContext = NULL;
 	pwSpec->decodeContext = NULL;
-	pwSpec->aead = ssl3_CipherGCM;
+        switch (calg) {
+        case calg_aes_gcm:
+        case calg_camellia_gcm:
+            pwSpec->aead = ssl3_CipherGCM;
+            break;
+        case calg_chacha20:
+            pwSpec->aead = ssl3_ChaCha20Poly1305;
+            break;
+        default:
+            PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
+            return SECFailure;
+        }
 	return SECSuccess;
     }
 
@@ -2236,6 +2312,23 @@ fail:
     return SECFailure;
 }
 
+/* Returns whether we can bypass PKCS#11 for a given cipher algorithm.
+ *
+ * We do not support PKCS#11 bypass for ChaCha20/Poly1305.
+ */
+#ifndef NO_PKCS11_BYPASS
+static PRBool
+ssl3_CanBypassCipher(SSLCipherAlgorithm calg)
+{
+    switch (calg) {
+      case calg_chacha20:
+        return PR_FALSE;
+      default:
+        return PR_TRUE;
+    }
+}
+#endif
+
 /* Complete the initialization of all keys, ciphers, MACs and their contexts
  * for the pending Cipher Spec.
  * Called from: ssl3_SendClientKeyExchange 	(for Full handshake)
@@ -2275,7 +2368,8 @@ ssl3_InitPendingCipherSpec(sslSocket *ss, PK11SymKey *pms)
 	}
     }
 #ifndef NO_PKCS11_BYPASS
-    if (ss->opt.bypassPKCS11 && pwSpec->msItem.len && pwSpec->msItem.data) {
+    if (ss->opt.bypassPKCS11 && pwSpec->msItem.len && pwSpec->msItem.data &&
+        ssl3_CanBypassCipher(ss->ssl3.pwSpec->cipher_def->calg)) {
 	/* Double Bypass succeeded in extracting the master_secret */
 #error not patched for SHA384, see bug 923089
 	const ssl3KEADef * kea_def = ss->ssl3.hs.kea_def;

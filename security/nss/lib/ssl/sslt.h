@@ -105,7 +105,8 @@ typedef enum {
     ssl_calg_camellia = 8,
     ssl_calg_seed     = 9,
     ssl_calg_aes_gcm      = 10,
-    ssl_calg_camellia_gcm = 11
+    ssl_calg_chacha20 = 11,
+    ssl_calg_camellia_gcm = 12
 } SSLCipherAlgorithm;
 
 typedef enum { 

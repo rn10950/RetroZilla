@@ -664,6 +664,97 @@ sftk_RSADecryptOAEP(SFTKOAEPDecryptInfo *info, unsigned char *output,
     return rv;
 }
 
+static SFTKChaCha20Poly1305Info *
+sftk_ChaCha20Poly1305_CreateContext(const unsigned char *key,
+                                    unsigned int keyLen,
+                                    const CK_NSS_AEAD_PARAMS *params)
+{
+    SFTKChaCha20Poly1305Info *ctx;
+
+    if (params->ulNonceLen != sizeof(ctx->nonce)) {
+        PORT_SetError(SEC_ERROR_INPUT_LEN);
+        return NULL;
+    }
+
+    ctx = PORT_New(SFTKChaCha20Poly1305Info);
+    if (ctx == NULL) {
+        return NULL;
+    }
+
+    if (ChaCha20Poly1305_InitContext(&ctx->freeblCtx, key, keyLen,
+                                     params->ulTagLen) != SECSuccess) {
+        PORT_Free(ctx);
+        return NULL;
+    }
+
+    PORT_Memcpy(ctx->nonce, params->pNonce, sizeof(ctx->nonce));
+
+    if (params->ulAADLen > sizeof(ctx->ad)) {
+        /* Need to allocate an overflow buffer for the additional data. */
+        ctx->adOverflow = (unsigned char *)PORT_Alloc(params->ulAADLen);
+        if (!ctx->adOverflow) {
+            PORT_Free(ctx);
+            return NULL;
+        }
+        PORT_Memcpy(ctx->adOverflow, params->pAAD, params->ulAADLen);
+    } else {
+        ctx->adOverflow = NULL;
+        PORT_Memcpy(ctx->ad, params->pAAD, params->ulAADLen);
+    }
+    ctx->adLen = params->ulAADLen;
+
+    return ctx;
+}
+
+static void
+sftk_ChaCha20Poly1305_DestroyContext(SFTKChaCha20Poly1305Info *ctx,
+                                     PRBool freeit)
+{
+    ChaCha20Poly1305_DestroyContext(&ctx->freeblCtx, PR_FALSE);
+    if (ctx->adOverflow != NULL) {
+        PORT_Free(ctx->adOverflow);
+        ctx->adOverflow = NULL;
+    }
+    ctx->adLen = 0;
+    if (freeit) {
+        PORT_Free(ctx);
+    }
+}
+
+static SECStatus
+sftk_ChaCha20Poly1305_Encrypt(const SFTKChaCha20Poly1305Info *ctx,
+                              unsigned char *output, unsigned int *outputLen,
+                              unsigned int maxOutputLen,
+                              const unsigned char *input, unsigned int inputLen)
+{
+    const unsigned char *ad = ctx->adOverflow;
+
+    if (ad == NULL) {
+        ad = ctx->ad;
+    }
+
+    return ChaCha20Poly1305_Seal(&ctx->freeblCtx, output, outputLen,
+                                 maxOutputLen, input, inputLen, ctx->nonce,
+                                 sizeof(ctx->nonce), ad, ctx->adLen);
+}
+
+static SECStatus
+sftk_ChaCha20Poly1305_Decrypt(const SFTKChaCha20Poly1305Info *ctx,
+                              unsigned char *output, unsigned int *outputLen,
+                              unsigned int maxOutputLen,
+                              const unsigned char *input, unsigned int inputLen)
+{
+    const unsigned char *ad = ctx->adOverflow;
+
+    if (ad == NULL) {
+        ad = ctx->ad;
+    }
+
+    return ChaCha20Poly1305_Open(&ctx->freeblCtx, output, outputLen,
+                                 maxOutputLen, input, inputLen, ctx->nonce,
+                                 sizeof(ctx->nonce), ad, ctx->adLen);
+}
+
 /** NSC_CryptInit initializes an encryption/Decryption operation.
  *
  * Always called by NSC_EncryptInit, NSC_DecryptInit, NSC_WrapKey,NSC_UnwrapKey.
@@ -1055,6 +1146,34 @@ finish_des:
 	}
 	context->update = (SFTKCipher) (isEncrypt ? AES_Encrypt : AES_Decrypt);
 	context->destroy = (SFTKDestroy) AES_DestroyContext;
+	break;
+
+    case CKM_NSS_CHACHA20_POLY1305:
+	if (pMechanism->ulParameterLen != sizeof(CK_NSS_AEAD_PARAMS)) {
+	    crv = CKR_MECHANISM_PARAM_INVALID;
+	    break;
+	}
+	context->multi = PR_FALSE;
+	if (key_type != CKK_NSS_CHACHA20) {
+	    crv = CKR_KEY_TYPE_INCONSISTENT;
+	    break;
+	}
+	att = sftk_FindAttribute(key,CKA_VALUE);
+	if (att == NULL) {
+	    crv = CKR_KEY_HANDLE_INVALID;
+	    break;
+	}
+	context->cipherInfo = sftk_ChaCha20Poly1305_CreateContext(
+		(unsigned char*) att->attrib.pValue, att->attrib.ulValueLen,
+		(CK_NSS_AEAD_PARAMS*) pMechanism->pParameter);
+	sftk_FreeAttribute(att);
+	if (context->cipherInfo == NULL) {
+	    crv = sftk_MapCryptError(PORT_GetError());
+	    break;
+	}
+	context->update = (SFTKCipher) (isEncrypt ? sftk_ChaCha20Poly1305_Encrypt :
+					sftk_ChaCha20Poly1305_Decrypt);
+	context->destroy = (SFTKDestroy) sftk_ChaCha20Poly1305_DestroyContext;
 	break;
 
     case CKM_NETSCAPE_AES_KEY_WRAP_PAD:
@@ -3653,6 +3772,10 @@ nsc_SetupBulkKeyGen(CK_MECHANISM_TYPE mechanism, CK_KEY_TYPE *key_type,
 	*key_type = CKK_AES;
 	if (*key_length == 0) crv = CKR_TEMPLATE_INCOMPLETE;
 	break;
+    case CKM_NSS_CHACHA20_KEY_GEN:
+	*key_type = CKK_NSS_CHACHA20;
+	if (*key_length == 0) crv = CKR_TEMPLATE_INCOMPLETE;
+	break;
     default:
 	PORT_Assert(0);
 	crv = CKR_MECHANISM_INVALID;
@@ -3899,6 +4022,7 @@ CK_RV NSC_GenerateKey(CK_SESSION_HANDLE hSession,
     case CKM_SEED_KEY_GEN:
     case CKM_CAMELLIA_KEY_GEN:
     case CKM_AES_KEY_GEN:
+    case CKM_NSS_CHACHA20_KEY_GEN:
 #if NSS_SOFTOKEN_DOES_RC5
     case CKM_RC5_KEY_GEN:
 #endif

@@ -582,8 +582,10 @@ CONST_OID evIncorporationCountry[]      = { EV_NAME_ATTRIBUTE, 3 };
 #define OI(x) { siDEROID, (unsigned char *)x, sizeof x }
 #ifndef SECOID_NO_STRINGS
 #define OD(oid,tag,desc,mech,ext) { OI(oid), tag, desc, mech, ext }
+#define ODE(tag,desc,mech,ext) { { siDEROID, NULL, 0 }, tag, desc, mech, ext }
 #else
 #define OD(oid,tag,desc,mech,ext) { OI(oid), tag, 0, mech, ext }
+#define ODE(tag,desc,mech,ext) { { siDEROID, NULL, 0 }, tag, 0, mech, ext }
 #endif
 
 #if defined(NSS_ALLOW_UNSUPPORTED_CRITICAL)
@@ -1649,7 +1651,9 @@ const static SECOidData oids[SEC_OID_TOTAL] = {
     OD( aes192_GCM, SEC_OID_AES_192_GCM,
 	"AES-192-GCM", CKM_AES_GCM, INVALID_CERT_EXTENSION ),
     OD( aes256_GCM, SEC_OID_AES_256_GCM,
-	"AES-256-GCM", CKM_AES_GCM, INVALID_CERT_EXTENSION )
+	"AES-256-GCM", CKM_AES_GCM, INVALID_CERT_EXTENSION ),
+    ODE( SEC_OID_CHACHA20_POLY1305,
+	"ChaCha20-Poly1305", CKM_NSS_CHACHA20_POLY1305, INVALID_CERT_EXTENSION ),
 };
 
 /* PRIVATE EXTENDED SECOID Table
