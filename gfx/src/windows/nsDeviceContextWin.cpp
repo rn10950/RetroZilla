@@ -585,6 +585,8 @@ NS_IMETHODIMP nsDeviceContextWin :: CheckFontExistence(const nsString& aFontName
     aFontName.ToCString(logFont.lfFaceName, LF_FACESIZE);
 
   ::EnumFontFamiliesEx(hdc, &logFont, (FONTENUMPROC)fontcallback, (LPARAM)&isthere, 0);
+  if (!isthere)
+    ::EnumFontFamilies(hdc, logFont.lfFaceName, (FONTENUMPROC)fontcallback, (LPARAM)&isthere);
 
   ::ReleaseDC(hwnd, hdc);
 
