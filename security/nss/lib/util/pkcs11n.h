@@ -28,7 +28,7 @@
 
 /*
  * NSS-defined object classes
- * 
+ *
  */
 #define CKO_NSS (CKO_VENDOR_DEFINED|NSSCK_VENDOR_NSS)
 
@@ -50,6 +50,8 @@
 
 #define CKK_NSS_JPAKE_ROUND1       (CKK_NSS + 2)
 #define CKK_NSS_JPAKE_ROUND2       (CKK_NSS + 3)
+
+#define CKK_NSS_CHACHA20           (CKK_NSS + 4)
 
 /*
  * NSS-defined certificate types
@@ -93,6 +95,8 @@
 #define CKA_NSS_JPAKE_X2S          (CKA_NSS +  33)
 
 #define CKA_NSS_MOZILLA_CA_POLICY (CKA_NSS + 34)
+#define CKA_NSS_SERVER_DISTRUST_AFTER (CKA_NSS + 35)
+#define CKA_NSS_EMAIL_DISTRUST_AFTER (CKA_NSS + 36)
 
 /*
  * Trust attributes:
@@ -166,7 +170,7 @@
 #define CKM_NSS_JPAKE_ROUND1_SHA512 (CKM_NSS + 10)
 
 /* J-PAKE round 2 key derivation mechanisms.
- * 
+ *
  * Required template attributes: CKA_NSS_JPAKE_PEERID
  * Input key type:  CKK_NSS_JPAKE_ROUND1
  * Output key type: CKK_NSS_JPAKE_ROUND2
@@ -178,14 +182,14 @@
 #define CKM_NSS_JPAKE_ROUND2_SHA384 (CKM_NSS + 13)
 #define CKM_NSS_JPAKE_ROUND2_SHA512 (CKM_NSS + 14)
 
-/* J-PAKE final key material derivation mechanisms 
+/* J-PAKE final key material derivation mechanisms
  *
  * Input key type:  CKK_NSS_JPAKE_ROUND2
  * Output key type: CKK_GENERIC_SECRET
  * Output key class: CKO_SECRET_KEY
  * Parameter type: CK_NSS_JPAKEFinalParams
  *
- * You must apply a KDF (e.g. CKM_NSS_HKDF_*) to resultant keying material 
+ * You must apply a KDF (e.g. CKM_NSS_HKDF_*) to resultant keying material
  * to get a key with uniformly distributed bits.
  */
 #define CKM_NSS_JPAKE_FINAL_SHA1    (CKM_NSS + 15)
@@ -215,6 +219,13 @@
 #define CKM_NSS_TLS_MASTER_KEY_DERIVE_SHA256    (CKM_NSS + 22)
 #define CKM_NSS_TLS_KEY_AND_MAC_DERIVE_SHA256   (CKM_NSS + 23)
 #define CKM_NSS_TLS_MASTER_KEY_DERIVE_DH_SHA256 (CKM_NSS + 24)
+
+/* TLS extended master secret derivation */
+#define CKM_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE    (CKM_NSS + 25)
+#define CKM_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE_DH (CKM_NSS + 26)
+
+#define CKM_NSS_CHACHA20_KEY_GEN                (CKM_NSS + 27)
+#define CKM_NSS_CHACHA20_POLY1305               (CKM_NSS + 28)
 
 /*
  * HISTORICAL:
@@ -283,6 +294,14 @@ typedef struct CK_NSS_MAC_CONSTANT_TIME_PARAMS {
     CK_ULONG ulHeaderLen;       /* in */
 } CK_NSS_MAC_CONSTANT_TIME_PARAMS;
 
+typedef struct CK_NSS_AEAD_PARAMS {
+    CK_BYTE_PTR  pNonce;
+    CK_ULONG     ulNonceLen;
+    CK_BYTE_PTR  pAAD;
+    CK_ULONG     ulAADLen;
+    CK_ULONG     ulTagLen;
+} CK_NSS_AEAD_PARAMS;
+
 /*
  * NSS-defined return values
  *
@@ -294,7 +313,7 @@ typedef struct CK_NSS_MAC_CONSTANT_TIME_PARAMS {
 
 /* Mandatory parameter for the CKM_NSS_HKDF_* key deriviation mechanisms.
    See RFC 5869.
-   
+
     bExtract: If set, HKDF-Extract will be applied to the input key. If
               the optional salt is given, it is used; otherwise, the salt is
               set to a sequence of zeros equal in length to the HMAC output.
@@ -320,6 +339,31 @@ typedef struct CK_NSS_HKDFParams {
 } CK_NSS_HKDFParams;
 
 /*
+ * Parameter for the TLS extended master secret key derivation mechanisms:
+ *
+ *  * CKM_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE
+ *  * CKM_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE_DH
+ *
+ * For the TLS 1.2 PRF, the prfHashMechanism parameter determines the hash
+ * function used. For earlier versions of the PRF, set the prfHashMechanism
+ * value to CKM_TLS_PRF.
+ *
+ * The session hash input is expected to be the output of the same hash
+ * function as the PRF uses (as required by draft-ietf-tls-session-hash).  So
+ * the ulSessionHashLen member must be equal the output length of the hash
+ * function specified by the prfHashMechanism member (or, for pre-TLS 1.2 PRF,
+ * the length of concatenated MD5 and SHA-1 digests).
+ *
+ */
+typedef struct CK_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE_PARAMS {
+    CK_MECHANISM_TYPE prfHashMechanism;
+    CK_BYTE_PTR pSessionHash;
+    CK_ULONG ulSessionHashLen;
+    CK_VERSION_PTR pVersion;
+} CK_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE_PARAMS;
+
+
+/*
  * Trust info
  *
  * This isn't part of the Cryptoki standard (yet), so I'm putting
@@ -343,7 +387,7 @@ typedef CK_ULONG          CK_TRUST;
 #define CKT_NSS_NOT_TRUSTED        (CKT_NSS + 10)
 #define CKT_NSS_TRUST_UNKNOWN      (CKT_NSS + 5) /* default */
 
-/* 
+/*
  * These may well remain NSS-specific; I'm only using them
  * to cache resolution data.
  */
@@ -454,7 +498,7 @@ typedef CK_TRUST __CKT_NSS_MUST_VERIFY __attribute__((deprecated
 #define SECMOD_MODULE_DB_FUNCTION_FIND  0
 #define SECMOD_MODULE_DB_FUNCTION_ADD   1
 #define SECMOD_MODULE_DB_FUNCTION_DEL   2
-#define SECMOD_MODULE_DB_FUNCTION_RELEASE 3 
+#define SECMOD_MODULE_DB_FUNCTION_RELEASE 3
 typedef char ** (PR_CALLBACK *SECMODModuleDBFunc)(unsigned long function,
                                         char *parameters, void *moduleSpec);
 

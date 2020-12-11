@@ -49,8 +49,15 @@ JAR_calculate_digest(void *data, long length)
 	return NULL;
     }
 
-    md5  = PK11_CreateDigestContext(SEC_OID_MD5);
+    md5 = PK11_CreateDigestContext(SEC_OID_MD5);
+    if (md5 == NULL) {
+	return NULL;
+    }
     sha1 = PK11_CreateDigestContext(SEC_OID_SHA1);
+    if (sha1 == NULL) {
+	PK11_DestroyContext(md5, PR_TRUE);
+	return NULL;
+    }
 
     if (length >= 0) {
 	PK11_DigestBegin (md5);
@@ -107,6 +114,12 @@ JAR_digest_file (char *filename, JAR_Digest *dig)
     sha1 = PK11_CreateDigestContext (SEC_OID_SHA1);
 
     if (md5 == NULL || sha1 == NULL) {
+	if (md5) {
+	    PK11_DestroyContext(md5, PR_TRUE);
+	}
+	if (sha1) {
+	    PK11_DestroyContext(sha1, PR_TRUE);
+	}
 	/* can't generate digest contexts */
 	PORT_Free (buf);
 	JAR_FCLOSE (fp);

@@ -172,7 +172,9 @@ PK11_IsUserCert(PK11SlotInfo *slot, CERTCertificate *cert,
 	    SECKEY_DestroyPublicKey(pubKey);
 	    return PR_FALSE;
 	}
-	pk11_SignedToUnsigned(&theTemplate);
+	if (pubKey->keyType != ecKey) {
+	    pk11_SignedToUnsigned(&theTemplate);
+	}
 	if (pk11_FindObjectByTemplate(slot,&theTemplate,1) != CK_INVALID_HANDLE) {
 	    SECKEY_DestroyPublicKey(pubKey);
 	    return PR_TRUE;
@@ -1381,6 +1383,7 @@ pk11_keyIDHash_populate(void *wincx)
     }
     moduleLock = SECMOD_GetDefaultModuleListLock();
     if (!moduleLock) {
+	SECITEM_FreeItem(slotid, PR_TRUE);
 	PORT_SetError(SEC_ERROR_NOT_INITIALIZED);
 	return PR_FAILURE;
     }
@@ -1440,6 +1443,7 @@ pk11_FindCertObjectByRecipientNew(PK11SlotInfo *slot, NSSCMSRecipient **recipien
 		                   sizeof(CK_SLOT_ID) + sizeof(SECMODModuleID));
 		    if (!slotid) {
 			PORT_SetError(SEC_ERROR_NO_MEMORY);
+			PK11_FreeSlotList(sl);
 			return NULL;
 		    }
 		    for (le = sl->head; le; le = le->next) {

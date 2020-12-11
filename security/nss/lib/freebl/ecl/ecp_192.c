@@ -120,8 +120,8 @@ ec_GFp_nistp192_mod(const mp_int *a, mp_int *r, const GFMethod *meth)
 		if (((r2b == 0xffffffff) && (r2a == 0xffffffff) 
 			&& (r1b == 0xffffffff) ) &&
 			   ((r1a == 0xffffffff) || 
-			    (r1a == 0xfffffffe) && (r0a == 0xffffffff) &&
-					(r0b == 0xffffffff)) ) {
+			    ((r1a == 0xfffffffe) && (r0a == 0xffffffff) &&
+					(r0b == 0xffffffff))) ) {
 			/* do a quick subtract */
                         carry = 0;
 			MP_ADD_CARRY(r0a, 1, r0a, carry);

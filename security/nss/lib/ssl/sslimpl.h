@@ -57,6 +57,7 @@ typedef SSLSignType     SSL3SignType;
 #define calg_seed	ssl_calg_seed
 #define calg_aes_gcm    ssl_calg_aes_gcm
 #define calg_camellia_gcm    ssl_calg_camellia_gcm
+#define calg_chacha20   ssl_calg_chacha20
 
 #define mac_null	ssl_mac_null
 #define mac_md5 	ssl_mac_md5
@@ -64,6 +65,7 @@ typedef SSLSignType     SSL3SignType;
 #define hmac_md5	ssl_hmac_md5
 #define hmac_sha	ssl_hmac_sha
 #define hmac_sha256	ssl_hmac_sha256
+#define hmac_sha384	ssl_hmac_sha384
 #define mac_aead	ssl_mac_aead
 
 #define SET_ERROR_CODE		/* reminder */
@@ -154,15 +156,6 @@ typedef enum { SSLAppOpRead = 0,
 #endif
 
 #define EXPORT_RSA_KEY_LENGTH 64	/* bytes */
-
-/* The minimum server key sizes accepted by the clients.
- * Not 1024 to be conservative. */
-#define SSL_RSA_MIN_MODULUS_BITS 1023
-/* 1023 to avoid cases where p = 2q+1 for a 512-bit q turns out to be
- * only 1023 bits and similar.  We don't have good data on whether this
- * happens because NSS used to count bit lengths incorrectly. */
-#define SSL_DH_MIN_P_BITS 1023
-#define SSL_DSA_MIN_P_BITS 1023
 
 #define INITIAL_DTLS_TIMEOUT_MS   1000  /* Default value from RFC 4347 = 1s*/
 #define MAX_DTLS_TIMEOUT_MS      60000  /* 1 minute */
@@ -301,9 +294,9 @@ typedef struct {
 } ssl3CipherSuiteCfg;
 
 #ifndef NSS_DISABLE_ECC
-#define ssl_V3_SUITES_IMPLEMENTED 66
+#define ssl_V3_SUITES_IMPLEMENTED 70
 #else
-#define ssl_V3_SUITES_IMPLEMENTED 40
+#define ssl_V3_SUITES_IMPLEMENTED 41
 #endif /* NSS_DISABLE_ECC */
 
 #define MAX_DTLS_SRTP_CIPHER_SUITES 4
@@ -347,6 +340,7 @@ typedef struct sslOptionsStr {
     unsigned int reuseServerECDHEKey    : 1;  /* 28 */
     unsigned int enableFallbackSCSV     : 1;  /* 29 */
     unsigned int enableServerDhe        : 1;  /* 30 */
+    unsigned int enableExtendedMS       : 1;  /* 31 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -486,6 +480,8 @@ typedef enum {
     cipher_camellia_256,
     cipher_seed,
     cipher_aes_128_gcm,
+    cipher_aes_256_gcm,
+    cipher_chacha20,
     cipher_camellia_128_gcm,
     cipher_missing              /* reserved for no such supported cipher */
     /* This enum must match ssl3_cipherName[] in ssl3con.c.  */
@@ -520,6 +516,7 @@ typedef struct {
     PRUint16          wrapped_master_secret_len;
     PRUint8           msIsWrapped;
     PRUint8           resumable;
+    PRUint8           extendedMasterSecretUsed;
 } ssl3SidKeys; /* 52 bytes */
 
 typedef struct {
@@ -603,7 +600,7 @@ typedef struct {
     ssl3KeyMaterial    client;
     ssl3KeyMaterial    server;
     SECItem            msItem;
-    unsigned char      key_block[NUM_MIXERS * MD5_LENGTH];
+    unsigned char      key_block[NUM_MIXERS * HASH_LENGTH_MAX];
     unsigned char      raw_master_secret[56];
     SECItem            srvVirtName;    /* for server: name that was negotiated
                                         * with a client. For client - is
@@ -1073,6 +1070,7 @@ typedef struct SessionTicketStr {
     CK_MECHANISM_TYPE     msWrapMech;
     PRUint16              ms_length;
     SSL3Opaque            master_secret[48];
+    PRBool                extendedMasterSecretUsed;
     ClientIdentity        client_identity;
     SECItem               peer_cert;
     PRUint32              timestamp;
@@ -1598,7 +1596,7 @@ extern PRBool ssl3_VersionIsSupported(SSLProtocolVariant protocolVariant,
 extern SECStatus ssl3_KeyAndMacDeriveBypass(ssl3CipherSpec * pwSpec,
 		    const unsigned char * cr, const unsigned char * sr,
 		    PRBool isTLS, PRBool isExport);
-extern  SECStatus ssl3_MasterKeyDeriveBypass( ssl3CipherSpec * pwSpec,
+extern  SECStatus ssl3_MasterSecretDeriveBypass( ssl3CipherSpec * pwSpec,
 		    const unsigned char * cr, const unsigned char * sr,
 		    const SECItem * pms, PRBool isTLS, PRBool isRSA);
 
@@ -1849,7 +1847,7 @@ extern PRBool ssl_GetSessionTicketKeysPKCS11(SECKEYPrivateKey *svrPrivKey,
 
 /* Tell clients to consider tickets valid for this long. */
 #define TLS_EX_SESS_TICKET_LIFETIME_HINT    (2 * 24 * 60 * 60) /* 2 days */
-#define TLS_EX_SESS_TICKET_VERSION          (0x0100)
+#define TLS_EX_SESS_TICKET_VERSION          (0x0101)
 
 extern SECStatus ssl3_ValidateNextProtoNego(const unsigned char* data,
 					    unsigned int length);
@@ -1960,6 +1958,8 @@ ssl3_TLSPRFWithMasterSecret(ssl3CipherSpec *spec,
                             const char *label, unsigned int labelLen,
                             const unsigned char *val, unsigned int valLen,
                             unsigned char *out, unsigned int outLen);
+extern SECOidTag
+ssl3_TLSHashAlgorithmToOID(SSLHashType hashFunc);
 
 #ifdef TRACE
 #define SSL_TRACE(msg) ssl_Trace msg

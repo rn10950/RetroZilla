@@ -23,6 +23,9 @@
 #include "sslerr.h"
 
 #ifndef NO_PKCS11_BYPASS
+
+#error not patched for SHA384, see bug 923089
+
 /* make this a macro! */
 #ifdef NOT_A_MACRO
 static void
@@ -431,7 +434,7 @@ key_and_mac_derive_fail:
  * so isRSA is always true. 
  */
 SECStatus
-ssl3_MasterKeyDeriveBypass( 
+ssl3_MasterSecretDeriveBypass( 
     ssl3CipherSpec *      pwSpec,
     const unsigned char * cr,
     const unsigned char * sr,

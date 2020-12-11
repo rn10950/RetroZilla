@@ -1577,7 +1577,7 @@ PK11_WriteRawAttribute(PK11ObjectType objType, void *objSpec,
 				CK_ATTRIBUTE_TYPE attrType, SECItem *item)
 {
     PK11SlotInfo *slot = NULL;
-    CK_OBJECT_HANDLE handle;
+    CK_OBJECT_HANDLE handle = 0;
     CK_ATTRIBUTE setTemplate;
     CK_RV crv;
     CK_SESSION_HANDLE rwsession;
@@ -1630,7 +1630,7 @@ PK11_ReadRawAttribute(PK11ObjectType objType, void *objSpec,
 				CK_ATTRIBUTE_TYPE attrType, SECItem *item)
 {
     PK11SlotInfo *slot = NULL;
-    CK_OBJECT_HANDLE handle;
+    CK_OBJECT_HANDLE handle = 0;
 
     switch (objType) {
     case PK11_TypeGeneric:

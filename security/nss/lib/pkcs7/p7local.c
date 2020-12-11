@@ -203,7 +203,8 @@ sec_PKCS7CreateEncryptObject (PLArenaPool *poolp, PK11SymKey *key,
 	rv = PK11_ParamToAlgid(algtag,param,poolp,algid);
 	if(rv != SECSuccess) {
 	    PORT_Free (result);
-            SECITEM_FreeItem(param,PR_TRUE);
+	    SECITEM_FreeItem(param,PR_TRUE);
+	    PK11_DestroyContext(ciphercx, PR_TRUE);
 	    return NULL;
 	}
     }

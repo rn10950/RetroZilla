@@ -371,6 +371,9 @@ static const struct mechanismList mechanisms[] = {
      {CKM_SEED_MAC,		{16, 16, CKF_SN_VR},		PR_TRUE},
      {CKM_SEED_MAC_GENERAL,	{16, 16, CKF_SN_VR},		PR_TRUE},
      {CKM_SEED_CBC_PAD,		{16, 16, CKF_EN_DE_WR_UN},	PR_TRUE},
+     /* ------------------------- ChaCha20 Operations ---------------------- */
+     {CKM_NSS_CHACHA20_KEY_GEN,	{32, 32, CKF_GENERATE},		PR_TRUE},
+     {CKM_NSS_CHACHA20_POLY1305,{32, 32, CKF_EN_DE},		PR_TRUE},
      /* ------------------------- Hashing Operations ----------------------- */
      {CKM_MD2,			{0,   0, CKF_DIGEST},		PR_FALSE},
      {CKM_MD2_HMAC,		{1, 128, CKF_SN_VR},		PR_TRUE},
@@ -475,6 +478,10 @@ static const struct mechanismList mechanisms[] = {
      {CKM_TLS12_KEY_AND_MAC_DERIVE,	{48, 48, CKF_DERIVE},   PR_FALSE}, 
      {CKM_NSS_TLS_KEY_AND_MAC_DERIVE_SHA256,
 					{48, 48, CKF_DERIVE},	PR_FALSE},
+     {CKM_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE,
+                                        {48,128, CKF_DERIVE},   PR_FALSE},
+     {CKM_NSS_TLS_EXTENDED_MASTER_KEY_DERIVE_DH,
+                                        {48,128, CKF_DERIVE},   PR_FALSE},
      /* ---------------------- PBE Key Derivations  ------------------------ */
      {CKM_PBE_MD2_DES_CBC,		{8, 8, CKF_DERIVE},   PR_TRUE},
      {CKM_PBE_MD5_DES_CBC,		{8, 8, CKF_DERIVE},   PR_TRUE},
@@ -2603,7 +2610,7 @@ CK_RV sftk_CloseAllSessions(SFTKSlot *slot, PRBool logout)
 		--slot->sessionCount;
 		SKIP_AFTER_FORK(PZ_Unlock(slot->slotLock));
 		if (session->info.flags & CKF_RW_SESSION) {
-		    PR_ATOMIC_DECREMENT(&slot->rwSessionCount);
+		    (void)PR_ATOMIC_DECREMENT(&slot->rwSessionCount);
 		}
 	    } else {
 		SKIP_AFTER_FORK(PZ_Unlock(lock));
@@ -2758,7 +2765,7 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
     case SECMOD_MODULE_DB_FUNCTION_FIND:
 	if (secmod == NULL) {
 	    PORT_SetError(SEC_ERROR_INVALID_ARGS);
-	    return NULL;
+	    goto loser;
 	}
 	if (rw && (dbType != NSS_DB_TYPE_LEGACY) && 
 	    (dbType != NSS_DB_TYPE_MULTIACCESS)) {
@@ -2801,7 +2808,7 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
     case SECMOD_MODULE_DB_FUNCTION_ADD:
 	if (secmod == NULL) {
 	    PORT_SetError(SEC_ERROR_INVALID_ARGS);
-	    return NULL;
+	    goto loser;
 	}
 	rvstr = (sftkdbCall_AddSecmodDB(appName,filename,secmod,
 			(char *)args,rw) == SECSuccess) ? &success: NULL;
@@ -2809,7 +2816,7 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
     case SECMOD_MODULE_DB_FUNCTION_DEL:
 	if (secmod == NULL) {
 	    PORT_SetError(SEC_ERROR_INVALID_ARGS);
-	    return NULL;
+	    goto loser;
 	}
 	rvstr = (sftkdbCall_DeleteSecmodDB(appName,filename,secmod,
 			(char *)args,rw) == SECSuccess) ? &success: NULL;
@@ -2819,6 +2826,8 @@ NSC_ModuleDBFunc(unsigned long function,char *parameters, void *args)
 			(char **)args,rw) == SECSuccess) ? &success: NULL;
 	break;
     }
+
+loser:
     if (secmod) PR_smprintf_free(secmod);
     if (appName) PORT_Free(appName);
     if (filename) PORT_Free(filename);
@@ -3720,7 +3729,7 @@ CK_RV NSC_OpenSession(CK_SLOT_ID slotID, CK_FLAGS flags,
     ++slot->sessionCount;
     PZ_Unlock(slot->slotLock);
     if (session->info.flags & CKF_RW_SESSION) {
-	PR_ATOMIC_INCREMENT(&slot->rwSessionCount);
+	(void)PR_ATOMIC_INCREMENT(&slot->rwSessionCount);
     }
 
     do {
@@ -3788,7 +3797,7 @@ CK_RV NSC_CloseSession(CK_SESSION_HANDLE hSession)
 	    sftk_freeDB(handle);
 	}
 	if (session->info.flags & CKF_RW_SESSION) {
-	    PR_ATOMIC_DECREMENT(&slot->rwSessionCount);
+	    (void)PR_ATOMIC_DECREMENT(&slot->rwSessionCount);
 	}
     }
 

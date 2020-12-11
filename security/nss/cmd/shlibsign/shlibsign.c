@@ -522,7 +522,7 @@ CK_RVtoStr(CK_RV errNum) {
 
     /* Do binary search of table. */
     while (low + 1 < high) {
-        i = (low + high) / 2;
+        i = low + (high - low) / 2;
         num = errStrings[i].errNum;
         if (errNum == num)
             return errStrings[i].errString;

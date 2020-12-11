@@ -319,14 +319,6 @@ ssl3_SendECDHClientKeyExchange(sslSocket * ss, SECKEYPublicKey * svrPubKey)
     SECKEY_DestroyPrivateKey(privKey);
     privKey = NULL;
 
-    rv = ssl3_InitPendingCipherSpec(ss,  pms);
-    PK11_FreeSymKey(pms); pms = NULL;
-
-    if (rv != SECSuccess) {
-        ssl_MapLowLevelError(SSL_ERROR_CLIENT_KEY_EXCHANGE_FAILURE);
-        goto loser;
-    }
-
     rv = ssl3_AppendHandshakeHeader(ss, client_key_exchange,
                                         pubKey->u.ec.publicValue.len + 1);
     if (rv != SECSuccess) {
@@ -341,6 +333,14 @@ ssl3_SendECDHClientKeyExchange(sslSocket * ss, SECKEYPublicKey * svrPubKey)
 
     if (rv != SECSuccess) {
         goto loser;     /* err set by ssl3_AppendHandshake* */
+    }
+
+    rv = ssl3_InitPendingCipherSpec(ss,  pms);
+    PK11_FreeSymKey(pms); pms = NULL;
+
+    if (rv != SECSuccess) {
+        ssl_MapLowLevelError(SSL_ERROR_CLIENT_KEY_EXCHANGE_FAILURE);
+        goto loser;
     }
 
     rv = SECSuccess;
@@ -704,7 +704,7 @@ ssl3_HandleECDHServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
         goto no_memory;
     }
 
-    ss->sec.peerKey = peerKey = PORT_ArenaZNew(arena, SECKEYPublicKey);
+    peerKey = PORT_ArenaZNew(arena, SECKEYPublicKey);
     if (peerKey == NULL) {
         goto no_memory;
     }
@@ -725,7 +725,6 @@ ssl3_HandleECDHServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     /* copy publicValue in peerKey */
     if (SECITEM_CopyItem(arena, &peerKey->u.ec.publicValue,  &ec_point))
     {
-        PORT_FreeArena(arena, PR_FALSE);
         goto no_memory;
     }
     peerKey->pkcs11Slot         = NULL;
@@ -739,10 +738,16 @@ ssl3_HandleECDHServerKeyExchange(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 alert_loser:
     (void)SSL3_SendAlert(ss, alert_fatal, desc);
 loser:
+    if (arena) {
+        PORT_FreeArena(arena, PR_FALSE);
+    }
     PORT_SetError( errCode );
     return SECFailure;
 
 no_memory:      /* no-memory error has already been set. */
+    if (arena) {
+        PORT_FreeArena(arena, PR_FALSE);
+    }
     ssl_MapLowLevelError(SSL_ERROR_SERVER_KEY_EXCHANGE_FAILURE);
     return SECFailure;
 }
@@ -916,6 +921,7 @@ static const ssl3CipherSuite ecdhe_ecdsa_suites[] = {
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
     TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256,
     TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
     TLS_ECDHE_ECDSA_WITH_NULL_SHA,
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
     0 /* end of list marker */
@@ -926,8 +932,10 @@ static const ssl3CipherSuite ecdhe_rsa_suites[] = {
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256,
     TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
     TLS_ECDHE_RSA_WITH_NULL_SHA,
     TLS_ECDHE_RSA_WITH_RC4_128_SHA,
     0 /* end of list marker */
@@ -941,14 +949,17 @@ static const ssl3CipherSuite ecSuites[] = {
     TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
     TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256,
     TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+    TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
     TLS_ECDHE_ECDSA_WITH_NULL_SHA,
     TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
     TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
     TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256,
     TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+    TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
     TLS_ECDHE_RSA_WITH_NULL_SHA,
     TLS_ECDHE_RSA_WITH_RC4_128_SHA,
     TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,

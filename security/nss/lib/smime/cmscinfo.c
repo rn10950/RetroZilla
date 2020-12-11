@@ -53,6 +53,10 @@ NSS_CMSContentInfo_Destroy(NSSCMSContentInfo *cinfo)
 {
     SECOidTag kind;
 
+    if (cinfo == NULL) {
+        return;
+    }
+
     kind = NSS_CMSContentInfo_GetContentTypeTag(cinfo);
     switch (kind) {
     case SEC_OID_PKCS7_ENVELOPED_DATA:
@@ -88,7 +92,13 @@ NSSCMSContentInfo *
 NSS_CMSContentInfo_GetChildContentInfo(NSSCMSContentInfo *cinfo)
 {
     NSSCMSContentInfo * ccinfo  = NULL;
-    SECOidTag tag = NSS_CMSContentInfo_GetContentTypeTag(cinfo);
+    SECOidTag tag;
+
+    if (cinfo == NULL) {
+        return NULL;
+    }
+
+    tag = NSS_CMSContentInfo_GetContentTypeTag(cinfo);
     switch (tag) {
     case SEC_OID_PKCS7_SIGNED_DATA:
 	if (cinfo->content.signedData != NULL) {
@@ -129,6 +139,9 @@ SECStatus
 NSS_CMSContentInfo_SetDontStream(NSSCMSContentInfo *cinfo, PRBool dontStream)
 {
    SECStatus rv;
+   if (cinfo == NULL) {
+       return SECFailure;
+   }
 
    rv = NSS_CMSContentInfo_Private_Init(cinfo);
    if (rv != SECSuccess) {
@@ -146,6 +159,9 @@ SECStatus
 NSS_CMSContentInfo_SetContent(NSSCMSMessage *cmsg, NSSCMSContentInfo *cinfo, SECOidTag type, void *ptr)
 {
     SECStatus rv;
+    if (cinfo == NULL || cmsg == NULL) {
+        return SECFailure;
+    }
 
     cinfo->contentTypeTag = SECOID_FindOIDByTag(type);
     if (cinfo->contentTypeTag == NULL)
@@ -227,9 +243,15 @@ NSS_CMSContentInfo_SetContent_EncryptedData(NSSCMSMessage *cmsg, NSSCMSContentIn
 void *
 NSS_CMSContentInfo_GetContent(NSSCMSContentInfo *cinfo)
 {
-    SECOidTag tag = (cinfo && cinfo->contentTypeTag) 
-	                ? cinfo->contentTypeTag->offset 
-	                : SEC_OID_UNKNOWN;
+    SECOidTag tag;
+
+    if (cinfo == NULL) {
+        return NULL;
+    }
+
+    tag = cinfo->contentTypeTag 
+	    ? cinfo->contentTypeTag->offset 
+	    : SEC_OID_UNKNOWN;
     switch (tag) {
     case SEC_OID_PKCS7_DATA:
     case SEC_OID_PKCS7_SIGNED_DATA:
@@ -255,6 +277,10 @@ NSS_CMSContentInfo_GetInnerContent(NSSCMSContentInfo *cinfo)
     SECOidTag          tag;
     SECItem           *pItem = NULL;
 
+    if (cinfo == NULL) {
+        return NULL;
+    }
+
     tag = NSS_CMSContentInfo_GetContentTypeTag(cinfo);
     if (NSS_CMSType_IsData(tag)) {
 	pItem = cinfo->content.data; 
@@ -278,6 +304,10 @@ NSS_CMSContentInfo_GetInnerContent(NSSCMSContentInfo *cinfo)
 SECOidTag
 NSS_CMSContentInfo_GetContentTypeTag(NSSCMSContentInfo *cinfo)
 {
+    if (cinfo == NULL) {
+        return SEC_OID_UNKNOWN;
+    }
+
     if (cinfo->contentTypeTag == NULL)
 	cinfo->contentTypeTag = SECOID_FindOID(&(cinfo->contentType));
 
@@ -290,6 +320,10 @@ NSS_CMSContentInfo_GetContentTypeTag(NSSCMSContentInfo *cinfo)
 SECItem *
 NSS_CMSContentInfo_GetContentTypeOID(NSSCMSContentInfo *cinfo)
 {
+    if (cinfo == NULL) {
+        return NULL;
+    }
+
     if (cinfo->contentTypeTag == NULL)
 	cinfo->contentTypeTag = SECOID_FindOID(&(cinfo->contentType));
 
@@ -306,6 +340,10 @@ NSS_CMSContentInfo_GetContentTypeOID(NSSCMSContentInfo *cinfo)
 SECOidTag
 NSS_CMSContentInfo_GetContentEncAlgTag(NSSCMSContentInfo *cinfo)
 {
+    if (cinfo == NULL) {
+        return SEC_OID_UNKNOWN;
+    }
+
     if (cinfo->contentEncAlgTag == SEC_OID_UNKNOWN)
 	cinfo->contentEncAlgTag = SECOID_GetAlgorithmTag(&(cinfo->contentEncAlg));
 
@@ -318,6 +356,10 @@ NSS_CMSContentInfo_GetContentEncAlgTag(NSSCMSContentInfo *cinfo)
 SECAlgorithmID *
 NSS_CMSContentInfo_GetContentEncAlg(NSSCMSContentInfo *cinfo)
 {
+    if (cinfo == NULL) {
+        return NULL;
+    }
+
     return &(cinfo->contentEncAlg);
 }
 
@@ -326,6 +368,9 @@ NSS_CMSContentInfo_SetContentEncAlg(PLArenaPool *poolp, NSSCMSContentInfo *cinfo
 				    SECOidTag bulkalgtag, SECItem *parameters, int keysize)
 {
     SECStatus rv;
+    if (cinfo == NULL) {
+        return SECFailure;
+    }
 
     rv = SECOID_SetAlgorithmID(poolp, &(cinfo->contentEncAlg), bulkalgtag, parameters);
     if (rv != SECSuccess)
@@ -339,6 +384,9 @@ NSS_CMSContentInfo_SetContentEncAlgID(PLArenaPool *poolp, NSSCMSContentInfo *cin
 				    SECAlgorithmID *algid, int keysize)
 {
     SECStatus rv;
+    if (cinfo == NULL) {
+        return SECFailure;
+    }
 
     rv = SECOID_CopyAlgorithmID(poolp, &(cinfo->contentEncAlg), algid);
     if (rv != SECSuccess)
@@ -351,14 +399,23 @@ NSS_CMSContentInfo_SetContentEncAlgID(PLArenaPool *poolp, NSSCMSContentInfo *cin
 void
 NSS_CMSContentInfo_SetBulkKey(NSSCMSContentInfo *cinfo, PK11SymKey *bulkkey)
 {
-    cinfo->bulkkey = PK11_ReferenceSymKey(bulkkey);
-    cinfo->keysize = PK11_GetKeyStrength(cinfo->bulkkey, &(cinfo->contentEncAlg));
+    if (cinfo == NULL) {
+        return;
+    }
+
+    if (bulkkey == NULL) {
+        cinfo->bulkkey = NULL;
+        cinfo->keysize = 0;
+    } else {
+        cinfo->bulkkey = PK11_ReferenceSymKey(bulkkey);
+        cinfo->keysize = PK11_GetKeyStrength(cinfo->bulkkey, &(cinfo->contentEncAlg));
+    }
 }
 
 PK11SymKey *
 NSS_CMSContentInfo_GetBulkKey(NSSCMSContentInfo *cinfo)
 {
-    if (cinfo->bulkkey == NULL)
+    if (cinfo == NULL || cinfo->bulkkey == NULL)
 	return NULL;
 
     return PK11_ReferenceSymKey(cinfo->bulkkey);
@@ -367,5 +424,9 @@ NSS_CMSContentInfo_GetBulkKey(NSSCMSContentInfo *cinfo)
 int
 NSS_CMSContentInfo_GetBulkKeySize(NSSCMSContentInfo *cinfo)
 {
+    if (cinfo == NULL) {
+        return 0;
+    }
+
     return cinfo->keysize;
 }

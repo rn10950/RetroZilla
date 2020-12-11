@@ -234,13 +234,17 @@ PK11_ImportDERPrivateKeyInfoAndReturnKey(PK11SlotInfo *slot, SECItem *derPKI,
     rv = SEC_ASN1DecodeItem(pki->arena, pki, SECKEY_PrivateKeyInfoTemplate,
 		derPKI);
     if( rv != SECSuccess ) {
-	goto finish;
+        /* If SEC_ASN1DecodeItem fails, we cannot assume anything about the
+         * validity of the data in pki. The best we can do is free the arena
+         * and return.
+         */
+        PORT_FreeArena(temparena, PR_TRUE);
+        return rv;
     }
 
     rv = PK11_ImportPrivateKeyInfoAndReturnKey(slot, pki, nickname,
 		publicValue, isPerm, isPrivate, keyUsage, privk, wincx);
 
-finish:
     /* this zeroes the key and frees the arena */
     SECKEY_DestroyPrivateKeyInfo(pki, PR_TRUE /*freeit*/);
     return rv;
@@ -278,6 +282,7 @@ PK11_ImportAndReturnPrivateKey(PK11SlotInfo *slot, SECKEYRawPrivateKey *lpk,
     PK11_SETATTRS(attrs, CKA_PRIVATE, isPrivate ? &cktrue : &ckfalse,
 						 sizeof(CK_BBOOL) ); attrs++;
 
+    PORT_Assert(lpk->keyType != ecKey); /* see bug 1558548 if this is needed */
     switch (lpk->keyType) {
     case rsaKey:
 	    keyType = CKK_RSA;

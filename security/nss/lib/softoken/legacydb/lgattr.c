@@ -960,9 +960,9 @@ lg_FindECPrivateKeyAttribute(NSSLOWKEYPrivateKey *key, CK_ATTRIBUTE_TYPE type,
     case CKA_UNWRAP:
 	return LG_CLONE_ATTR(attribute,type,lg_StaticFalseAttr);
     case CKA_VALUE:
-	return lg_CopyPrivAttrSigned(attribute, type,
-					key->u.ec.privateValue.data,
-					key->u.ec.privateValue.len, sdbpw);
+	return lg_CopyPrivAttribute(attribute, type,
+				    key->u.ec.privateValue.data,
+				    key->u.ec.privateValue.len, sdbpw);
     case CKA_EC_PARAMS:
 	return lg_CopyAttributeSigned(attribute, type,
 					key->u.ec.ecParams.DEREncoding.data,
@@ -1776,6 +1776,7 @@ lg_SetAttributeValue(SDB *sdb, CK_OBJECT_HANDLE handle,
 	if (rv != SECSuccess) {
 	    crv = CKR_DEVICE_ERROR;
 	}
+	PORT_Free(label);
     }
 
     lg_DestroyObjectCache(obj);

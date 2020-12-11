@@ -239,6 +239,7 @@ STAN_GetCertIdentifierFromDER(NSSArena *arenaOpt, NSSDER *der)
     }
     secrv = CERT_KeyFromDERCert(arena, &secDER, &secKey);
     if (secrv != SECSuccess) {
+	PORT_FreeArena(arena, PR_FALSE);
 	return NULL;
     }
     rvKey = nssItem_Create(arenaOpt, NULL, secKey.len, (void *)secKey.data);

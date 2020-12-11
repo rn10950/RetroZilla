@@ -400,6 +400,7 @@ PK11_NewSlotInfo(SECMODModule *mod)
     slot->minPassword = 0;
     slot->maxPassword = 0;
     slot->hasRootCerts = PR_FALSE;
+    slot->hasRootTrust = PR_FALSE;
     slot->nssToken = NULL;
     return slot;
 }

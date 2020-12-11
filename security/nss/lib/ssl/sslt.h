@@ -105,7 +105,8 @@ typedef enum {
     ssl_calg_camellia = 8,
     ssl_calg_seed     = 9,
     ssl_calg_aes_gcm      = 10,
-    ssl_calg_camellia_gcm = 11
+    ssl_calg_chacha20 = 11,
+    ssl_calg_camellia_gcm = 12
 } SSLCipherAlgorithm;
 
 typedef enum { 
@@ -115,7 +116,8 @@ typedef enum {
     ssl_hmac_md5      = 3, 	/* TLS HMAC version of mac_md5 */
     ssl_hmac_sha      = 4, 	/* TLS HMAC version of mac_sha */
     ssl_hmac_sha256   = 5,
-    ssl_mac_aead      = 6
+    ssl_mac_aead      = 6,
+    ssl_hmac_sha384   = 7
 } SSLMACAlgorithm;
 
 typedef enum {
@@ -146,6 +148,12 @@ typedef struct SSLChannelInfoStr {
     /* compression method info */
     const char *         compressionMethodName;
     SSLCompressionMethod compressionMethod;
+
+    /* The following fields are added in NSS 3.21.
+     * This field only has meaning in TLS < 1.3 and will be set to
+     *  PR_FALSE in TLS 1.3.
+     */
+    PRBool               extendedMasterSecretUsed;
 } SSLChannelInfo;
 
 /* Preliminary channel info */
@@ -230,13 +238,14 @@ typedef enum {
     ssl_use_srtp_xtn                 = 14,
     ssl_app_layer_protocol_xtn       = 16,
     ssl_padding_xtn                  = 21,
+    ssl_extended_master_secret_xtn   = 23,
     ssl_session_ticket_xtn           = 35,
     ssl_next_proto_nego_xtn          = 13172,
     ssl_renegotiation_info_xtn       = 0xff01,
     ssl_tls13_draft_version_xtn      = 0xff02   /* experimental number */
 } SSLExtensionType;
 
-#define SSL_MAX_EXTENSIONS             11 /* doesn't include ssl_padding_xtn. */
+#define SSL_MAX_EXTENSIONS             12 /* doesn't include ssl_padding_xtn. */
 
 typedef enum {
     ssl_dhe_group_none = 0,

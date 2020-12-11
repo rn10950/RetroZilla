@@ -618,6 +618,12 @@ seckey_ExtractPublicKey(const CERTSubjectPublicKeyInfo *spki)
 	if (rv == SECSuccess) return pubk;
 	break;
       case SEC_OID_ANSIX962_EC_PUBLIC_KEY:
+        /* A basic sanity check on inputs. */
+        if (spki->algorithm.parameters.len == 0 || newOs.len == 0) {
+            PORT_SetError(SEC_ERROR_INPUT_LEN);
+            break;
+        }
+
 	pubk->keyType = ecKey;
 	pubk->u.ec.size = 0;
 
@@ -1903,4 +1909,23 @@ SECKEY_CacheStaticFlags(SECKEYPrivateKey* key)
         rv = SECSuccess;
     }
     return rv;
+}
+
+SECOidTag
+SECKEY_GetECCOid(const SECKEYECParams * params)
+{
+    SECItem oid = { siBuffer, NULL, 0};
+    SECOidData *oidData = NULL;
+
+    /* 
+     * params->data needs to contain the ASN encoding of an object ID (OID)
+     * representing a named curve. Here, we strip away everything
+     * before the actual OID and use the OID to look up a named curve.
+     */
+    if (params->data[0] != SEC_ASN1_OBJECT_ID) return 0;
+    oid.len = params->len - 2;
+    oid.data = params->data + 2;
+    if ((oidData = SECOID_FindOID(&oid)) == NULL) return 0;
+
+    return oidData->offset;
 }

@@ -158,10 +158,11 @@ long new_lseek(int fd, long offset, int origin)
  	  { 
  	 	char buffer[1024];
 	   	long len = seek_pos-end_pos;
-	   	memset(&buffer, 0, 1024);
+	   	memset(buffer, 0, 1024);
 	   	while(len > 0)
 	      {
-	        write(fd, (char*)&buffer, (size_t)(1024 > len ? len : 1024));
+	        if(write(fd, buffer, (size_t)(1024 > len ? len : 1024)) < 0)
+				return(-1);
 		    len -= 1024;
 		  }
 		return(lseek(fd, seek_pos, SEEK_SET));
@@ -981,7 +982,7 @@ overflow_page(HTAB *hashp)
 	if (offset > SPLITMASK) {
 		if (++splitnum >= NCACHED) {
 #ifndef macintosh
-			(void)write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+			(void)fwrite(OVMSG, 1, sizeof(OVMSG) - 1, stderr);
 #endif
 			return (0);
 		}
@@ -996,7 +997,7 @@ overflow_page(HTAB *hashp)
 		free_page++;
 		if (free_page >= NCACHED) {
 #ifndef macintosh
-			(void)write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+			(void)fwrite(OVMSG, 1, sizeof(OVMSG) - 1, stderr);
 #endif
 			return (0);
 		}
@@ -1022,8 +1023,7 @@ overflow_page(HTAB *hashp)
 		if (offset > SPLITMASK) {
 			if (++splitnum >= NCACHED) {
 #ifndef macintosh
-				(void)write(STDERR_FILENO, OVMSG,
-				    sizeof(OVMSG) - 1);
+				(void)fwrite(OVMSG, 1, sizeof(OVMSG) - 1, stderr);
 #endif
 				return (0);
 			}

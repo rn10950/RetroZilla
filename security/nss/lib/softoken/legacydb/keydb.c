@@ -1378,7 +1378,7 @@ nsslowkey_PutPWCheckEntry(NSSLOWKEYDBHandle *handle,NSSLOWKEYPasswordEntry *entr
     NSSLOWKEYDBKey *dbkey = NULL;
     SECItem   *item = NULL; 
     SECItem   salt; 
-    SECOidTag algid;
+    SECOidTag algid = SEC_OID_UNKNOWN;
     SECStatus rv = SECFailure;
     PLArenaPool *arena;
     int ret;

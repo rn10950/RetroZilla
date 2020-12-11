@@ -76,7 +76,7 @@ dostime(char *time, const char *s);
 
 #ifdef NSS_X86_OR_X64
 /* The following macros throw up warnings. */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(NSS_NO_GCC48)
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 #define x86ShortToUint32(ii)   ((const PRUint32)*((const PRUint16 *)(ii)))

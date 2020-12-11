@@ -67,6 +67,8 @@ SSL_GetChannelInfo(PRFileDesc *fd, SSLChannelInfo *info, PRUintn len)
 	    inf.creationTime   = sid->creationTime;
 	    inf.lastAccessTime = sid->lastAccessTime;
 	    inf.expirationTime = sid->expirationTime;
+            inf.extendedMasterSecretUsed = sid->u.ssl3.keys.extendedMasterSecretUsed;
+
 	    if (ss->version < SSL_LIBRARY_VERSION_3_0) { /* SSL2 */
 	        inf.sessionIDLength = SSL2_SESSIONID_BYTES;
 		memcpy(inf.sessionID, sid->u.ssl2.sessionID, 
@@ -147,6 +149,7 @@ SSL_GetPreliminaryChannelInfo(PRFileDesc *fd,
 #define C_SJ 	"SKIPJACK", calg_sj
 #define C_AESGCM "AES-GCM", calg_aes_gcm
 #define C_CAMELLIAGCM "CAMELLIA-GCM", calg_camellia_gcm
+#define C_CHACHA20 "CHACHA20POLY1305", calg_chacha20
 
 #define B_256	256, 256, 256
 #define B_128	128, 128, 128
@@ -158,6 +161,7 @@ SSL_GetPreliminaryChannelInfo(PRFileDesc *fd,
 #define B_0  	  0,   0,   0
 
 #define M_AEAD_128 "AEAD", ssl_mac_aead, 128
+#define M_SHA384 "SHA384", ssl_hmac_sha384, 384
 #define M_SHA256 "SHA256", ssl_hmac_sha256, 256
 #define M_SHA	"SHA1", ssl_mac_sha, 160
 #define M_MD5	"MD5",  ssl_mac_md5, 128
@@ -166,6 +170,7 @@ SSL_GetPreliminaryChannelInfo(PRFileDesc *fd,
 static const SSLCipherSuiteInfo suiteInfo[] = {
 /* <------ Cipher suite --------------------> <auth> <KEA>  <bulk cipher> <MAC> <FIPS> */
 {0,CS(TLS_RSA_WITH_AES_128_GCM_SHA256),       S_RSA, K_RSA, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
+{0,CS(TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256), S_RSA, K_DHE, C_CHACHA20, B_256, M_AEAD_128, 0, 0, 0 },
 
 {0,CS(TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA), S_RSA, K_DHE, C_CAMELLIA, B_256, M_SHA, 0, 0, 0, },
 {0,CS(TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA), S_DSA, K_DHE, C_CAMELLIA, B_256, M_SHA, 0, 0, 0, },
@@ -214,6 +219,7 @@ static const SSLCipherSuiteInfo suiteInfo[] = {
 #ifndef NSS_DISABLE_ECC
 /* ECC cipher suites */
 {0,CS(TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256), S_RSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
+{0,CS(TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384), S_RSA, K_ECDHE, C_AESGCM, B_256, M_AEAD_128, 1, 0, 0, },
 {0,CS(TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256), S_RSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
 {0,CS(TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256), S_ECDSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
 {0,CS(TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256), S_ECDSA, K_ECDHE, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
@@ -230,6 +236,7 @@ static const SSLCipherSuiteInfo suiteInfo[] = {
 {0,CS(TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA),  S_ECDSA, K_ECDHE, C_AES, B_128, M_SHA, 1, 0, 0, },
 {0,CS(TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256), S_ECDSA, K_ECDHE, C_AES, B_128, M_SHA256, 1, 0, 0, },
 {0,CS(TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA),  S_ECDSA, K_ECDHE, C_AES, B_256, M_SHA, 1, 0, 0, },
+{0,CS(TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256), S_ECDSA, K_ECDHE, C_CHACHA20, B_256, M_AEAD_128, 0, 0, 0 },
 
 {0,CS(TLS_ECDH_RSA_WITH_NULL_SHA),            S_RSA, K_ECDH, C_NULL, B_0, M_SHA, 0, 0, 0, },
 {0,CS(TLS_ECDH_RSA_WITH_RC4_128_SHA),         S_RSA, K_ECDH, C_RC4, B_128, M_SHA, 0, 0, 0, },
@@ -243,6 +250,7 @@ static const SSLCipherSuiteInfo suiteInfo[] = {
 {0,CS(TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA),    S_RSA, K_ECDHE, C_AES, B_128, M_SHA, 1, 0, 0, },
 {0,CS(TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256), S_RSA, K_ECDHE, C_AES, B_128, M_SHA256, 1, 0, 0, },
 {0,CS(TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA),    S_RSA, K_ECDHE, C_AES, B_256, M_SHA, 1, 0, 0, },
+{0,CS(TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256), S_RSA, K_ECDHE, C_CHACHA20, B_256, M_AEAD_128, 0, 0, 0 },
 #endif /* NSS_DISABLE_ECC */
 
 /* SSL 2 table */

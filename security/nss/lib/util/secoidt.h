@@ -443,6 +443,12 @@ typedef enum {
     /* The 'name' attribute type in X.520 */
     SEC_OID_AVA_NAME                        = 317,
 
+    SEC_OID_AES_128_GCM = 318,
+    SEC_OID_AES_192_GCM = 319,
+    SEC_OID_AES_256_GCM = 320,
+
+    SEC_OID_CHACHA20_POLY1305          = 321,
+
     SEC_OID_TOTAL
 } SECOidTag;
 
@@ -476,6 +482,7 @@ struct SECOidDataStr {
  */
 #define NSS_USE_ALG_IN_CERT_SIGNATURE  0x00000001  /* CRLs and OCSP, too */
 #define NSS_USE_ALG_IN_CMS_SIGNATURE   0x00000002  /* used in S/MIME */
+#define NSS_USE_ALG_IN_SSL_KX          0x00000004  /* used in SSL key exchange */
 #define NSS_USE_ALG_RESERVED           0xfffffffc  /* may be used in future */
 
 /* Code MUST NOT SET or CLEAR reserved bits, and must NOT depend on them
