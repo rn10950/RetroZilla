@@ -299,3 +299,4 @@ MSG_DEF(JSMSG_ARRAY_COMP_LEFTSIDE,    216, 0, JSEXN_SYNTAXERR, "invalid array co
 MSG_DEF(JSMSG_YIELD_FROM_FILTER,      217, 0, JSEXN_INTERNALERR, "yield not yet supported from filtering predicate")
 MSG_DEF(JSMSG_COMPILE_EXECED_SCRIPT,  218, 0, JSEXN_TYPEERR, "cannot compile over a script that is currently executing")
 MSG_DEF(JSMSG_NON_LIST_XML_METHOD,    219, 2, JSEXN_TYPEERR, "cannot call {0} method on an XML list with {1} elements")
+MSG_DEF(JSMSG_EMPTY_ARRAY_REDUCE,     220, 0, JSEXN_TYPEERR, "reduce of empty array with no initial value")
