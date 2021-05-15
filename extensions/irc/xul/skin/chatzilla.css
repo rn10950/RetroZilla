@@ -85,11 +85,26 @@ window {
 }
 
 #view-tabs {
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 #views-tbar-spacer {
     -moz-box-flex: 10000;
+}
+
+#tabs-drop-indicator-bar {
+    position: relative;
+    margin-top: -3px;
+    -moz-margin-start: -5px;
+    height: 3px;
+}
+
+#tabs-drop-indicator {
+    position: relative;
+    margin-bottom: -8px;
+    width: 11px;
+    height: 11px;
+    background: url(images/drop-indicator-bottom.png) 50% 50% no-repeat;
 }
 
 .view-button {
@@ -290,6 +305,10 @@ progressmeter[mode="undetermined"] {
     min-height: 17px;
 }
 
+#status-text[notice="true"] {
+    font-weight: bold;
+}
+
 #security-button {
     min-width: 20px;
 }
@@ -315,3 +334,35 @@ progressmeter[mode="undetermined"] {
     display: none;
 }
 
+#offline-status[offlinestate="offline"] {
+    list-style-image: url("chrome://chatzilla/skin/images/offline.png");
+}
+
+#offline-status[offlinestate="online"] {
+    list-style-image: url("chrome://chatzilla/skin/images/online.png");
+}
+
+/* Focus styling for a11y reasons */
+#user-list-box[focusobvious="true"], #browser-box[focusobvious="true"],
+#multiline-hug-box[focusobvious="true"], #singleline-hug-box[focusobvious="true"] {
+    border-color: highlight !important;
+}
+
+/* Not setting a right border so the scrollbar remains on the window edge. */
+#browser-box:last-child, #user-list-box:last-child {
+    border-left: 2px solid transparent;
+    border-top: 2px solid transparent;
+    border-bottom: 2px solid transparent;
+}
+
+#user-list-box:first-child, #browser-box:first-child {
+    border-right: 2px solid transparent;
+    border-top: 2px solid transparent;
+    border-bottom: 2px solid transparent;
+}
+
+#singleline-hug-box, #multiline-hug-box {
+    border-right: 2px solid transparent;
+    border-left: 2px solid transparent;
+    border-top: 2px solid transparent;
+}

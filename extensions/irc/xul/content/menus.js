@@ -70,21 +70,16 @@ function initMenus()
                "Math.abs((cx.fontSizeDefault - cx.fontSize) / 2) != 1";
     };
 
-    function onMenuCommand (event, window)
+    function onMenuCommand(event, window)
     {
-        var params;
         var commandName = event.originalTarget.getAttribute("commandname");
+        var params = new Object();
         if ("cx" in client.menuManager && client.menuManager.cx)
-        {
-            client.menuManager.cx.sourceWindow = window;
             params = client.menuManager.cx;
-        }
-        else
-        {
-            params = { sourceWindow: window };
-        }
+        params.sourceWindow = window;
+        params.source = "menu";
 
-        dispatch (commandName, params);
+        dispatch(commandName, params, true);
 
         delete client.menuManager.cx;
     };
@@ -118,7 +113,7 @@ function initMenus()
     var Mozilla    = "(client.host == 'Mozilla')";
     var NotMozilla = "(client.host != 'Mozilla')";
     var Toolkit    = NotMozilla;
-    var XULRunner  = "(client.host == 'XULrunner')";
+    var XULRunner  = "(client.host == 'XULRunner')";
 
     // Useful combinations
     var ToolkitOnLinux    = "(" + Toolkit + " and " + Linux + ")";
@@ -140,6 +135,7 @@ function initMenus()
 
     client.menuSpecs["mainmenu:chatzilla"] = {
         label: MSG_MNU_CHATZILLA,
+        accesskey: getAccessKeyForMenu('MSG_MNU_CHATZILLA'),
         getContext: getDefaultContext,
         items:
         [
@@ -154,6 +150,7 @@ function initMenus()
 
     client.menuSpecs["mainmenu:irc"] = {
         label: MSG_MNU_IRC,
+        accesskey: getAccessKeyForMenu('MSG_MNU_IRC'),
         getContext: getDefaultContext,
         items:
         [
@@ -164,28 +161,42 @@ function initMenus()
          //["manage-networks"],
          //["manage-plugins"],
          ["-"],
-         // Planned future menu items, not implemented yet.
-         //["-"]
-         //[">popup:current_networks"]
+         [">popup:views"],
          [">popup:nickname"],
+         ["-"],
+         ["clear-view"],
+         ["hide-view", {enabledif: "client.viewsArray.length > 1"}],
+         ["toggle-oas",
+                 {type: "checkbox",
+                  checkedif: "isStartupURL(cx.sourceObject.getURL())"}],
          ["-"],
          ["leave",       {visibleif: ChannelActive}],
          ["rejoin",      {visibleif: ChannelInactive}],
+         ["delete-view", {visibleif: "!" + ChannelActive}],
          ["disconnect",  {visibleif: NetConnected}],
          ["reconnect",   {visibleif: NetDisconnected}],
-         ["-",           {visibleif: "cx.network"}],
-         ["clear-view"],
-         ["hide-view",   {enabledif: "client.viewsArray.length > 1"}],
-         ["delete-view", {enabledif: "client.viewsArray.length > 1"}],
          ["-"],
-         ["toggle-oas",
-                 {type: "checkbox",
-                  checkedif: "isStartupURL(cx.sourceObject.getURL())"}]
+         ["toggle-text-dir"]
+        ]
+    };
+
+    client.menuSpecs["popup:views"] = {
+        label: MSG_MNU_VIEWS,
+        accesskey: getAccessKeyForMenu('MSG_MNU_VIEWS'),
+        getContext: getViewsContext,
+        items:
+        [
+         ["goto-url", {type: "radio",
+                       checkedif: "cx.url == cx.sourceObject.getURL()",
+                       repeatfor: "cx.views",
+                       repeatgroup: "item.group",
+                       repeatmap: "cx.url = item.url; cx.label = item.label"}]
         ]
     };
 
     client.menuSpecs["mainmenu:edit"] = {
         label: MSG_MNU_EDIT,
+        accesskey: getAccessKeyForMenu('MSG_MNU_EDIT'),
         getContext: getDefaultContext,
         items:
         [
@@ -211,6 +222,7 @@ function initMenus()
 
     client.menuSpecs["popup:motifs"] = {
         label: MSG_MNU_MOTIFS,
+        accesskey: getAccessKeyForMenu('MSG_MNU_MOTIFS'),
         items:
         [
          ["motif-default",
@@ -227,6 +239,7 @@ function initMenus()
 
     client.menuSpecs["mainmenu:view"] = {
         label: MSG_MNU_VIEW,
+        accesskey: getAccessKeyForMenu('MSG_MNU_VIEW'),
         getContext: getDefaultContext,
         items:
         [
@@ -262,6 +275,7 @@ function initMenus()
      * about it. */
     client.menuSpecs["mainmenu:help"] = {
         label: MSG_MNU_HELP,
+        accesskey: getAccessKeyForMenu('MSG_MNU_HELP'),
         domID: "menu_Help",
         items:
         [
@@ -269,12 +283,14 @@ function initMenus()
          ["homepage"],
          ["faq"],
          ["-"],
-         ["about"]
+         ["ceip"],
+         ["about", {id: "aboutName"}]
         ]
     };
 
     client.menuSpecs["popup:fonts"] = {
         label: MSG_MNU_FONTS,
+        accesskey: getAccessKeyForMenu('MSG_MNU_FONTS'),
         getContext: getFontContext,
         items:
         [
@@ -306,22 +322,25 @@ function initMenus()
     };
 
     // Me is op.
-    var isop    = "(cx.channel.iAmOp()) && ";
+    var isop     = "(cx.channel.iAmOp()) && ";
     // Me is op or half-op.
-    var isopish = "(cx.channel.iAmOp() || cx.channel.iAmHalfOp()) && ";
+    var isopish  = "(cx.channel.iAmOp() || cx.channel.iAmHalfOp()) && ";
     // Server has half-ops.
-    var shop    = "(cx.server.supports.prefix.indexOf('h') > 0) && ";
-
+    var shop     = "(cx.server.supports.prefix.indexOf('h') > 0) && ";
+    // User is Me or Me is op.
+    var isoporme = "((cx.user == cx.server.me) || cx.channel.iAmOp()) && ";
+    
     client.menuSpecs["popup:opcommands"] = {
         label: MSG_MNU_OPCOMMANDS,
+        accesskey: getAccessKeyForMenu('MSG_MNU_OPCOMMANDS'),
         items:
         [
-         ["op",         {visibleif: isop           + "!cx.user.isOp"}],
-         ["deop",       {visibleif: isop           + "cx.user.isOp"}],
-         ["hop",        {visibleif: isopish + shop + "!cx.user.isHalfOp"}],
-         ["dehop",      {visibleif: isopish + shop + "cx.user.isHalfOp"}],
-         ["voice",      {visibleif: isopish        + "!cx.user.isVoice"}],
-         ["devoice",    {visibleif: isopish        + "cx.user.isVoice"}],
+         ["op",         {visibleif: isop     + "!cx.user.isOp"}],
+         ["deop",       {visibleif: isop     + "cx.user.isOp"}],
+         ["hop",        {visibleif: isop     + "!cx.user.isHalfOp"}],
+         ["dehop",      {visibleif: isoporme + "cx.user.isHalfOp"}],
+         ["voice",      {visibleif: isopish  + "!cx.user.isVoice"}],
+         ["devoice",    {visibleif: isopish  + "cx.user.isVoice"}],
          ["-"],
          ["ban",        {enabledif: "(" + isop + "1) || (" + isopish + "!cx.user.isOp)"}],
          ["unban",      {enabledif: "(" + isop + "1) || (" + isopish + "!cx.user.isOp)"}],
@@ -333,9 +352,10 @@ function initMenus()
 
     client.menuSpecs["popup:usercommands"] = {
         label: MSG_MNU_USERCOMMANDS,
+        accesskey: getAccessKeyForMenu('MSG_MNU_USERCOMMANDS'),
         items:
         [
-         ["query",    {visibleif: "cx.user"}],
+         ["query",    {visibleif: "cx.channel && cx.user"}],
          ["whois",    {visibleif: "cx.user"}],
          ["whowas",   {visibleif: "cx.nickname && !cx.user"}],
          ["ping",     {visibleif: "cx.user"}],
@@ -357,10 +377,14 @@ function initMenus()
          ["toggle-umode", {type: "checkbox",
                            checkedif: "client.prefs['showModeSymbols']"}],
          ["-", {visibleif: "cx.nickname"}],
-         ["label-user", {visibleif: "cx.nickname", header: true}],
+         ["label-user", {visibleif: "cx.nickname && (cx.userCount == 1)",
+                         header: true}],
+         ["label-user-multi", {visibleif: "cx.nickname && (cx.userCount != 1)",
+                               header: true}],
          [">popup:opcommands", {visibleif: "cx.nickname",
                                 enabledif: isopish + "true"}],
-         [">popup:usercommands", {visibleif: "cx.nickname"}],
+         [">popup:usercommands", {visibleif: "cx.nickname",
+                                  enabledif: "cx.userCount == 1"}],
         ]
     };
 
@@ -378,11 +402,11 @@ function initMenus()
          ["cmd-copy-link-url", {visibleif: urlenabled}],
          ["cmd-copy", {visibleif: "!" + urlenabled, enabledif: textselected }],
          ["cmd-selectall", {visibleif: "!" + urlenabled }],
-         ["-", {visibleif: "cx.channel && cx.nickname"}],
-         ["label-user", {visibleif: "cx.channel && cx.nickname", header: true}],
+         ["-", {visibleif: "cx.nickname"}],
+         ["label-user", {visibleif: "cx.nickname", header: true}],
          [">popup:opcommands", {visibleif: "cx.channel && cx.nickname",
                                 enabledif: isopish + "cx.user"}],
-         [">popup:usercommands", {visibleif: "cx.channel && cx.nickname"}],
+         [">popup:usercommands", {visibleif: "cx.nickname"}],
          ["-"],
          ["clear-view"],
          ["hide-view", {enabledif: "client.viewsArray.length > 1"}],
@@ -420,9 +444,29 @@ function initMenus()
         ]
     };
 
-    var net          = "cx.network";
+    client.menuSpecs["context:edit"] = {
+        getContext: getDefaultContext,
+        items:
+        [
+         ["cmd-undo",      {enabledif: "getCommandEnabled('cmd_undo')"}],
+         ["-"],
+         ["cmd-cut",       {enabledif: "getCommandEnabled('cmd_cut')"}],
+         ["cmd-copy",      {enabledif: "getCommandEnabled('cmd_copy')"}],
+         ["cmd-paste",     {enabledif: "getCommandEnabled('cmd_paste')"}],
+         ["cmd-delete",    {enabledif: "getCommandEnabled('cmd_delete')"}],
+         ["-"],
+         ["cmd-selectall", {enabledif: "getCommandEnabled('cmd_selectAll')"}]
+        ]
+    }
+
+    // Gross hacks to figure out if we're away:
     var netAway      = "cx.network.prefs['away']";
-    var awayChecked = "cx.network and (cx.network.prefs.away == item.message)";
+    var cliAway      = "client.prefs['away']";
+    var awayCheckNet = "(cx.network and (" + netAway + " == item.message))";
+    var awayCheckCli = "(!cx.network and (" + cliAway + " == item.message))";
+    var awayChecked = awayCheckNet + " or " + awayCheckCli;
+    var areBack = "(cx.network and !" + netAway + ") or " +
+                  "(!cx.network and !" + cliAway + ")";
 
     client.menuSpecs["mainmenu:nickname"] = {
         label: client.prefs["nickname"],
@@ -432,7 +476,7 @@ function initMenus()
         [
          ["nick"],
          ["-"],
-         ["back", {type: "checkbox", checkedif: net + " and !" + netAway}],
+         ["back", {type: "checkbox", checkedif: areBack}],
          ["away", {type: "checkbox",
                      checkedif: awayChecked,
                      repeatfor: "client.awayMsgs",
@@ -444,6 +488,7 @@ function initMenus()
 
     client.menuSpecs["popup:nickname"] = {
         label: MSG_STATUS,
+        accesskey: getAccessKeyForMenu('MSG_STATUS'),
         getContext: getDefaultContext,
         items: client.menuSpecs["mainmenu:nickname"].items
     };
@@ -467,7 +512,7 @@ function createMenus()
         comBar.collapsed = false;
     }
 
-    if (client.host == "XULrunner")
+    if (client.host == "XULRunner")
     {
         // This is a hack to work around Gecko bug 98997, which means that
         // :empty causes menus to be hidden until we force a reflow.
@@ -512,3 +557,21 @@ function getCommandContext (id, event)
 
     return cx;
 }
+
+/**
+ * Gets an accesskey for the menu with label string ID labelString.
+ * At first, we attempt to extract it from the label string, otherwise
+ * we fall back to using a separate string.
+ *
+ * @param labelString   the id for the locale string corresponding to the label
+ * @return              the accesskey for the menu.
+ */
+function getAccessKeyForMenu(labelString)
+{
+    var rv = getAccessKey(window[labelString]);
+    if (!rv)
+        rv = window[labelString + "_ACCESSKEY"] || "";
+    return rv;
+}
+
+

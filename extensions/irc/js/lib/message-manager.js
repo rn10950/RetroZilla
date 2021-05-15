@@ -51,6 +51,12 @@ function MessageManager(entities)
     this.entities = entities || {};
 }
 
+// ISO-2022-JP (often used for Japanese on IRC) doesn't contain any support
+// for hankaku kana (half-width katakana), so we support the option to convert
+// it to zenkaku kana (full-width katakana). This does not affect any other
+// encoding at this time.
+MessageManager.prototype.enableHankakuToZenkaku = false;
+
 MessageManager.prototype.loadBrands =
 function mm_loadbrands()
 {
@@ -164,6 +170,84 @@ function mm_importbundle(bundle, targetWindow, index)
         this.defaultBundle = bundle;
 }
 
+MessageManager.prototype.convertHankakuToZenkaku =
+function mm_converthankakutozenkaku(msg)
+{
+    const basicMapping = [
+        /* 0xFF60 */ 0xFF60,0x3002,0x300C,0x300D,0x3001,0x30FB,0x30F2,0x30A1,
+        /* 0xFF68 */ 0x30A3,0x30A5,0x30A7,0x30A9,0x30E3,0x30E5,0x30E7,0x30C3,
+        /* 0xFF70 */ 0x30FC,0x30A2,0x30A4,0x30A6,0x30A8,0x30AA,0x30AB,0x30AD,
+        /* 0xFF78 */ 0x30AF,0x30B1,0x30B3,0x30B5,0x30B7,0x30B9,0x30BB,0x30BD,
+        /* 0xFF80 */ 0x30BF,0x30C1,0x30C4,0x30C6,0x30C8,0x30CA,0x30CB,0x30CC,
+        /* 0xFF88 */ 0x30CD,0x30CE,0x30CF,0x30D2,0x30D5,0x30D8,0x30DB,0x30DE,
+        /* 0xFF90 */ 0x30DF,0x30E0,0x30E1,0x30E2,0x30E4,0x30E6,0x30E8,0x30E9,
+        /* 0xFF98 */ 0x30EA,0x30EB,0x30EC,0x30ED,0x30EF,0x30F3,0x309B,0x309C
+    ];
+
+    const HANKAKU_BASE1 = 0xFF60;
+    const HANKAKU_BASE2 = 0xFF80;
+    const HANKAKU_MASK  = 0xFFE0;
+
+    const MOD_NIGORI      = 0xFF9E;
+    const NIGORI_MIN1     = 0xFF76;
+    const NIGORI_MAX1     = 0xFF84;
+    const NIGORI_MIN2     = 0xFF8A;
+    const NIGORI_MAX2     = 0xFF8E;
+    const NIGORI_MODIFIER = 1;
+
+    const MOD_MARU      = 0xFF9F;
+    const MARU_MIN      = 0xFF8A;
+    const MARU_MAX      = 0xFF8E;
+    const MARU_MODIFIER = 2;
+
+    var i, src, srcMod, dest;
+    var rv = "";
+
+    for (i = 0; i < msg.length; i++)
+    {
+        // Get both this character and the next one, which could be a modifier.
+        src = msg.charCodeAt(i);
+        if (i < msg.length - 1)
+            srcMod = msg.charCodeAt(i + 1);
+
+        // Is the source characher hankaku?
+        if ((HANKAKU_BASE1 == (src & HANKAKU_MASK)) ||
+            (HANKAKU_BASE2 == (src & HANKAKU_MASK)))
+        {
+            // Do the basic character mapping first.
+            dest = basicMapping[src - HANKAKU_BASE1];
+
+            // If the source character is in the nigori or maru ranges and
+            // the following character is the associated modifier, we apply
+            // the modification and skip over the modifier.
+            if (i < msg.length - 1)
+            {
+                if ((MOD_NIGORI == srcMod) &&
+                    (((src >= NIGORI_MIN1) && (src <= NIGORI_MAX1)) ||
+                     ((src >= NIGORI_MIN2) && (src <= NIGORI_MAX2))))
+                {
+                    dest += NIGORI_MODIFIER;
+                    i++;
+                }
+                else if ((MOD_MARU == srcMod) &&
+                         (src >= MARU_MIN) && (src <= MARU_MAX))
+                {
+                    dest += MARU_MODIFIER;
+                    i++;
+                }
+            }
+
+            rv += String.fromCharCode(dest);
+        }
+        else
+        {
+            rv += msg[i];
+        }
+    }
+
+    return rv;
+}
+
 MessageManager.prototype.checkCharset =
 function mm_checkset(charset)
 {
@@ -204,6 +288,9 @@ function mm_fromunicode(msg, charset)
 {
     if (!charset)
         return msg;
+
+    if (this.enableHankakuToZenkaku && (charset.toLowerCase() == "iso-2022-jp"))
+        msg = this.convertHankakuToZenkaku(msg);
 
     try
     {

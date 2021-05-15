@@ -41,6 +41,10 @@
 	width: 12em;
 }
 
+.platform-Mac #rightPanel {
+	width: 18em;
+}
+
 #loadContainer {
 	margin: 0;
 }

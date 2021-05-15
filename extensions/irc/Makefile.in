@@ -15,7 +15,7 @@
 # The Original Code is Mozilla IRC Extensions, including Basic Socket Library, and JSIRC Library.
 #
 # The Initial Developer of the Original Code is
-# New Dimensions Consulting, Inc. Portions created by New Dimensions Consulting, Inc. Copyright (C) 1999 New Dimenstions Consulting, Inc. All Rights Reserved.
+# New Dimensions Consulting, Inc.
 # Portions created by the Initial Developer are Copyright (C) 2001
 # the Initial Developer. All Rights Reserved.
 #
@@ -47,11 +47,37 @@ MODULE       = chatzilla
 PACKAGE_FILE = chatzilla.pkg
 
 EXTRA_COMPONENTS = js/lib/chatzilla-service.js
+DIST_FILES = xpi/resources/install.rdf
 
-ifdef MOZ_PHOENIX
-	DIRS += ff
-else
-	DIRS += sm
+CHATZILLA_VERSION=$(shell grep "const __cz_version" "$(srcdir)/xul/content/static.js" | sed "s|.*\"\([^\"]\{1,\}\)\".*|\1|")
+
+XPI_NAME               = chatzilla
+USE_EXTENSION_MANIFEST = 1
+NO_JAR_AUTO_REG        = 1
+INSTALL_EXTENSION_ID   = {59c81df5-4b7a-477b-912d-4e0fdf64e5f2}
+XPI_PKGNAME            = chatzilla-$(CHATZILLA_VERSION)
+
+# include config.mk before using the AB_CD var it sets in an if statement
+include $(topsrcdir)/config/config.mk
+
+# always build en-US locale, add build locale if supported
+BUILD_LOCALES = en-US
+ifneq (,$(filter $(AB_CD),$(shell cat $(srcdir)/locales/all-locales)))
+BUILD_LOCALES += $(AB_CD)
 endif
 
+DIRS += ff sm
+
+DEFINES += -DCHATZILLA_VERSION=$(CHATZILLA_VERSION)
+
 include $(topsrcdir)/config/rules.mk
+
+libs realchrome:: locales/Makefile
+	@$(EXIT_ON_ERROR)                    \
+	for locale in $(BUILD_LOCALES); do   \
+	  $(MAKE) -C locales AB_CD=$$locale; \
+	done
+
+export::
+	$(NSINSTALL) -D $(FINAL_TARGET)/chrome/icons/default
+	$(INSTALL) $(srcdir)/xpi/resources/chatzilla-window* $(FINAL_TARGET)/chrome/icons/default

@@ -44,7 +44,6 @@
 
   <overlaytarget id="scripts-overlay-target">
 
-    <script src="chrome://global/content/strres.js"/>
     <script src="chrome://global/content/nsUserSettings.js"/>
     <script src="chrome://global/content/nsTransferable.js"/>
     <script src="chrome://global/content/nsClipboard.js"/>
@@ -72,16 +71,19 @@
     <script src="chrome://chatzilla/content/lib/js/dcc.js"/>
     <script src="chrome://chatzilla/content/lib/js/ident.js"/>
     <script src="chrome://chatzilla/content/lib/js/text-serializer.js"/>
+    <script src="chrome://chatzilla/content/lib/js/text-logger.js"/>
     <script src="chrome://chatzilla/content/lib/xul/munger.js"/>
+    <script src="chrome://chatzilla/content/lib/xul/tree-utils.js"/>
 
     <script src="chrome://chatzilla/content/static.js"/>
     <script src="chrome://chatzilla/content/commands.js"/>
     <script src="chrome://chatzilla/content/menus.js"/>
     <script src="chrome://chatzilla/content/prefs.js"/>
     <script src="chrome://chatzilla/content/messages.js"/>
+    <script src="chrome://chatzilla/content/mungers.js"/>
     <script src="chrome://chatzilla/content/handlers.js"/>
-    <script src="chrome://chatzilla/content/rdf.js"/>
     <script src="chrome://chatzilla/content/networks.js"/>
+    <script src="chrome://chatzilla/content/ceip/ceip.js"/>
 
   </overlaytarget>
 
