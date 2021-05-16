@@ -41,11 +41,11 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-const __cz_version   = "0.9.86";
+const __cz_version   = "0.9.86.1";
 const __cz_condition = "green";
 const __cz_suffix    = "";
 const __cz_guid      = "59c81df5-4b7a-477b-912d-4e0fdf64e5f2";
-const __cz_locale    = "0.9.86";
+const __cz_locale    = "0.9.86.1";
 
 var warn;
 var ASSERT;
@@ -1448,6 +1448,10 @@ function playEventSounds(type, event)
     if (type.match(/^IRC/))
         type = type.substr(3, type.length).toLowerCase();
 
+    // DCC Chat sessions should act just like user views.
+    if (type == "dccchat")
+        type = "user";
+
     var ev = type + "." + event;
 
     if (ev in client.soundList)
@@ -1914,6 +1918,8 @@ function gotoIRCURL(url, e)
                     break;
                 }
             }
+            if (!url.isserver)
+                break;
         }
     }
 
@@ -3037,7 +3043,7 @@ function getFrameForDOMWindow(window)
     for (var i = 0; i < client.deck.childNodes.length; i++)
     {
         frame = client.deck.childNodes[i];
-        if (getContentWindow(frame) == window)
+        if (frame.contentWindow == window)
             return frame;
     }
     return undefined;
@@ -4012,7 +4018,7 @@ function deleteTab(tb)
         client.viewsArray[i].tb.setAttribute("viewKey", i - 1);
     arrayRemoveAt(client.viewsArray, key);
     client.tabs.removeChild(tb);
-    updateTabAttributes();
+    setTimeout(updateTabAttributes, 0);
 
     return key;
 }
@@ -4671,7 +4677,7 @@ function __display(message, msgtype, sourceObj, destObj)
     msgRow.setAttribute("msg-dest", toAttr);
     msgRow.setAttribute("dest-type", toType);
     msgRow.setAttribute("view-type", viewType);
-    msgRow.setAttribute("statusText", statusString);
+    msgRow.setAttribute("status-text", statusString);
     msgRow.setAttribute("timestamp", Number(time));
     if (fromAttr)
     {

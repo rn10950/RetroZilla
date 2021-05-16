@@ -636,7 +636,7 @@ MenuManager.prototype.appendPopupMenu =
 function mmgr_addpmenu (parentNode, beforeNode, menuName, id, label, attribs)
 {
     var document = parentNode.ownerDocument;
-    var popup = document.createElement ("popup");
+    var popup = document.createElement ("menupopup");
     popup.setAttribute ("id", id);
     if (label)
         popup.setAttribute ("label", label.replace("&", ""));

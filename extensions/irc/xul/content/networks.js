@@ -71,7 +71,12 @@ function initNetworks()
     networks["freenode"] = {
         displayName:  "freenode",
         isupportsKey: "",
-        servers: [{hostname: "irc.freenode.net", port:6667}]};
+        servers: [{hostname: "chat.freenode.net", port:6667},
+                  {hostname: "chat.freenode.net", port:7000, isSecure: true},
+                  // XXX irc.freenode.net is only here until we can link servers
+                  // to networks without them being in the network's server list
+                  {hostname: "irc.freenode.net", port:6667},
+                  {hostname: "irc.freenode.net", port:7000, isSecure: true}]};
     networks["serenia"] = {
         displayName:  "serenia",
         isupportsKey: "",

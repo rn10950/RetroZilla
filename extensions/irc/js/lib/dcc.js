@@ -593,6 +593,14 @@ function dchat_geturl()
     return "x-irc-dcc-chat:" + this.id;
 }
 
+CIRCDCCChat.prototype.isActive =
+function dchat_isactive()
+{
+    return (this.state.state == DCC_STATE_REQUESTED) ||
+           (this.state.state == DCC_STATE_ACCEPTED) ||
+           (this.state.state == DCC_STATE_CONNECTED);
+}
+
 // Call to make this end request DCC Chat with targeted user.
 CIRCDCCChat.prototype.request =
 function dchat_request()
@@ -975,6 +983,14 @@ CIRCDCCFileTransfer.prototype.getURL =
 function dfile_geturl()
 {
     return "x-irc-dcc-file:" + this.id;
+}
+
+CIRCDCCFileTransfer.prototype.isActive =
+function dfile_isactive()
+{
+    return (this.state.state == DCC_STATE_REQUESTED) ||
+           (this.state.state == DCC_STATE_ACCEPTED) ||
+           (this.state.state == DCC_STATE_CONNECTED);
 }
 
 CIRCDCCFileTransfer.prototype.dispose =

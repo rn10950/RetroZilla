@@ -248,11 +248,13 @@ function onMessageViewContextMenu(e)
         }
         elem = elem.parentNode;
     }
-    document.popupNode = e.target;
+    document.popupNode = elem ? elem : e.target;
+    var xCoord = e.screenX/* - document.popupNode.boxObject.x*/;
+    var yCoord = e.screenY - document.popupNode.boxObject.y;
     if ("openPopupAtScreen" in menu)
         menu.openPopupAtScreen(e.screenX, e.screenY, true);
     else
-        menu.showPopup(null, e.screenX + 2, e.screenY + 2, "context", "", "");
+        menu.showPopup(document.documentElement, xCoord+2, yCoord+2, "context", "", "");
     e.stopPropagation();
     e.preventDefault();
 }
@@ -280,7 +282,7 @@ function onMouseOver (e)
         {
             status = target.getAttribute("href");
             if (!status)
-                status = target.getAttribute("statusText");
+                status = target.getAttribute("status-text");
         }
         ++i;
         target = target.parentNode;

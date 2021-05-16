@@ -248,6 +248,8 @@ function ceip_uploadlogs()
     try
     {
         var logPath = this.getLogFolder();
+        if (!logPath.exists())
+            return;
         var enumerator = logPath.directoryEntries;
         var re = new RegExp("^\\d+\\.xml", "i");
 

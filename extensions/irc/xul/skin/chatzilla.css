@@ -101,6 +101,7 @@ window {
 
 #tabs-drop-indicator {
     position: relative;
+    margin-right: -11px;
     margin-bottom: -8px;
     width: 11px;
     height: 11px;

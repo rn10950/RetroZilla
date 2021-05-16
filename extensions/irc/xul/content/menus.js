@@ -126,10 +126,12 @@ function initMenus()
     var ViewNetwork = "(cx.TYPE == 'IRCNetwork')";
     var ViewChannel = "(cx.TYPE == 'IRCChannel')";
     var ViewUser    = "(cx.TYPE == 'IRCUser')";
+    var ViewDCC     = "(cx.TYPE.substr(0, 6) == 'IRCDCC')";
 
     // IRC specific combinations
     var ChannelActive   = "(" + ViewChannel + " and cx.channel.active)";
     var ChannelInactive = "(" + ViewChannel + " and !cx.channel.active)";
+    var DCCActive       = "(" + ViewDCC + " and cx.sourceObject.isActive())";
     var NetConnected    = "(cx.network and cx.network.isConnected())";
     var NetDisconnected = "(cx.network and !cx.network.isConnected())";
 
@@ -173,7 +175,8 @@ function initMenus()
          ["-"],
          ["leave",       {visibleif: ChannelActive}],
          ["rejoin",      {visibleif: ChannelInactive}],
-         ["delete-view", {visibleif: "!" + ChannelActive}],
+         ["dcc-close",   {visibleif: DCCActive}],
+         ["delete-view", {visibleif: "!" + ChannelActive + " and !" + DCCActive}],
          ["disconnect",  {visibleif: NetConnected}],
          ["reconnect",   {visibleif: NetDisconnected}],
          ["-"],
@@ -414,7 +417,8 @@ function initMenus()
          ["-"],
          ["leave",       {visibleif: ChannelActive}],
          ["rejoin",      {visibleif: ChannelInactive}],
-         ["delete-view", {visibleif: "!" + ChannelActive}],
+         ["dcc-close",   {visibleif: DCCActive}],
+         ["delete-view", {visibleif: "!" + ChannelActive + " and !" + DCCActive}],
          ["disconnect",  {visibleif: NetConnected}],
          ["reconnect",   {visibleif: NetDisconnected}],
          ["-"],
@@ -434,7 +438,8 @@ function initMenus()
          ["-"],
          ["leave",       {visibleif: ChannelActive}],
          ["rejoin",      {visibleif: ChannelInactive}],
-         ["delete-view", {visibleif: "!" + ChannelActive}],
+         ["dcc-close",   {visibleif: DCCActive}],
+         ["delete-view", {visibleif: "!" + ChannelActive + " and !" + DCCActive}],
          ["disconnect",  {visibleif: NetConnected}],
          ["reconnect",   {visibleif: NetDisconnected}],
          ["-"],

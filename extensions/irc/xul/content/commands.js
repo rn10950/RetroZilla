@@ -57,7 +57,7 @@ function initCommands()
          ["away",              cmdAway,                            CMD_CONSOLE],
          ["back",              cmdAway,                            CMD_CONSOLE],
          ["ban",               cmdBanOrExcept,     CMD_NEED_CHAN | CMD_CONSOLE],
-         ["cancel",            cmdCancel,           CMD_NEED_NET | CMD_CONSOLE],
+         ["cancel",            cmdCancel,                          CMD_CONSOLE],
          ["charset",           cmdCharset,                         CMD_CONSOLE],
          ["channel-motif",     cmdMotif,           CMD_NEED_CHAN | CMD_CONSOLE],
          ["channel-pref",      cmdPref,            CMD_NEED_CHAN | CMD_CONSOLE],
@@ -978,28 +978,30 @@ function cmdBanOrExcept(e)
 
 function cmdCancel(e)
 {
-    var network = e.network;
-
-    if (network.isRunningList())
+    if (e.network && e.network.isRunningList())
     {
         // We're running a /list, terminate the output so we return to sanity.
         display(MSG_CANCELLING_LIST);
-        network.abortList();
+        return e.network.abortList();
     }
-    else if ((network.state == NET_CONNECTING) ||
-             (network.state == NET_WAITING))
+
+    if (e.network && ((e.network.state == NET_CONNECTING) ||
+                      (e.network.state == NET_WAITING)))
     {
         // We're trying to connect to a network, and want to cancel. Do so:
         if (e.deleteWhenDone)
             e.network.deleteWhenDone = true;
 
-        display(getMsg(MSG_CANCELLING, network.unicodeName));
-        network.cancel();
+        display(getMsg(MSG_CANCELLING, e.network.unicodeName));
+        return e.network.cancel();
     }
-    else
-    {
-        display(MSG_NOTHING_TO_CANCEL, MT_ERROR);
-    }
+
+    // If we're transferring a file, abort it.
+    var source = e.sourceObject;
+    if ((source.TYPE == "IRCDCCFileTransfer") && source.isActive())
+        return source.abort();
+
+    display(MSG_NOTHING_TO_CANCEL, MT_ERROR);
 }
 
 function cmdChanUserMode(e)
@@ -1508,16 +1510,12 @@ function cmdDeleteView(e)
         return;
     }
 
-    if (e.view.TYPE == "IRCDCCChat")
+    if (e.view.TYPE.substr(0, 6) == "IRCDCC")
     {
-        if ((e.view.state.state == DCC_STATE_REQUESTED) ||
-            (e.view.state.state == DCC_STATE_ACCEPTED) ||
-            (e.view.state.state == DCC_STATE_CONNECTED))
-        {
-            // abort() calls disconnect() if it is appropriate.
+        if (e.view.isActive())
             e.view.abort();
-            // Fall through: we don't delete on disconnect.
-        }
+        // abort() calls disconnect() if it is appropriate.
+        // Fall through: we don't delete on disconnect.
     }
 
     if (e.view.TYPE == "IRCNetwork" && (e.view.state == NET_CONNECTING ||
@@ -4025,10 +4023,15 @@ function cmdDCCClose(e)
     // If there is no nickname specified, use current view.
     if (!e.nickname)
     {
-        if (client.currentObject.TYPE == "IRCDCCChat")
-            return client.currentObject.abort();
+        // Both DCC chat and file transfers can be aborted like this.
+        if (e.sourceObject.TYPE.substr(0, 6) == "IRCDCC")
+        {
+            if (e.sourceObject.isActive())
+                return e.sourceObject.abort();
+            return true;
+        }
         // ...if there is one.
-        return display(MSG_DCC_ERR_NOCHAT);
+        return display(MSG_DCC_ERR_NOTDCC);
     }
 
     var o = client.dcc.findByID(e.nickname);
