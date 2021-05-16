@@ -322,6 +322,14 @@ function mkdir (localFile, perms)
     localFile.create(FTYPE_DIR, perms);
 }
 
+function getTempFile(path, name)
+{
+    var tempFile = new nsLocalFile(path);
+    tempFile.append(name);
+    tempFile.createUnique(0, 0600);
+    return tempFile;
+}
+
 function nsLocalFile(path)
 {
     const LOCALFILE_CTRID = "@mozilla.org/file/local;1";

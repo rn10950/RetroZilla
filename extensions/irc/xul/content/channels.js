@@ -583,7 +583,7 @@ function processOpLoadRun(opData)
 
         line = toUnicode(line, "UTF-8");
         var ary = line.match(/^([^ ]+) ([^ ]+) (.*)$/);
-        if (ary)
+        if (ary && (ary[1] != "*"))
         {
             var chan = new ChannelEntry(ary[1], ary[2], ary[3]);
             channels.push(chan);

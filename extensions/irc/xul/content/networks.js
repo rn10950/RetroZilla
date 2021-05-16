@@ -44,11 +44,7 @@ function initNetworks()
         isupportsKey: "Mozilla",
         servers: [{hostname: "irc.mozilla.org", port:6667},
                   {hostname: "irc.mozilla.org", port:6697, isSecure: true}]};
-    networks["hybridnet"] = {
-        displayName:  "hybridnet",
-        isupportsKey: "",
-        servers: [{hostname: "irc.ssc.net", port: 6667}]};
-    networks["slashnet"] = {
+   networks["slashnet"] = {
         displayName:  "slashnet",
         isupportsKey: "",
         servers: [{hostname: "irc.slashnet.org", port:6667}]};

@@ -129,6 +129,7 @@ function initCommands()
          ["idle-back",         cmdAway,                                      0],
          ["ignore",            cmdIgnore,           CMD_NEED_NET | CMD_CONSOLE],
          ["input-text-direction", cmdInputTextDirection,                     0],
+         ["install-plugin",    cmdInstallPlugin,                   CMD_CONSOLE],
          ["invite",            cmdInvite,           CMD_NEED_SRV | CMD_CONSOLE],
          ["join",              cmdJoin,             CMD_NEED_SRV | CMD_CONSOLE],
          ["join-charset",      cmdJoin,             CMD_NEED_SRV | CMD_CONSOLE],
@@ -249,7 +250,6 @@ function initCommands()
          ["toggle-timestamps","timestamps toggle",                           0],
          ["motif-dark",       "motif dark",                                  0],
          ["motif-light",      "motif light",                                 0],
-         ["motif-default",    "motif default",                               0],
          ["sync-output",      "evalsilent syncOutputFrame(this)",            0],
          ["userlist",         "toggle-ui userlist",                CMD_CONSOLE],
          ["tabstrip",         "toggle-ui tabstrip",                CMD_CONSOLE],
@@ -1402,31 +1402,8 @@ function cmdServer(e)
         e.hostname = ary[1];
     }
 
-    var name = e.hostname.toLowerCase();
-
-    if (!e.port)
-        e.port = 6667;
-    else if (e.port != 6667)
-        name += ":" + e.port;
-
-    if (!(name in client.networks))
-    {
-        /* if there wasn't already a network created for this server,
-         * make one. */
-        client.addNetwork(name, [{name: e.hostname, port: e.port,
-                                        password: e.password}], true);
-    }
-    else
-    {
-        // We are trying to connect without SSL, adjust for temporary networks
-        if (client.networks[name].temporary)
-            client.networks[name].serverList[0].isSecure = false;
-        // update password on existing server.
-        if (e.password)
-            client.networks[name].serverList[0].password = e.password;
-    }
-
-    return client.connectToNetwork(name, false);
+    gotoIRCURL({scheme: "irc", host: e.hostname, port: e.port || 6667,
+                pass: e.password, isserver: true});
 }
 
 function cmdSSLServer(e)
@@ -1440,31 +1417,8 @@ function cmdSSLServer(e)
         e.hostname = ary[1];
     }
 
-    var name = e.hostname.toLowerCase();
-
-    if (!e.port)
-        e.port = 9999;
-    if (e.port != 6667)
-        name += ":" + e.port;
-
-    if (!(name in client.networks))
-    {
-        /* if there wasn't already a network created for this server,
-         * make one. */
-        client.addNetwork(name, [{name: e.hostname, port: e.port,
-                                  password: e.password, isSecure: true}], true);
-    }
-    else
-    {
-        // We are trying to connect using SSL, adjust for temporary networks
-        if (client.networks[name].temporary)
-            client.networks[name].serverList[0].isSecure = true;
-        // update password on existing server.
-        if (e.password)
-            client.networks[name].serverList[0].password = e.password;
-    }
-
-    return client.connectToNetwork(name, true);
+    gotoIRCURL({scheme: "ircs", host: e.hostname, port: e.port || 9999,
+                pass: e.password, isserver: true});
 }
 
 function cmdSSLException(e)
@@ -1553,8 +1507,19 @@ function cmdDeleteView(e)
         e.view.dispatch("part", { deleteWhenDone: true });
         return;
     }
-    if (e.view.TYPE == "IRCDCCChat" && e.view.active)
-        e.view.disconnect();
+
+    if (e.view.TYPE == "IRCDCCChat")
+    {
+        if ((e.view.state.state == DCC_STATE_REQUESTED) ||
+            (e.view.state.state == DCC_STATE_ACCEPTED) ||
+            (e.view.state.state == DCC_STATE_CONNECTED))
+        {
+            // abort() calls disconnect() if it is appropriate.
+            e.view.abort();
+            // Fall through: we don't delete on disconnect.
+        }
+    }
+
     if (e.view.TYPE == "IRCNetwork" && (e.view.state == NET_CONNECTING ||
                                         e.view.state == NET_WAITING))
     {
@@ -2658,7 +2623,7 @@ function cmdLoad(e)
 
         if ((plugin.API > 0) && plugin.prefs["enabled"])
             dispatch("enable-plugin " + index);
-        return rv;
+        return {rv: rv};
     }
     catch (ex)
     {
@@ -4514,6 +4479,106 @@ function cmdInputTextDirection(e)
     }
 
     return true;
+}
+
+function cmdInstallPlugin(e)
+{
+    var ipURL = "chrome://chatzilla/content/install-plugin/install-plugin.xul";
+    var ctx = {};
+    var pluginDownloader =
+    {
+        onStartRequest: function _onStartRequest(request, context)
+        {
+            var tempName = "plugin-install.temp";
+            if (urlMatches)
+                tempName += urlMatches[2];
+
+            ctx.outFile = getTempFile(client.prefs["profilePath"], tempName);
+            ctx.outFileH = fopen(ctx.outFile, ">");
+        }, 
+        onDataAvailable: function _onDataAvailable(request, context, stream,
+                                                   offset, count)
+        {
+            if (!ctx.inputStream)
+                ctx.inputStream = toSInputStream(stream, true);
+
+            ctx.outFileH.write(ctx.inputStream.readBytes(count));
+        },
+        onStopRequest: function _onStopRequest(request, context, statusCode)
+        {
+            ctx.outFileH.close();
+ 
+            if (statusCode == 0)
+            {
+                client.installPlugin(e.name, ctx.outFile);
+            }
+            else
+            {
+                display(getMsg(MSG_INSTALL_PLUGIN_ERR_DOWNLOAD, statusCode),
+                        MT_ERROR);
+            }
+
+            try
+            {
+                ctx.outFile.remove(false);
+            }
+            catch (ex)
+            {
+                display(getMsg(MSG_INSTALL_PLUGIN_ERR_REMOVE_TEMP, ex),
+                        MT_ERROR);
+            }
+        }
+    };
+
+    if (!e.url)
+    {
+        if ("installPluginDialog" in client)
+            return client.installPluginDialog.focus();
+
+        window.openDialog(ipURL, "", "chrome,dialog", client);
+        return;
+    }
+
+    var urlMatches = e.url.match(/([^\/]+?)((\..{0,3}){0,2})$/);
+    if (!e.name)
+    {
+        if (urlMatches)
+        {
+            e.name = urlMatches[1];
+        }
+        else
+        {
+            display(MSG_INSTALL_PLUGIN_ERR_NO_NAME, MT_ERROR);
+            return;
+        }
+    }
+
+    // Do real install here.
+    switch (e.url.match(/^[^:]+/)[0])
+    {
+        case "file":
+            client.installPlugin(e.name, e.url);
+            break;
+
+        case "http":
+        case "https":
+            try
+            {
+                var channel = client.iosvc.newChannel(e.url, "UTF-8", null);
+                display(getMsg(MSG_INSTALL_PLUGIN_DOWNLOADING, e.url),
+                        MT_INFO);
+                channel.asyncOpen(pluginDownloader, { e: e });
+            }
+            catch (ex)
+            {
+                display(getMsg(MSG_INSTALL_PLUGIN_ERR_DOWNLOAD, ex), MT_ERROR);
+                return;
+            }
+            break;
+
+        default:
+            display(MSG_INSTALL_PLUGIN_ERR_PROTOCOL, MT_ERROR);
+    }
 }
 
 function cmdFind(e)

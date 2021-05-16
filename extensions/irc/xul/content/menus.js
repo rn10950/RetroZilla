@@ -140,6 +140,8 @@ function initMenus()
         items:
         [
          ["cmd-prefs",  {id: "menu_preferences"}],
+         ["install-plugin"],
+         ["-"],
          ["print"],
          ["save"],
          ["-",           {visibleif: NotMac}],
@@ -159,7 +161,6 @@ function initMenus()
          //["attach"],
          //["-"],
          //["manage-networks"],
-         //["manage-plugins"],
          ["-"],
          [">popup:views"],
          [">popup:nickname"],
@@ -225,9 +226,6 @@ function initMenus()
         accesskey: getAccessKeyForMenu('MSG_MNU_MOTIFS'),
         items:
         [
-         ["motif-default",
-                 {type: "checkbox",
-                  checkedif: isMotif("default")}],
          ["motif-dark",
                  {type: "checkbox",
                   checkedif: isMotif("dark")}],

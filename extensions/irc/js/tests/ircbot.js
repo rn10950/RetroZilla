@@ -120,10 +120,6 @@ function init(obj)
     obj.eventPump = new CEventPump(100);
 
     obj.networks = new Object();
-    obj.networks["hybridnet"] =
-        new CIRCNetwork("hybridnet", [{name: "irc.ssc.net", port: 6667}],
-                        obj.eventPump);
-
     obj.networks["moznet"] =
         new CIRCNetwork("moznet", [{name: "irc.mozilla.org", port: 6667}],
                         obj.eventPump);

@@ -151,6 +151,8 @@ function onUnload()
     }
     if ("configWindow" in client)
         client.configWindow.close();
+    if ("installPluginDialog" in client)
+        client.installPluginDialog.close();
     if ("aboutDialog" in client)
         client.aboutDialog.close();
 
