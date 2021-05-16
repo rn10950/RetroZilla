@@ -53,7 +53,6 @@
     onunload="gPrefWindow.onClose();"
     title="&window.title;">
 
-  <script src="chrome://global/content/strres.js"/>
   <script src="chrome://chatzilla/content/lib/js/utils.js"/>
   <script src="chrome://chatzilla/content/lib/js/file-utils.js"/>
   <script src="chrome://chatzilla/content/lib/js/pref-manager.js"/>
@@ -87,9 +86,11 @@
           <treechildren id="pref-tree"/>
         </tree>
         <hbox>
+          <!--
           <button label="&object.add.label;" tooltiptext="&object.add.hint;" 
               accesskey="&object.add.accesskey;" flex="1" 
               oncommand="gPrefWindow.onAddObject();"/>
+          -->
           <button label="&object.del.label;" tooltiptext="&object.del.hint;" 
               accesskey="&object.del.accesskey;" flex="1" 
               oncommand="gPrefWindow.onDeleteObject();" id="object-delete"/>

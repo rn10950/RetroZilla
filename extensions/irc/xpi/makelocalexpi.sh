@@ -1,17 +1,36 @@
 #!/bin/sh
 
 # Set up locale.
-if [ -z "$LOCALE" ]; then LOCALE=$1; fi
-
-# Set up paths for finding files.
+if [ -z "$AB_CD" ]; then
+  if [ -z "$1" ]; then AB_CD=en-US; else AB_CD=$1; fi
+fi
+# Set up settings and paths for finding files.
+if [ -z "$DEBUG" ]; then DEBUG=0; fi
+if [ -z "$PERL" ]; then PERL=perl; fi
 if [ -z "$FEDIR" ]; then FEDIR=$PWD/..; fi
 if [ -z "$CONFIGDIR" ]; then CONFIGDIR=$FEDIR/../../config; fi
-if [ -z "$XPILOCALEFILES" ]; then XPILOCALEFILES=$PWD/locale-resources; fi
-if [ -z "$XPIROOT" ]; then XPIROOT=$PWD/xpi-tree-$LOCALE; fi
-if [ -z "$JARROOT" ]; then JARROOT=$PWD/jar-tree; fi
-if [ -z "$PERL" ]; then PERL=perl; fi
-if [ -z "$DEBUG" ]; then DEBUG=0; fi
+if [ -z "$XPIROOT" ]; then XPIROOT=$PWD/xpi-tree-$AB_CD; fi
+if [ -z "$JARROOT" ]; then JARROOT=$PWD/jar-tree-$AB_CD; fi
+if [ -z "$LOCALEDIR" ]; then LOCALEDIR=$FEDIR/locales; fi
+# the dir containing the actual localisation files
+# usually this is in l10n/ repository (parallel to mozilla/)
+# note that toolkit/defines.inc is expected in parallel to extensions/irc there
+if [ -z "$L10NDIR" ]; then L10NDIR="$FEDIR/../../../l10n/$AB_CD/extensions/irc"; fi
 
+# Display all the settings and paths if we're in debug mode.
+if [ $DEBUG -ge 1 ]; then
+  echo "\$DEBUG     = $DEBUG"
+  echo "\$PERL      = $PERL"
+  echo "\$CONFIGDIR = $CONFIGDIR"
+  echo "\$XPIROOT   = $XPIROOT"
+  echo "\$JARROOT   = $JARROOT"
+  echo "\$FEDIR     = $FEDIR"
+  echo "\$LOCALEDIR = $LOCALEDIR"
+  echo "\$AB_CD     = $AB_CD"
+  echo "\$L10NDIR   = $L10NDIR"
+fi
+
+## Simple function to display all the parameters/arguments to itself.
 function showParams()
 {
   I=0
@@ -105,8 +124,18 @@ if [ "$1" = "clean" ]; then
   exit
 fi
 
+# Check that requested language is in all-locales file (i.e. exists and it
+# allowed to be used).
+# FIXME: THIS DOES NOT WORK WITH CYGWIN.
+grep -sx "$AB_CD" "$LOCALEDIR/all-locales" > /dev/null
+if [ $? != 0 ]; then
+  echo "ERROR: Language $AB_CD is currently not supported."
+  exit 1
+fi
+if [ $DEBUG -ge 1 ]; then echo "Language   = $AB_CD"; fi
 
-# Check setup.
+
+# Check directory setup.
 if ! [ -d "$FEDIR" ]; then
   echo "ERROR: Base ChatZilla directory (FEDIR) not found."
   exit 1
@@ -115,26 +144,28 @@ if ! [ -d "$CONFIGDIR" ]; then
   echo "ERROR: mozilla/config directory (CONFIGDIR) not found."
   exit 1
 fi
-
-if [ -z "$LOCALE" ]; then
-  echo "ERROR: You need to provide a locale identifier (ab-CD)"
+if ! [ -d "$L10NDIR" ]; then
+  echo "ERROR: Directory with localized files for $AB_CD language (L10NDIR) not found."
   exit 1
 fi
 
 
 # Extract version number.
 VERSION=`grep "const __cz_version" "$FEDIR/xul/content/static.js" | sed "s|.*\"\([^\"]\{1,\}\)\".*|\1|"`
+BASE_VERSION=`echo "$VERSION" | sed "s|\([0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\).*|\1|"`
 
 if [ -z "$VERSION" ]; then
   echo "ERROR: Unable to get version number."
   exit 1
 fi
 
-echo "Beginning build of $LOCALE locale for ChatZilla $VERSION..."
+echo "Beginning build of $AB_CD language pack for ChatZilla $VERSION..."
 
+# Set up LangPack XPI name using version and language.
+XPINAME="chatzilla-$VERSION.$AB_CD.xpi"
 
-# Check for existing.
-if [ -r "chatzilla-$LOCALE-$VERSION.xpi" ]; then
+# Check for an existing XPI file and print a warning.
+if [ -r "$XPINAME" ]; then
   echo "  WARNING: output XPI will be overwritten."
 fi
 
@@ -142,21 +173,23 @@ fi
 # Check for required directory layouts.
 echo -n "  Checking XPI structure"
 echo -n .
-if ! [ -d "xpi-tree-$LOCALE" ]; then mkdir "xpi-tree-$LOCALE"; fi
+if ! [ -d "$XPIROOT" ]; then mkdir -p $XPIROOT; fi
 echo -n .
-if ! [ -d "xpi-tree-$LOCALE/chrome" ]; then mkdir "xpi-tree-$LOCALE/chrome"; fi
+if ! [ -d "$XPIROOT/chrome" ]; then mkdir $XPIROOT/chrome; fi
 echo   ".                        done"
 
 echo -n "  Checking JAR structure"
 echo -n .
-if ! [ -d jar-tree ]; then mkdir jar-tree; fi
+if ! [ -d "$JARROOT" ]; then mkdir -p $JARROOT; fi
 echo   ".                         done"
 
 
 # Make Firefox updates.
 echo -n "  Updating Firefox Extension files"
 echo -n .
-safeCommand sed "--expression=s|@REVISION@|$VERSION|g" "--expression=s|@LOCALE@|$LOCALE|g" '<' "$XPILOCALEFILES/$LOCALE/install.rdf" '>' "$XPIROOT/install.rdf"
+# make sure we have all defines we need when preprocessing the install.rdf file
+# toolkit/defines.inc contains the definition for the locale name we use in the langpack title
+safeCommand $PERL "$CONFIGDIR/preprocessor.pl" -DAB_CD=$AB_CD -DCHATZILLA_VERSION=$VERSION -DCHATZILLA_BASE_VERSION=$BASE_VERSION -DINSTALL_EXTENSION_ID=langpack-$AB_CD@chatzilla.mozilla.org -I$L10NDIR/../../toolkit/defines.inc -I$L10NDIR/defines.inc "$LOCALEDIR/generic/install.rdf" '>' "$XPIROOT/install.rdf"
 echo -n .
 echo   ".              done"
 
@@ -164,11 +197,10 @@ echo   ".              done"
 # Make Mozilla Suite updates.
 echo -n "  Updating Mozilla Extension files"
 echo -n .
-safeCommand sed "--expression=s|@REVISION@|$VERSION|g" "--expression=s|@LOCALE@|$LOCALE|g" '<' "$XPILOCALEFILES/$LOCALE/install.js" '>' "$XPIROOT/install.js"
+# make sure we have all defines we need when preprocessing the install.js file
+# toolkit/defines.inc contains the definition for the locale name we use in the langpack title
+safeCommand $PERL "$CONFIGDIR/preprocessor.pl" -DAB_CD=$AB_CD -DCHATZILLA_VERSION=$VERSION -DCHATZILLA_BASE_VERSION=$BASE_VERSION -DINSTALL_EXTENSION_ID=langpack-$AB_CD@chatzilla.mozilla.org -I$L10NDIR/../../toolkit/defines.inc -I$L10NDIR/defines.inc "$LOCALEDIR/generic/install.js" '>' "$XPIROOT/install.js"
 echo -n .
-safeCommand mv "$FEDIR/xul/locale/en-US/contents.rdf" "$FEDIR/xul/locale/en-US/contents.rdf.in"
-safeCommand sed "s|@MOZILLA_VERSION@|cz-$VERSION|g" '<' "$FEDIR/xul/locale/en-US/contents.rdf.in" '>' "$FEDIR/xul/locale/en-US/contents.rdf"
-safeCommand rm "$FEDIR/xul/locale/en-US/contents.rdf.in"
 echo   ".              done"
 
 
@@ -179,10 +211,11 @@ OLDPWD=`pwd`
 cd "$CONFIGDIR"
 echo -n .
 
-safeCommand sed "s|@LOCALE@|$LOCALE|g" '<' "$FEDIR/locale-jar.mn" '>' "$FEDIR/$LOCALE-jar.mn"
+safeCommand $PERL preprocessor.pl -DAB_CD="$AB_CD" "$LOCALEDIR/jar.mn" '>' "$LOCALEDIR/jar.mn.pp"
 echo -n .
-safeCommand $PERL make-jars.pl -v -z zip -p preprocessor.pl -s "$FEDIR" -d "$JARROOT" '<' "$FEDIR/$LOCALE-jar.mn"
+safeCommand $PERL make-jars.pl -e -v -z zip -p preprocessor.pl -s "$LOCALEDIR" -d "$JARROOT" -c "$L10NDIR" -- "-DAB_CD=\"$AB_CD\"" '<' "$LOCALEDIR/jar.mn.pp"
 echo -n .
+safeCommand rm "$LOCALEDIR/jar.mn.pp"
 cd "$OLDPWD"
 echo   ".                    done"
 
@@ -190,15 +223,17 @@ echo   ".                    done"
 # Make XPI.
 echo -n "  Constructing XPI package"
 echo -n .
-safeCommand cp -v "$JARROOT/chatzilla-$LOCALE.jar" "$XPIROOT/chrome/"
+safeCommand cp -v "$JARROOT/chatzilla.jar" "$XPIROOT/chrome/"
 echo -n .
-safeCommand chmod 664 "$XPIROOT/chrome/chatzilla-$LOCALE.jar"
+safeCommand mv "$JARROOT/../chrome.manifest" "$XPIROOT/chrome.manifest"
+echo -n .
+safeCommand chmod 664 "$XPIROOT/chrome/chatzilla.jar"
 echo -n .
 OLDPWD=`pwd`
 cd "$XPIROOT"
-safeCommand zip -vr ../chatzilla-$LOCALE-$VERSION.xpi . -i "*" -x log*
+safeCommand zip -vr ../$XPINAME . -i "*" -x "log*"
 cd "$OLDPWD"
-echo   ".                     done"
+echo   ".                    done"
 
 
-echo "Build of $LOCALE locale for ChatZilla $VERSION... ALL DONE"
+echo "Build of $AB_CD language pack for ChatZilla $VERSION... ALL DONE"

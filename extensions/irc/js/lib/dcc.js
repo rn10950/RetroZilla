@@ -280,7 +280,8 @@ function dcc_findbyid(id)
 }
 
 
-var val = -1;
+// JavaScript won't let you delete things declared with "var", workaround:
+window.val = -1;
 
 const DCC_STATE_FAILED        = val++; // try connect (accept), but it failed.
 const DCC_STATE_INIT          = val++; // not "doing" anything
@@ -291,7 +292,7 @@ const DCC_STATE_CONNECTED     = val++; // all going ok.
 const DCC_STATE_DONE          = val++; // finished ok.
 const DCC_STATE_ABORTED       = val++; // send wasn't accepted in time.
 
-delete val;
+delete window.val;
 
 const DCC_DIR_UNKNOWN = 0;
 const DCC_DIR_SENDING = 1;
@@ -589,7 +590,15 @@ CIRCDCCChat.prototype.TYPE = "IRCDCCChat";
 CIRCDCCChat.prototype.getURL =
 function dchat_geturl()
 {
-    return "x-irc-dcc-chat://" + this.user.remoteIP + ":" + this.port;
+    return "x-irc-dcc-chat:" + this.id;
+}
+
+CIRCDCCChat.prototype.isActive =
+function dchat_isactive()
+{
+    return (this.state.state == DCC_STATE_REQUESTED) ||
+           (this.state.state == DCC_STATE_ACCEPTED) ||
+           (this.state.state == DCC_STATE_CONNECTED);
 }
 
 // Call to make this end request DCC Chat with targeted user.
@@ -794,7 +803,7 @@ function dchat_dataavailable(e)
     if (incomplete)
         this.savedLine = lines.pop();
 
-    for (i in lines)
+    for (var i in lines)
     {
         var ev = new CEvent("dcc-chat", "rawdata", this, "onRawData");
         ev.data = lines[i];
@@ -869,7 +878,7 @@ CIRCDCCChat.prototype.onCTCP =
 function serv_ctcp(e)
 {
     // The \x0D? is a BIG HACK to make this work with X-Chat.
-    var ary = e.line.match(/^\x01(\S+) ?(.*)\x01\x0D?$/i);
+    var ary = e.line.match(/^\x01([^ ]+) ?(.*)\x01\x0D?$/i);
     if (ary == null)
         return false;
 
@@ -973,8 +982,15 @@ CIRCDCCFileTransfer.prototype.TYPE = "IRCDCCFileTransfer";
 CIRCDCCFileTransfer.prototype.getURL =
 function dfile_geturl()
 {
-    return "x-irc-dcc-file://" + this.user.remoteIP + ":" +
-           this.port + "/" + encodeURIComponent(this.filename);
+    return "x-irc-dcc-file:" + this.id;
+}
+
+CIRCDCCFileTransfer.prototype.isActive =
+function dfile_isactive()
+{
+    return (this.state.state == DCC_STATE_REQUESTED) ||
+           (this.state.state == DCC_STATE_ACCEPTED) ||
+           (this.state.state == DCC_STATE_CONNECTED);
 }
 
 CIRCDCCFileTransfer.prototype.dispose =
@@ -1296,3 +1312,14 @@ function dfile_say(data)
 {
     this.connection.sendData(data);
 }
+
+CIRCDCCFileTransfer.prototype.size = 0;
+CIRCDCCFileTransfer.prototype.position = 0;
+CIRCDCCFileTransfer.prototype.__defineGetter__("progress",
+    function dfile_get_progress()
+    {
+        if (this.size > 0)
+            return Math.floor(100 * this.position / this.size);
+        return 0;
+    });
+

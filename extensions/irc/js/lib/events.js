@@ -38,10 +38,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/*
- * event class
+/**
+ * Event class for |CEventPump|.
  */
-
 function CEvent (set, type, destObject, destMethod)
 {
     this.set = set;
@@ -52,8 +51,12 @@ function CEvent (set, type, destObject, destMethod)
 
 }
 
-/*
- * event pump
+/**
+ * The event pump keeps a queue of pending events, processing them on-demand.
+ *
+ * You should never need to create an instance of this prototype; access the
+ * event pump through |client.eventPump|. Most code should only need to use the
+ * |addHook|, |getHook| and |removeHookByName| methods.
  */
 function CEventPump (eventsPerStep)
 {
@@ -126,6 +129,24 @@ function ep_hook(e, hooks)
     return false;
 }
 
+/**
+ * Adds an event hook to be called when matching events are processed.
+ *
+ * All hooks should be given a meaningful name, to aid removal and debugging.
+ * For plugins, an ideal technique for the name is to use |plugin.id| as a
+ * prefix (e.g. <tt>plugin.id + "-my-super-hook"</tt>).
+ *
+ * @param f The function to call when an event matches |pattern|.
+ * @param name A unique name for the hook. Used for removing the hook and
+ *             debugging.
+ * @param neg Optional. If specified with a |true| value, the hook will be
+ *            called for events *not* matching |pattern|. Otherwise, the hook
+ *            will be called for events matching |pattern|.
+ * @param enabled Optional. If specified, sets the initial enabled/disabled
+ *                state of the hook. By default, hooks are enabled. See
+ *                |getHook|.
+ * @param hooks Internal. Do not use.
+ */
 CEventPump.prototype.addHook =
 function ep_addhook(pattern, f, name, neg, enabled, hooks)
 {
@@ -156,6 +177,18 @@ function ep_addhook(pattern, f, name, neg, enabled, hooks)
 
 }
 
+/**
+ * Finds and returns data about a named event hook.
+ *
+ * You can use |getHook| to change the enabled state of an existing event hook:
+ *   <tt>client.eventPump.getHook(myHookName).enabled = false;</tt>
+ *   <tt>client.eventPump.getHook(myHookName).enabled = true;</tt>
+ *
+ * @param name The unique hook name to find and return data about.
+ * @param hooks Internal. Do not use.
+ * @returns If a match is found, an |Object| with properties matching the
+ *          arguments to |addHook| is returned. Otherwise, |null| is returned.
+ */
 CEventPump.prototype.getHook =
 function ep_gethook(name, hooks)
 {
@@ -170,6 +203,13 @@ function ep_gethook(name, hooks)
 
 }
 
+/**
+ * Removes an existing event hook by its name.
+ *
+ * @param name The unique hook name to find and remove.
+ * @param hooks Internal. Do not use.
+ * @returns |true| if the hook was found and removed, |false| otherwise.
+ */
 CEventPump.prototype.removeHookByName =
 function ep_remhookname(name, hooks)
 {

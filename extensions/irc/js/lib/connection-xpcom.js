@@ -44,12 +44,36 @@ const NS_ERROR_UNKNOWN_HOST = NS_ERROR_MODULE_NETWORK + 30;
 const NS_ERROR_CONNECTION_REFUSED = NS_ERROR_MODULE_NETWORK + 13;
 const NS_ERROR_NET_TIMEOUT = NS_ERROR_MODULE_NETWORK + 14;
 const NS_ERROR_NET_RESET = NS_ERROR_MODULE_NETWORK + 20;
+const NS_ERROR_UNKNOWN_PROXY_HOST = NS_ERROR_MODULE_NETWORK + 42;
+const NS_ERROR_PROXY_CONNECTION_REFUSED = NS_ERROR_MODULE_NETWORK + 72;
+
+// Offline error constants:
+const NS_ERROR_BINDING_ABORTED = NS_ERROR_MODULE_NETWORK + 2;
+const NS_ERROR_ABORT = 0x80004004;
 
 const NS_NET_STATUS_RESOLVING_HOST = NS_ERROR_MODULE_NETWORK + 3;
 const NS_NET_STATUS_CONNECTED_TO = NS_ERROR_MODULE_NETWORK + 4;
 const NS_NET_STATUS_SENDING_TO = NS_ERROR_MODULE_NETWORK + 5;
 const NS_NET_STATUS_RECEIVING_FROM = NS_ERROR_MODULE_NETWORK + 6;
 const NS_NET_STATUS_CONNECTING_TO = NS_ERROR_MODULE_NETWORK + 7;
+
+// Security error constants:
+// http://mxr.mozilla.org/mozilla/source/security/nss/lib/util/secerr.h
+const SEC_ERROR_BASE = 0x805A2000;
+// http://mxr.mozilla.org/mozilla/source/security/nss/lib/ssl/sslerr.h
+const SSL_ERROR_BASE = 0x805A3000;
+
+// The subset of certificate errors which is allowed to be overridden
+// http://bonsai.mozilla.org/cvsblame.cgi?file=mozilla/security/manager/ssl/src/nsNSSIOLayer.cpp&rev=1.165#2921
+
+const SEC_ERROR_EXPIRED_CERTIFICATE = SEC_ERROR_BASE - 11;
+const SEC_ERROR_UNKNOWN_ISSUER = SEC_ERROR_BASE - 13;
+const SEC_ERROR_UNTRUSTED_ISSUER = SEC_ERROR_BASE - 20;
+const SEC_ERROR_UNTRUSTED_CERT = SEC_ERROR_BASE - 21;
+const SEC_ERROR_EXPIRED_ISSUER_CERTIFICATE = SEC_ERROR_BASE - 30;
+const SEC_ERROR_CA_CERT_INVALID = SEC_ERROR_BASE - 36;
+const SEC_ERROR_INADEQUATE_KEY_USAGE = SEC_ERROR_BASE - 90;
+const SSL_ERROR_BAD_CERT_DOMAIN = SSL_ERROR_BASE - 12;
 
 // Security Constants.
 const STATE_IS_BROKEN = 1;
@@ -102,6 +126,58 @@ function toSOutputStream(stream, binary)
     return sstream;
 }
 
+/* This object implements nsIBadCertListener2
+ * The idea is to suppress the default UI's alert box
+ * and allow the exception to propagate normally
+ */
+function BadCertHandler()
+{
+}
+
+BadCertHandler.prototype.getInterface =
+function badcert_getinterface(aIID)
+{
+    return this.QueryInterface(aIID);
+}
+
+BadCertHandler.prototype.QueryInterface =
+function badcert_queryinterface(aIID)
+{
+    if (aIID.equals(Components.interfaces.nsIBadCertListener2) ||
+        aIID.equals(Components.interfaces.nsISSLErrorListener) ||
+        aIID.equals(Components.interfaces.nsIInterfaceRequestor) ||
+        aIID.equals(Components.interfaces.nsISupports))
+    {
+        return this;
+    }
+
+    throw Components.results.NS_ERROR_NO_INTERFACE;
+}
+
+/* Returning true in the following two callbacks
+ * means suppress default the error UI (modal alert).
+ */
+BadCertHandler.prototype.notifyCertProblem =
+function badcert_notifyCertProblem(socketInfo, sslStatus, targetHost)
+{
+    return true;
+}
+
+BadCertHandler.prototype.notifySSLError =
+function badcert_notifySSLError(socketInfo, error, targetSite)
+{
+    return true;
+}
+
+/**
+ * Wraps up various mechanics of sockets for easy consumption by other code.
+ *
+ * @param binary Provide |true| or |false| here to override the automatic
+ *               selection of binary or text streams. This should only ever be
+ *               specified as |true| or omitted, otherwise you will be shooting
+ *               yourself in the foot on some versions - let the code handle
+ *               the choice unless you know you need binary.
+ */
 function CBSConnection (binary)
 {
     /* Since 2003-01-17 18:14, Mozilla has had this contract ID for the STS.
@@ -133,7 +209,7 @@ function CBSConnection (binary)
      *       make matters worse, an incompatible change to the "readBytes"
      *       method of this interface was made on 2003-03-13; luckly, this
      *       change also added a "readByteArray" method, which we will check
-     *       for below, to determin if we can use the binary streams.
+     *       for below, to determine if we can use the binary streams.
      */
 
     // We want to check for working binary streams only the first time.
@@ -150,6 +226,22 @@ function CBSConnection (binary)
         }
     }
 
+    /*
+     * As part of the changes in Gecko 1.9, invalid SSL certificates now
+     * produce a horrible error message. We must look up the toolkit version
+     * to see if we need to catch these errors cleanly - see bug 454966.
+     */
+    if (!("strictSSL" in CBSConnection.prototype))
+    {
+        CBSConnection.prototype.strictSSL = false;
+        var app = getService("@mozilla.org/xre/app-info;1", "nsIXULAppInfo");
+        if (app && ("platformVersion" in app) &&
+            compareVersions("1.9", app.platformVersion) >= 0)
+        {
+            CBSConnection.prototype.strictSSL = true;
+        }
+    }
+
     this.wrappedJSObject = this;
     if (typeof binary != "undefined")
         this.binaryMode = binary;
@@ -159,7 +251,7 @@ function CBSConnection (binary)
     if (!ASSERT(!this.binaryMode || this.workingBinaryStreams,
                 "Unable to use binary streams in this build."))
     {
-        return null;
+        throw ("Unable to use binary streams in this build.");
     }
 }
 
@@ -184,7 +276,7 @@ function bc_connect(host, port, config, observer)
 
     function getProxyFor(uri)
     {
-        var uri = ios.newURI(uri, null, null);
+        uri = ios.newURI(uri, null, null);
         // As of 2005-03-25, 'examineForProxy' was replaced by 'resolve'.
         if ("resolve" in pps)
             return pps.resolve(uri, 0);
@@ -214,6 +306,9 @@ function bc_connect(host, port, config, observer)
     {
         proxyInfo = getProxyFor("irc://" + host + ":" + port);
     }
+
+    if (proxyInfo && ("type" in proxyInfo) && (proxyInfo.type == "unknown"))
+        throw JSIRC_ERR_PAC_LOADING;
 
     if (jsenv.HAS_STREAM_PROVIDER)
     {
@@ -263,6 +358,9 @@ function bc_connect(host, port, config, observer)
             this._transport = this._sockService.
                               createTransport(["ssl"], 1, host, port,
                                               proxyInfo);
+
+            if (this.strictSSL)
+                this._transport.securityCallbacks = new BadCertHandler();
         }
         else
         {
@@ -303,7 +401,7 @@ function bc_connect(host, port, config, observer)
         this.sendData("CONNECT " + host + ":" + port + " HTTP/1.1\r\n\r\n");
     }
 
-    return this.isConnected;
+    return true;
 
 }
 
@@ -443,8 +541,16 @@ function bc_readdata(timeout, count)
 
     var rv;
 
+    if (!("_sInputStream" in this)) {
+        this._sInputStream = toSInputStream(this._inputStream);
+        dump("OMG, setting up _sInputStream!\n");
+    }
+
     try
     {
+        // XPCshell h4x
+        if (typeof count == "undefined")
+            count = this._sInputStream.available();
         if (this.binaryMode)
             rv = this._sInputStream.readBytes(count);
         else
@@ -520,14 +626,16 @@ function bc_senddatanow(str)
     return rv;
 }
 
-/* getSecurityState returns an array containing information about the security
- * of the connection. The array always has at least one item, which contains a
- * value from the STATE_IS_* enumeration at the top of this file. Iff this is
- * STATE_IS_SECURE, the array has a second item indicating the level of
- * security - a value from the STATE_SECURE_* enumeration.
+/**
+ * Gets an array containing information about the security of the connection.
  *
- * STATE_IS_BROKEN is returned if any errors occur, and STATE_IS_INSECURE is
+ * |STATE_IS_BROKEN| is returned if any errors occur and |STATE_IS_INSECURE| is
  * returned for disconnected sockets.
+ *
+ * @returns An array with at least one item, containing a value from the
+ *          |STATE_IS_*| enumeration at the top of this file. Iff this is
+ *          |STATE_IS_SECURE|, the array has a second item indicating the level
+ *          of security - a value from the |STATE_SECURE_*| enumeration.
  */
 CBSConnection.prototype.getSecurityState =
 function bc_getsecuritystate()

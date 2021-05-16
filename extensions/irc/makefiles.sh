@@ -1,4 +1,4 @@
-#
+#! /bin/sh
 # ***** BEGIN LICENSE BLOCK *****
 # Version: MPL 1.1/GPL 2.0/LGPL 2.1
 #
@@ -12,11 +12,12 @@
 # for the specific language governing rights and limitations under the
 # License.
 #
-# The Original Code is mozilla.org code.
+# The Original Code is Mozilla Build System
 #
 # The Initial Developer of the Original Code is
-# Netscape Communications Corporation.
-# Portions created by the Initial Developer are Copyright (C) 1998
+# Ben Turner <mozilla@songbirdnest.com>
+#
+# Portions created by the Initial Developer are Copyright (C) 2007
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
@@ -35,10 +36,7 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH		= ../../../../..
-topsrcdir	= @top_srcdir@
-srcdir		= @srcdir@
-VPATH		= @srcdir@
-
-include $(DEPTH)/config/autoconf.mk
-include $(topsrcdir)/config/rules.mk
+add_makefiles "
+  extensions/irc/Makefile
+  extensions/irc/locales/Makefile
+"

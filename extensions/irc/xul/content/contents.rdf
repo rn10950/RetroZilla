@@ -9,11 +9,11 @@
 
   <!-- package information -->
   <RDF:Description about="urn:mozilla:package:chatzilla"
-        chrome:displayName="ChatZilla 0.9.75"
+        chrome:displayName="ChatZilla 0.9.86.1"
         chrome:author="mozilla.org"
         chrome:authorURL="http://www.mozilla.org/projects/rt-messaging/chatzilla/"
         chrome:description="A simple, straightforward Internet Relay Chat (IRC) client."
-#expand         chrome:localeVersion="__MOZILLA_LOCALE_VERSION__"
+        chrome:localeVersion=""
         chrome:extension="true"
         chrome:settingsURL="chrome://chatzilla/content/config.xul"
         chrome:name="chatzilla">
@@ -21,13 +21,18 @@
 
   <!-- overlay information -->
   <RDF:Seq about="urn:mozilla:overlays">
-    <RDF:li resource="chrome://editor/content/editorTasksOverlay.xul"/>
     <RDF:li resource="chrome://browser/content/browser.xul"/>
+    <RDF:li resource="chrome://songbird/content/xul/layoutBaseOverlay.xul"/>
+    <RDF:li resource="chrome://editor/content/editorTasksOverlay.xul"/>
     <RDF:li resource="chrome://communicator/content/pref/preftree.xul"/>
     <RDF:li resource="chrome://communicator/content/pref/pref-appearance.xul"/>
   </RDF:Seq>
 
   <RDF:Seq about="chrome://browser/content/browser.xul">
+    <RDF:li>chrome://chatzilla/content/browserOverlay.xul</RDF:li>
+  </RDF:Seq>
+
+  <RDF:Seq about="chrome://songbird/content/xul/layoutBaseOverlay.xul">
     <RDF:li>chrome://chatzilla/content/browserOverlay.xul</RDF:li>
   </RDF:Seq>
 

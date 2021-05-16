@@ -44,11 +44,7 @@ function initNetworks()
         isupportsKey: "Mozilla",
         servers: [{hostname: "irc.mozilla.org", port:6667},
                   {hostname: "irc.mozilla.org", port:6697, isSecure: true}]};
-    networks["hybridnet"] = {
-        displayName:  "hybridnet",
-        isupportsKey: "",
-        servers: [{hostname: "irc.ssc.net", port: 6667}]};
-    networks["slashnet"] = {
+   networks["slashnet"] = {
         displayName:  "slashnet",
         isupportsKey: "",
         servers: [{hostname: "irc.slashnet.org", port:6667}]};
@@ -68,10 +64,19 @@ function initNetworks()
         displayName:  "quakenet",
         isupportsKey: "",
         servers: [{hostname: "irc.quakenet.org", port:6667}]};
+    networks["ircnet"] = {
+        displayName:  "ircnet",
+        isupportsKey: "",
+        servers: [{hostname: "ircnet.eversible.com", port:6667}]};
     networks["freenode"] = {
         displayName:  "freenode",
         isupportsKey: "",
-        servers: [{hostname: "irc.freenode.net", port:6667}]};
+        servers: [{hostname: "chat.freenode.net", port:6667},
+                  {hostname: "chat.freenode.net", port:7000, isSecure: true},
+                  // XXX irc.freenode.net is only here until we can link servers
+                  // to networks without them being in the network's server list
+                  {hostname: "irc.freenode.net", port:6667},
+                  {hostname: "irc.freenode.net", port:7000, isSecure: true}]};
     networks["serenia"] = {
         displayName:  "serenia",
         isupportsKey: "",
@@ -81,6 +86,14 @@ function initNetworks()
         isupportsKey: "",
         servers: [{hostname: "irc.prison.net", port: 6667},
                   {hostname: "irc.magic.ca", port: 6667}]};
+    networks["hispano"] = {
+        displayName:  "hispano",
+        isupportsKey: "",
+        servers: [{hostname: "irc.irc-hispano.org", port: 6667}]};
+    networks["solidirc"] = {
+        displayName:  "solidirc",
+        isupportsKey: "",
+        servers: [{hostname: "irc.solidirc.com", port: 6667}]};
 
     for (var name in networks)
         networks[name].name = name;
@@ -98,7 +111,7 @@ function initNetworks()
         if (networksLoader.open("<"))
         {
             var item = networksLoader.deserialize();
-            if (item instanceof Array)
+            if (isinstance(item, Array))
                 userNetworkList = item;
             else
                 dd("Malformed networks file!");
@@ -108,7 +121,11 @@ function initNetworks()
 
     // Merge the user's network list with the default ones.
     for (var i = 0; i < userNetworkList.length; i++)
-        networks[userNetworkList[i].name] = userNetworkList[i];
+    {
+        var lowerNetName = userNetworkList[i].name.toLowerCase();
+        networks[lowerNetName] = userNetworkList[i];
+        networks[lowerNetName].name = lowerNetName;
+    }
 
     /* Flag up all networks that are built-in, so they can be handled properly.
      * We need to do this last so that it ensures networks overridden by the
@@ -191,7 +208,7 @@ function networksSyncToList()
             // ...and add a new one if it isn't found.
             if (listServ == null)
             {
-                listServ = { name: serv.hostname, port: serv.port,
+                listServ = { hostname: serv.hostname, port: serv.port,
                              isSecure: serv.isSecure, password: null };
                 listNet.servers.push(listServ);
             }

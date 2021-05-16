@@ -60,13 +60,7 @@ function PrefManager (branchName, defaultBundle)
 
     function pm_observe (prefService, topic, prefName)
     {
-        var r = prefManager.prefRecords[prefName];
-        if (!r)
-            return;
-
-        var oldValue = (r.realValue != null) ? r.realValue : r.defaultValue;
-        r.realValue = prefManager.getPref(prefName, PREF_RELOAD);
-        prefManager.onPrefChanged(prefName, r.realValue, oldValue);
+        prefManager.onPrefChanged(prefName);
     };
 
     const PREF_CTRID = "@mozilla.org/preferences-service;1";
@@ -185,9 +179,19 @@ function pm_forcesave()
 PrefManager.prototype.onPrefChanged =
 function pm_prefchanged(prefName, realValue, oldValue)
 {
+    var r, oldValue;
     // We're only interested in prefs we actually know about.
-    if (!(prefName in this.prefRecords))
+    if (!(prefName in this.prefRecords) || !(r = this.prefRecords[prefName]))
         return;
+
+    if (r.realValue != null)
+        oldValue = r.realValue;
+    else if (typeof r.defaultValue == "function")
+        oldValue = r.defaultValue(prefName);
+    else
+        oldValue = r.defaultValue;
+
+    var realValue = this.getPref(prefName, PREF_RELOAD);
 
     for (var i = 0; i < this.observers.length; i++)
         this.observers[i].onPrefChanged(prefName, realValue, oldValue);
@@ -257,33 +261,6 @@ function pm_addprefs(prefSpecs)
     }
 }
 
-PrefManager.prototype.addDeferredPrefs =
-function pm_addprefsd(targetManager, writeThrough)
-{
-    function deferGet(prefName)
-    {
-        return targetManager.getPref(prefName);
-    };
-
-    function deferSet(prefName, value)
-    {
-        return targetManager.setPref(prefName, value);
-    };
-
-    var setter = null;
-
-    // Make sure we know about pref changes.
-    targetManager.addObserver(this);
-
-    if (writeThrough)
-        setter = deferSet;
-
-    var prefs = targetManager.prefs;
-
-    for (var i = 0; i < prefs.length; ++i)
-        this.addPref(prefs[i], deferGet, setter);
-}
-
 PrefManager.prototype.updateArrayPref =
 function pm_arrayupdate(prefName)
 {
@@ -294,7 +271,7 @@ function pm_arrayupdate(prefName)
     if (record.realValue == null)
         record.realValue = record.defaultValue;
 
-    if (!ASSERT(record.realValue instanceof Array, "Pref is not an array"))
+    if (!ASSERT(isinstance(record.realValue, Array), "Pref is not an array"))
         return;
 
     this.prefBranch.setCharPref(prefName, this.arrayToString(record.realValue));
@@ -350,7 +327,7 @@ function pm_getpref(prefName, reload)
         defaultValue = record.defaultValue;
     }
 
-    var realValue = null;
+    var realValue = defaultValue;
 
     try
     {
@@ -362,7 +339,7 @@ function pm_getpref(prefName, reload)
         {
             realValue = this.prefBranch.getIntPref(prefName);
         }
-        else if (defaultValue instanceof Array)
+        else if (isinstance(defaultValue, Array))
         {
             realValue = this.prefBranch.getCharPref(prefName);
             realValue = this.stringToArray(realValue);
@@ -379,9 +356,6 @@ function pm_getpref(prefName, reload)
     {
         // if the pref doesn't exist, ignore the exception.
     }
-
-    if (realValue == null)
-        return defaultValue;
 
     record.realValue = realValue;
     return realValue;
@@ -425,7 +399,7 @@ function pm_setpref(prefName, value)
     {
         this.prefBranch.setIntPref(prefName, value);
     }
-    else if (defaultValue instanceof Array)
+    else if (isinstance(defaultValue, Array))
     {
         var str = this.arrayToString(value);
         this.prefBranch.setCharPref(prefName, str);
@@ -437,6 +411,7 @@ function pm_setpref(prefName, value)
     }
     this.delayedSave();
 
+    // Always update this after changing the preference.
     record.realValue = value;
 
     return value;
@@ -445,13 +420,15 @@ function pm_setpref(prefName, value)
 PrefManager.prototype.clearPref =
 function pm_reset(prefName)
 {
-    this.prefRecords[prefName].realValue = null;
     try {
         this.prefBranch.clearUserPref(prefName);
     } catch(ex) {
         // Do nothing, the pref didn't exist.
     }
     this.delayedSave();
+
+    // Always update this after changing the preference.
+    this.prefRecords[prefName].realValue = null;
 }
 
 PrefManager.prototype.addPref =
@@ -474,7 +451,7 @@ function pm_addpref(prefName, defaultValue, setter, bundle, group)
     if (!setter)
         setter = prefSetter;
 
-    if (defaultValue instanceof Array)
+    if (isinstance(defaultValue, Array))
         defaultValue.update = updateArrayPref;
 
     var label = getMsgFrom(bundle, "pref." + prefName + ".label", null, prefName);

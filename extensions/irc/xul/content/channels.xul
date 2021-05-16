@@ -43,8 +43,10 @@
 <dialog xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
     xmlns:html="http://www.w3.org/1999/xhtml"
     windowtype="irc:chatzilla:channels"
+    id="chatzilla-window"
     buttons="cancel"
-    onload="onLoad(); runFilter()"
+    onload="onLoad()"
+    onunload="onUnload()"
     ondialogaccept="return joinChannel()"
     title="&window.title;">
 
@@ -58,8 +60,8 @@
       <hbox align="center">
         <label value="&qsearch.label;" accesskey="&qsearch.accesskey;" 
             control="filterText"/>
-        <textbox id="filterText" flex="1" type="timed" timeout="500" 
-            oncommand="runFilter()" onkeypress="onKeyPress(event)"/>
+        <textbox id="filterText" flex="1" type="search" 
+            oncommand="onFilter()" onkeypress="onKeyPress(event)"/>
       </hbox>
       <checkbox id="searchTopics" oncommand="runFilter(); focusSearch()" 
           label="&topics.label;" accesskey="&topics.accesskey;" 
@@ -68,13 +70,15 @@
           onselect="onSelectionChange()">
         <treecols>
           <treecol label="&col.name;"  width="100" id="chanColName"/>
+          <splitter class="tree-splitter"/>
           <treecol label="&col.users;" width="50"  id="chanColUsers"/>
+          <splitter class="tree-splitter"/>
           <treecol label="&col.topic;" flex="1"    id="chanColTopic"/>
         </treecols>
         <treechildren flex="1"/>
       </tree>
       <hbox id="loadContainer">
-        <label id="loadLabel" value="" flex="1"/>
+        <label id="loadLabel" value="" flex="1" crop="right"/>
         <deck id="loadBarDeck">
           <progressmeter id="loadBar" mode="undetermined" />
           <box/>
@@ -93,14 +97,14 @@
           <row align="center">
             <label value="&minusers.label;" accesskey="&minusers.accesskey;" 
                 control="minUsers"/>
-            <textbox id="minUsers" type="timed" timeout="500" 
-                oncommand="runFilter()"/>
+            <textbox id="minUsers" type="search" 
+                oncommand="onFilter()"/>
             </row>
             <row align="center">
             <label value="&maxusers.label;" accesskey="&maxusers.accesskey;"
                 control="maxUsers"/>
-            <textbox id="maxUsers" type="timed" timeout="500" 
-                oncommand="runFilter()"/>
+            <textbox id="maxUsers" type="search" 
+                oncommand="onFilter()"/>
           </row>
         </rows>
       </grid>

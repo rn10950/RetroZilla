@@ -66,7 +66,7 @@ var headers = {
     IRCChannel: {
         prefix: "ch-",
         fields: ["container", "url-anchor", "modestr", "usercount",
-                 "topicnodes", "topicinput"],
+                 "topicnodes", "topicinput", "topiccancel"],
         update: updateChannel
     },
 
@@ -125,20 +125,30 @@ function stock_initOutputWindow(newClient, newView, newClickHandler)
         {
             var msg = nodes[i].getAttribute("localize");
             msg = getMsg("msg." + msg);
-            nodes[i].appendChild(document.createTextNode(msg));
+            if (nodes[i].nodeName.toLowerCase() == "input")
+                nodes[i].value = msg;
+            else
+                nodes[i].appendChild(document.createTextNode(msg));
         }
     }
 
+    changeCSS("chrome://chatzilla/content/output-base.css", "cz-css-base");
     changeCSS(view.prefs["motif.current"]);
     updateMotifSettings();
 
     var output = document.getElementById("output");
-    output.appendChild(view.messages);
+    output.appendChild(adoptNode(view.messages));
 
     if (view.TYPE in headers)
     {
         header = cacheNodes(headers[view.TYPE].prefix,
                             headers[view.TYPE].fields);
+        // Turn off accessibility announcements: they're useless as all these
+        // changes are in the "log" as well, normally.
+        // We're setting the attribute here instead of in the HTML to cope with
+        // custom output windows and so we set it only on the Right header
+        // for this view.
+        header["container"].setAttribute("aria-live", "off");
         header.update = headers[view.TYPE].update;
     }
 
@@ -149,6 +159,7 @@ function stock_initOutputWindow(newClient, newView, newClickHandler)
     else
         name = view.name;
     splash.appendChild(document.createTextNode(name));
+    onResize();
 
     setTimeout(initHeader, 500);
 
@@ -176,10 +187,12 @@ function onTopicKeypress(e)
             var topic = header["topicinput"].value;
             topic = mainWindow.replaceColorCodes(topic);
             view.setTopic(topic);
+            cancelTopicEdit(true);
             view.dispatch("focus-input");
             break;
             
         case 27: /* esc */
+            cancelTopicEdit(true);
             view.dispatch("focus-input");
             break;
             
@@ -188,29 +201,43 @@ function onTopicKeypress(e)
     }
 }
 
+function onResize()
+{
+    var halfHeight = Math.floor(window.innerHeight / 2);
+    var splash = document.getElementById("splash");
+    splash.style.paddingTop = halfHeight + "px";
+    splash.style.paddingBottom = halfHeight + "px";
+}
+
 function startTopicEdit()
 {
     var me = view.getUser(view.parent.me.unicodeName);
     if (!me || (!view.mode.publicTopic && !me.isOp && !me.isHalfOp) ||
-        !header["topicinput"].hasAttribute("hidden"))
+        !hasAttribute("topicinput", "hidden"))
     {
         return;
     }
-    
+
     header["topicinput"].value = mainWindow.decodeColorCodes(view.topic);
 
     header["topicnodes"].setAttribute("hidden", "true")
     header["topicinput"].removeAttribute("hidden");
+    header["topiccancel"].removeAttribute("hidden");
     header["topicinput"].focus();
     header["topicinput"].selectionStart = 0;
 }
 
-function cancelTopicEdit()
+function cancelTopicEdit(force)
 {
-    if (!header["topicnodes"].hasAttribute("hidden"))
+    var originalTopic = mainWindow.decodeColorCodes(view.topic);
+    if (!hasAttribute("topicnodes", "hidden") ||
+        (!force && (header["topicinput"].value != originalTopic)))
+    {
         return;
-    
-    header["topicinput"].setAttribute("hidden", "true")
+    }
+
+    header["topicinput"].setAttribute("hidden", "true");
+    header["topiccancel"].setAttribute("hidden", "true");
     header["topicnodes"].removeAttribute("hidden");
 }
 
@@ -230,7 +257,7 @@ function changeCSS(url, id)
     if (!id)
         id = "main-css";
     
-    node = document.getElementById(id);
+    var node = document.getElementById(id);
 
     if (!node)
     {
@@ -249,6 +276,84 @@ function changeCSS(url, id)
 
     node.setAttribute("href", url);
     window.scrollTo(0, window.document.height);
+}
+
+function scrollToElement(element, position)
+{
+    /* The following values can be used for element:
+     *   selection       - current selected text.
+     *   marker          - the activity marker.
+     *   [any DOM node]  - anything :)
+     *
+     * The following values can be used for position:
+     *   top             - scroll so it is at the top.
+     *   center          - scroll so it is in the middle.
+     *   bottom          - scroll so it is at the bottom.
+     *   inview          - scroll so it is in view.
+     */
+    switch (element)
+    {
+        case "selection":
+            var sel = window.getSelection();
+            if (sel)
+                element = sel.anchorNode;
+            else
+                element = null;
+            break;
+
+        case "marker":
+            if ("getActivityMarker" in view)
+                element = view.getActivityMarker().marker;
+            else
+                element = null;
+            break;
+    }
+    if (!element)
+        return;
+
+    // Calculate element's position in document.
+    var pos = { top: 0, center: 0, bottom: 0 };
+    // Find first parent with offset data.
+    while (element && !("offsetParent" in element))
+        element = element.parentNode;
+    var elt = element;
+    // Calc total offset data.
+    while (elt)
+    {
+        pos.top += 0 + elt.offsetTop;
+        elt = elt.offsetParent;
+    }
+    pos.center = pos.top + element.offsetHeight / 2;
+    pos.bottom = pos.top + element.offsetHeight;
+
+    // Store the positions to align the element with.
+    var cont = { top: 0, center: window.innerHeight / 2,
+                 bottom: window.innerHeight };
+    if (!hasAttribute("container", "hidden"))
+    {
+        /* Offset height doesn't include the margins, so we get to do that
+         * ourselves via getComputedStyle(). We're assuming that will return
+         * a px value, which is all but guaranteed.
+         */
+        var headerHeight = header["container"].offsetHeight;
+        var css = getComputedStyle(header["container"], null);
+        headerHeight += parseInt(css.marginTop) + parseInt(css.marginBottom);
+        cont.top    += headerHeight;
+        cont.center += headerHeight / 2;
+    }
+
+    // Pick between 'top' and 'bottom' for 'inview' position.
+    if (position == "inview")
+    {
+        if (pos.top - window.scrollY < cont.top)
+            position = "top";
+        else if (pos.bottom - window.scrollY > cont.bottom)
+            position = "bottom";
+        else
+            return;
+    }
+
+    window.scrollTo(0, pos[position] - cont[position]);
 }
 
 function updateMotifSettings(existingTimeout)
@@ -291,6 +396,11 @@ function getMotifSettings()
     return rv;
 }
 
+function adoptNode(node)
+{
+    return client.adoptNode(node, document);
+}
+
 function setText(field, text, checkCondition)
 {
     if (!header[field].firstChild)
@@ -325,7 +435,7 @@ function removeAttribute(field, name)
 
 function hasAttribute(field, name)
 {
-    header[field].hasAttribute(name);
+    return header[field].hasAttribute(name);
 }
 
 function setHeaderState(state)
@@ -334,8 +444,8 @@ function setHeaderState(state)
     {
         if (state)
         {
-            updateHeader();
             removeAttribute("container", "hidden");
+            updateHeader();
         }
         else
         {
@@ -403,8 +513,9 @@ function updateNetwork()
         setAttribute("status","condition", "green");
         setAttribute("status", "title",
                      getMsg(MSG_CONNECT_VIA, view.primServ.unicodeName));
-        if (view.primServ.lag != -1)
-            setText("lag", getMsg(MSG_FMT_SECONDS, view.primServ.lag));
+        var lag = view.primServ.lag;
+        if (lag != -1)
+            setText("lag", getMsg(MSG_FMT_SECONDS, lag.toFixed(2)));
         else
             setText("lag", MSG_UNKNOWN);
         
@@ -439,8 +550,11 @@ function updateChannel()
         {
             var data = getObjectDetails(view);
             data.dontLogURLs = true;
+            var mailto = client.prefs["munger.mailto"];
+            client.munger.getRule(".mailto").enabled = mailto;
             var nodes = client.munger.munge(view.topic, null, data);
-            header["topicnodes"].appendChild(nodes);
+            client.munger.getRule(".mailto").enabled = false;
+            header["topicnodes"].appendChild(adoptNode(nodes));
         }
         else
         {
@@ -479,7 +593,7 @@ function updateUser()
         var data = getObjectDetails(view);
         data.dontLogURLs = true;
         var nodes = client.munger.munge(view.desc, null, data);
-        header["descnodes"].appendChild(nodes);
+        header["descnodes"].appendChild(adoptNode(nodes));
     }
     else
     {
@@ -499,7 +613,7 @@ function updateDCCChat()
 
 function updateDCCFile()
 {
-    var pcent = Math.floor(100 * view.position / view.size);
+    var pcent = view.progress;
     
     setText("file", view.filename);
     setText("progress", getMsg(MSG_DCCFILE_PROGRESS,

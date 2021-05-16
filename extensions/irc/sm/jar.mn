@@ -1,3 +1,9 @@
+# The registration of the overlays specific to SeaMonkey below should match
+# the ../xul/content/sm/contents.rdf file.
 chatzilla.jar:
+% content chatzilla-sm %content/chatzilla/sm/
+% overlay chrome://chatzilla/content/chatzilla.xul chrome://chatzilla/content/sm/overlay.xul application={92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}
+% overlay chrome://chatzilla/content/chatzilla.xul chrome://communicator/content/utilityOverlay.xul application={92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}
+% overlay chrome://chatzilla/content/menus.xul chrome://communicator/content/tasksOverlay.xul application={92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}
 	content/chatzilla/sm/contents.rdf            (../xul/content/sm/contents.rdf)
 	content/chatzilla/sm/overlay.xul             (../xul/content/sm/overlay.xul)
