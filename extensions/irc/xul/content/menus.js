@@ -143,6 +143,7 @@ function initMenus()
         [
          ["cmd-prefs",  {id: "menu_preferences"}],
          ["install-plugin"],
+         ["goto-startup"],
          ["-"],
          ["print"],
          ["save"],

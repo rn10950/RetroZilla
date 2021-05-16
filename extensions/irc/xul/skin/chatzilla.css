@@ -335,6 +335,14 @@ progressmeter[mode="undetermined"] {
     display: none;
 }
 
+#logging-status[loggingstate="off"] {
+    list-style-image: url("chrome://chatzilla/skin/images/logging-off.png");
+}
+
+#logging-status[loggingstate="on"] {
+    list-style-image: url("chrome://chatzilla/skin/images/logging-on.png");
+}
+
 #offline-status[offlinestate="offline"] {
     list-style-image: url("chrome://chatzilla/skin/images/offline.png");
 }

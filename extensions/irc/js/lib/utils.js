@@ -1366,7 +1366,7 @@ const timestr = {
     D: { replace: "%m/%d/%y" },
     d: { method: "getDate", pad: 2 },
     e: { method: "getDate", pad: 2, padwith: " " },
-    F: { replace: "%Y-%m-$d" },
+    F: { replace: "%Y-%m-%d" },
     h: { replace: "%b" },
     H: { method: "getHours", pad: 2 },
     k: { method: "getHours", pad: 2, padwith: " " },

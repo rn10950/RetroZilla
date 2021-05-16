@@ -102,6 +102,7 @@ function PrefGlobal()
     this.networks = new Object();
     this.commandManager = new Object();
     this.commandManager.defineCommand = function() {};
+    this.commandManager.removeCommand = function() {};
     this.entities = new Object();
     this.hostCompat = new Object();
 }

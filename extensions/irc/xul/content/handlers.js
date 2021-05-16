@@ -111,6 +111,8 @@ function initHandlers()
     node.active = false;
     node = document.getElementById("security-button");
     node.addEventListener("dblclick", onSecurityIconDblClick, false);
+    node = document.getElementById("logging-status");
+    node.addEventListener("click", onLoggingIconClick, false);
 
     window.onkeypress = onWindowKeyPress;
 
@@ -127,21 +129,48 @@ function initHandlers()
 
 function onClose()
 {
+    // Assume close needs authorization from user.
+    var close = false;
+
+    // Close has already been authorized.
     if ("userClose" in client && client.userClose)
-        return true;
+        close = true;
 
-    // if we're not connected to anything, just close the window
+    // Not connected, no need for authorization.
     if (!("getConnectionCount" in client) || (client.getConnectionCount() == 0))
-        return true;
+        close = true;
 
-    /* otherwise, try to close out gracefully */
-    client.wantToQuit();
-    return false;
+    if (!close)
+    {
+        // Authorization needed from user.
+        client.wantToQuit();
+        return false;
+    }
+
+    return true;
 }
 
 function onUnload()
 {
     dd("Shutting down ChatZilla.");
+
+    /* Disable every loaded & enabled plugin to give them all a chance to
+     * clean up anything beyond the ChatZilla window (e.g. libraries). All
+     * errors are disregarded as there's nothing we can do at this point.
+     * Wipe the plugin list afterwards for safety.
+     */
+    for (var i = 0; i < client.plugins.length; ++i)
+    {
+        if ((client.plugins[i].API > 0) && client.plugins[i].enabled)
+        {
+            try
+            {
+                client.plugins[i].disable();
+            }
+            catch(ex) {}
+        }
+    }
+    client.plugins = new Array();
 
     // Close all dialogs.
     for (var net in client.networks)
@@ -296,6 +325,12 @@ function onSecurityIconDblClick(e)
 {
     if (e.button == 0)
         displayCertificateInfo();
+}
+
+function onLoggingIconClick(e)
+{
+    if (e.button == 0)
+        client.currentObject.dispatch("log", { state: "toggle" });
 }
 
 function onMultilineInputKeyPress (e)
@@ -2601,8 +2636,7 @@ function my_unkctcp (e)
 CIRCChannel.prototype.onJoin =
 function my_cjoin (e)
 {
-    if (!("messages" in this))
-        this.displayHere(getMsg(MSG_CHANNEL_OPENED, this.unicodeName), MT_INFO);
+    dispatch("create-tab-for-view", { view: e.channel });
 
     if (userIsMe(e.user))
     {

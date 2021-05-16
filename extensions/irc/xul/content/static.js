@@ -132,8 +132,6 @@ CIRCUser.prototype.MAX_MESSAGES = 200;
 
 CIRCChannel.prototype.MAX_MESSAGES = 300;
 
-CIRCChanUser.prototype.MAX_MESSAGES = 200;
-
 function init()
 {
     if (("initialized" in client) && client.initialized)
@@ -924,23 +922,9 @@ function processStartupURLs()
         }
     }
 
+    /* if we had nowhere else to go, connect to any default urls */
     if (!wentSomewhere)
-    {
-        /* if we had nowhere else to go, connect to any default urls */
-        var ary = client.prefs["initialURLs"];
-        for (var i = 0; i < ary.length; ++i)
-        {
-            if (ary[i] && ary[i] == "irc:///")
-            {
-                // Clean out "default network" entries, which we don't
-                // support any more; replace with the harmless irc:// URL.
-                ary[i] = "irc://";
-                client.prefs["initialURLs"].update();
-            }
-            if (ary[i] && ary[i] != "irc://")
-                gotoIRCURL(ary[i]);
-        }
-    }
+        openStartupURLs();
 
     if (client.viewsArray.length > 1 && !isStartupURL("irc://"))
         dispatch("delete-view", { view: client });
@@ -952,6 +936,23 @@ function processStartupURLs()
     {
         client.tabs.removeChild(client.tabs.firstChild);
         updateTabAttributes();
+    }
+}
+
+function openStartupURLs()
+{
+    var ary = client.prefs["initialURLs"];
+    for (var i = 0; i < ary.length; ++i)
+    {
+        if (ary[i] && ary[i] == "irc:///")
+        {
+            // Clean out "default network" entries, which we don't
+            // support any more; replace with the harmless irc:// URL.
+            ary[i] = "irc://";
+            client.prefs["initialURLs"].update();
+        }
+        if (ary[i] && ary[i] != "irc://")
+            gotoIRCURL(ary[i]);
     }
 }
 
@@ -1589,7 +1590,7 @@ function openQueryTab(server, nick)
             user.prefManager.prefRecords["charset"].defaultValue = value;
         }
 
-        user.displayHere (getMsg(MSG_QUERY_OPENED, user.unicodeName));
+        dispatch("create-tab-for-view", { view: user });
     }
     user.whois();
     return user;
@@ -1978,8 +1979,7 @@ function gotoIRCURL(url, e)
         }
         else
         {
-            if (!network.messages)
-                network.displayHere(getMsg(MSG_NETWORK_OPENED, network.unicodeName));
+            dispatch("create-tab-for-view", { view: network });
             dispatch("set-current-view", { view: network });
         }
         delete client.pendingViewContext;
@@ -2085,8 +2085,7 @@ function gotoIRCURL(url, e)
     else
     {
         client.pendingViewContext = e;
-        if (!network.messages)
-            network.displayHere(getMsg(MSG_NETWORK_OPENED, network.unicodeName));
+        dispatch("create-tab-for-view", { view: network });
         dispatch("set-current-view", { view: network });
         delete client.pendingViewContext;
     }
@@ -2149,6 +2148,14 @@ function updateSecurityIcon()
         default:
             securityButton.setAttribute("tooltiptext", MSG_SECURITY_INFO);
     }
+}
+
+function updateLoggingIcon()
+{
+    var state = client.currentObject.prefs["log"] ? "on" : "off";
+    var icon = window.document.getElementById("logging-status");
+    icon.setAttribute("loggingstate", state);
+    icon.setAttribute("tooltiptext", getMsg("msg.logging.icon." + state));
 }
 
 function initOfflineIcon()
@@ -2782,6 +2789,7 @@ function setCurrentObject (obj)
     updateTitle();
     updateProgress();
     updateSecurityIcon();
+    updateLoggingIcon();
 
     scrollDown(obj.frame, false);
 
@@ -3115,8 +3123,10 @@ function client_statechange (webProgress, request, stateFlags, status)
     const STOP = nsIWebProgressListener.STATE_STOP;
     const IS_NETWORK = nsIWebProgressListener.STATE_IS_NETWORK;
     const IS_DOCUMENT = nsIWebProgressListener.STATE_IS_DOCUMENT;
+    const IS_REQUEST = nsIWebProgressListener.STATE_IS_REQUEST;
 
     var frame;
+    //dd("progressListener.onStateChange(" + stateFlags.toString(16) + ")");
 
     // We only care about the initial start of loading, not the loading of
     // and page sub-components (IS_DOCUMENT, etc.).
@@ -3159,18 +3169,14 @@ function client_statechange (webProgress, request, stateFlags, status)
             var cwin = getContentWindow(frame);
             if (cwin && "initOutputWindow" in cwin)
             {
-                cwin.getMsg = getMsg;
-                cwin.initOutputWindow(client, frame.source, onMessageViewClick);
-                cwin.changeCSS(frame.source.getFontCSS("data"), "cz-fonts");
-                scrollDown(frame, true);
-
-                try
+                if (!("_called_initOutputWindow" in cwin))
                 {
-                    webProgress.removeProgressListener(this);
-                }
-                catch(ex)
-                {
-                    dd("Exception removing progress listener (done): " + ex);
+                    cwin._called_initOutputWindow = true;
+                    cwin.getMsg = getMsg;
+                    cwin.initOutputWindow(client, frame.source, onMessageViewClick);
+                    cwin.changeCSS(frame.source.getFontCSS("data"), "cz-fonts");
+                    scrollDown(frame, true);
+                    //dd("initOutputWindow(" + frame.source.getURL() + ")");
                 }
             }
             // XXX: For about:blank it won't find initOutputWindow. Cope.
@@ -3183,6 +3189,22 @@ function client_statechange (webProgress, request, stateFlags, status)
                    "function. This is BAD!");
             }
         }
+    }
+    // Requests stopping are either the page, or its components loading. We're
+    // interested in its components.
+    else if ((stateFlags & STOP) && (stateFlags & IS_REQUEST))
+    {
+        frame = getFrameForDOMWindow(webProgress.DOMWindow);
+        if (frame)
+        {
+            var cwin = getContentWindow(frame);
+            if (cwin && ("_called_initOutputWindow" in cwin))
+            {
+                scrollDown(frame, false);
+                //dd("scrollDown(" + frame.source.getURL() + ")");
+            }
+        }
+    
     }
 }
 
@@ -3497,6 +3519,17 @@ function syncOutputFrame(obj, nesting)
         return;
     }
 
+    /* We leave the progress listener attached so try to remove it first,
+     * should we be called on an already-set-up view.
+     */
+    try
+    {
+        iframe.removeProgressListener(client.progressListener, ALL);
+    }
+    catch (ex)
+    {
+    }
+
     try
     {
         if (getContentDocument(iframe) && ("webProgress" in iframe))
@@ -3624,7 +3657,6 @@ function getTabForObject(source, create)
         browser.setAttribute("type", "content");
         browser.setAttribute("flex", "1");
         browser.setAttribute("tooltip", "html-tooltip-node");
-        //browser.setAttribute("onload", "scrollDown(true);");
         browser.setAttribute("onclick",
                              "return onMessageViewClick(event)");
         browser.setAttribute("onmousedown",
@@ -3921,6 +3953,9 @@ function tabdnd_dexit(aEvent, aDragSession)
 tabsDropObserver.onDrop =
 function tabdnd_drop(aEvent, aXferData, aDragSession)
 {
+    // Dragging has finished.
+    client.tabDragBar.collapsed = true;
+
     // See comment above |var tabsDropObserver|.
     var url = transferUtils.retrieveURLFromData(aXferData.data,
                                                 aXferData.flavour.contentType);
@@ -4021,6 +4056,25 @@ function deleteTab(tb)
     setTimeout(updateTabAttributes, 0);
 
     return key;
+}
+
+function deleteFrame(view)
+{
+    const nsIWebProgress = Components.interfaces.nsIWebProgress;
+    const ALL = nsIWebProgress.NOTIFY_ALL;
+
+    // We leave the progress listener attached so try to remove it.
+    try
+    {
+        view.frame.removeProgressListener(client.progressListener, ALL);
+    }
+    catch (ex)
+    {
+        dd(formatException(ex));
+    }
+
+    client.deck.removeChild(view.frame);
+    delete view.frame;
 }
 
 function filterOutput(msg, msgtype, dest)
@@ -4179,9 +4233,7 @@ function cli_connect(networkOrName, requireSecurity)
     }
     name = network.unicodeName;
 
-    if (!("messages" in network))
-        network.displayHere(getMsg(MSG_NETWORK_OPENED, name));
-
+    dispatch("create-tab-for-view", { view: network });
     dispatch("set-current-view", { view: network });
 
     if (network.isConnected())
@@ -5107,12 +5159,7 @@ function addHistory (source, obj, mergeData)
     }
 
     if (needScroll)
-    {
         scrollDown(source.frame, true);
-        setTimeout(scrollDown, 500, source.frame, false);
-        setTimeout(scrollDown, 1000, source.frame, false);
-        setTimeout(scrollDown, 2000, source.frame, false);
-    }
 }
 
 function removeExcessMessages(source)
@@ -5303,7 +5350,7 @@ function gettabmatch_usr (line, wordStart, wordEnd, word, cursorPos)
 }
 
 client.openLogFile =
-function cli_startlog (view)
+function cli_startlog(view, showMessage)
 {
     function getNextLogFileDate()
     {
@@ -5354,18 +5401,15 @@ function cli_startlog (view)
         return;
     }
 
-    if (!("logFileWrapping" in view) || !view.logFileWrapping)
+    if (showMessage)
         view.displayHere(getMsg(MSG_LOGFILE_OPENED, getLogPath(view)));
-    view.logFileWrapping = false;
 }
 
 client.closeLogFile =
-function cli_stoplog(view, wrapping)
+function cli_stoplog(view, showMessage)
 {
-    if ("frame" in view && !wrapping)
+    if (showMessage)
         view.displayHere(getMsg(MSG_LOGFILE_CLOSING, getLogPath(view)));
-
-    view.logFileWrapping = Boolean(wrapping);
 
     if (view.logFile)
     {
@@ -5386,14 +5430,14 @@ function checkLogFiles()
     {
         var net = client.networks[n];
         if (net.logFile && (d > net.nextLogFileDate))
-            client.closeLogFile(net, true);
+            client.closeLogFile(net);
         if (("primServ" in net) && net.primServ && ("channels" in net.primServ))
         {
             for (var c in net.primServ.channels)
             {
                 var chan = net.primServ.channels[c];
                 if (chan.logFile && (d > chan.nextLogFileDate))
-                    client.closeLogFile(chan, true);
+                    client.closeLogFile(chan);
             }
         }
         if ("users" in net)
@@ -5402,7 +5446,7 @@ function checkLogFiles()
             {
                 var user = net.users[u];
                 if (user.logFile && (d > user.nextLogFileDate))
-                    client.closeLogFile(user, true);
+                    client.closeLogFile(user);
             }
         }
     }
@@ -5411,18 +5455,18 @@ function checkLogFiles()
     {
         var dccChat = client.dcc.chats[dc];
         if (dccChat.logFile && (d > dccChat.nextLogFileDate))
-            client.closeLogFile(dccChat, true);
+            client.closeLogFile(dccChat);
     }
     for (var df in client.dcc.files)
     {
         var dccFile = client.dcc.files[df];
         if (dccFile.logFile && (d > dccFile.nextLogFileDate))
-            client.closeLogFile(dccFile, true);
+            client.closeLogFile(dccFile);
     }
 
     // Don't forget about the client tab:
     if (client.logFile && (d > client.nextLogFileDate))
-        client.closeLogFile(client, true);
+        client.closeLogFile(client);
 
     /* We need to calculate the correct time for the next check. This is
      * attempting to hit 2 seconds past the hour. We need the timezone offset

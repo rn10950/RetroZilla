@@ -118,3 +118,5 @@ chatzilla.jar:
 	skin/modern/chatzilla/images/online.png             (xul/skin/images/online.png)
 	skin/modern/chatzilla/images/offline.png            (xul/skin/images/offline.png)
 	skin/modern/chatzilla/images/drop-indicator-bottom.png (xul/skin/images/drop-indicator-bottom.png)
+	skin/modern/chatzilla/images/logging-on.png      (xul/skin/images/logging-on.png)
+	skin/modern/chatzilla/images/logging-off.png     (xul/skin/images/logging-off.png)

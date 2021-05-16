@@ -140,6 +140,7 @@
         <label id="security-button-label"/>
         <image id="security-button-image"/>
       </statusbarpanel>
+      <statusbarpanel class="statusbarpanel-iconic" id="logging-status"/>
       <statusbarpanel class="statusbarpanel-iconic" id="offline-status"/>
     </statusbar>
   </overlaytarget>
