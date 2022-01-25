@@ -294,7 +294,7 @@ typedef struct {
 } ssl3CipherSuiteCfg;
 
 #ifndef NSS_DISABLE_ECC
-#define ssl_V3_SUITES_IMPLEMENTED 70
+#define ssl_V3_SUITES_IMPLEMENTED 71
 #else
 #define ssl_V3_SUITES_IMPLEMENTED 41
 #endif /* NSS_DISABLE_ECC */
