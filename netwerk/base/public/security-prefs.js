@@ -56,6 +56,12 @@ pref("security.ssl3.rsa_null_md5", false);
 pref("security.ssl3.ecdhe_ecdsa_aes_128_gcm_sha256", true);
 pref("security.ssl3.ecdhe_rsa_aes_128_gcm_sha256", true);
 
+pref("security.ssl3.ecdhe_ecdsa_aes_256_gcm_sha384", true);
+pref("security.ssl3.ecdhe_rsa_aes_256_gcm_sha384", true);
+
+pref("security.ssl3.ecdhe_ecdsa_chacha20_poly1305_sha256", true);
+pref("security.ssl3.ecdhe_rsa_chacha20_poly1305_sha256", true);
+
 pref("security.default_personal_cert",   "Ask Every Time");
 pref("security.remember_cert_checkbox_default_setting", true);
 pref("security.ask_for_password",        0);
