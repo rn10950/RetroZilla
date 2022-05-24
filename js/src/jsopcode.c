@@ -1937,9 +1937,9 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb)
                 jp->indent += 4;
 
                 /*
-                 * We must push an empty string placeholder for gosub's return
-                 * address, popped by JSOP_RETSUB and counted by script->depth
-                 * but not by ss->top (see JSOP_SETSP, below).
+                 * We push push the pair of exception/restsub cookies to
+                 * simulate the effects [gosub] or control transfer during
+                 * exception capturing on the stack.
                  */
                 todo = Sprint(&ss->sprinter, exception_cookie);
                 if (todo < 0 || !PushOff(ss, todo, op))
@@ -1973,7 +1973,7 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb)
                 todo = -2;
                 break;
 
-              case JSOP_SETSP:
+              case JSOP_POPN:
               {
                 uintN newtop, oldtop, i;
 
@@ -1983,8 +1983,8 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb)
                  * The decompiler must match the code generator's model, which
                  * is why JSOP_FINALLY pushes a cookie that JSOP_RETSUB pops.
                  */
-                newtop = (uintN) GET_UINT16(pc);
                 oldtop = ss->top;
+				newtop = oldtop - GET_UNIT16(pc);
                 LOCAL_ASSERT(newtop <= oldtop);
                 todo = -2;
 
@@ -2011,7 +2011,7 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb)
                      * Kill newtop before the end_groupassignment: label by
                      * retracting/popping early.  Control will either jump to
                      * do_forloop: or do_letheadbody: or else break from our
-                     * case JSOP_SETSP: after the switch (*pc2) below.
+                     * case JSOP_POPN: after the switch (*pc2) below.
                      */
                     if (newtop < oldtop) {
                         ss->sprinter.offset = GetOff(ss, newtop);
@@ -2054,7 +2054,7 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb)
                                     LOCAL_ASSERT(pc[len] == JSOP_LEAVEBLOCK);
                                     js_printf(jp, "\tlet (%s) {\n", rval);
                                     js_printf(jp, "\t}\n");
-                                    goto end_setsp;
+                                    goto end_popn;
                                 }
                                 todo = SprintCString(&ss->sprinter, rval);
                                 if (todo < 0 || !PushOff(ss, todo, JSOP_NOP))
@@ -2084,7 +2084,7 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb)
                      */
                     if (todo == -2)
                         js_printf(jp, "\t%s;\n", rval);
-                  end_setsp:
+                  end_popn:
                     break;
                 }
 #endif
@@ -4616,11 +4616,6 @@ js_DecompileValueGenerator(JSContext *cx, intN spindex, jsval v,
             op = JS_GetTrapOpcode(cx, script, pc);
         cs = &js_CodeSpec[op];
         oplen = cs->length;
-
-        if (op == JSOP_SETSP) {
-            pcdepth = GET_UINT16(pc);
-            continue;
-        }
 
         /*
          * A (C ? T : E) expression requires skipping either T (if begin is in
