@@ -384,6 +384,9 @@ int ZEXPORT gzread(file, buf, len)
 #else
 #  undef gzgetc
 #endif
+#ifdef MOZZCONF_H
+#define gzgetc MOZ_Z_gzgetc
+#endif
 int ZEXPORT gzgetc(file)
     gzFile file;
 {
