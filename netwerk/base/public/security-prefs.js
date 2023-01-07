@@ -53,6 +53,8 @@ pref("security.ssl3.dhe_dss_des_sha", false);
 pref("security.ssl3.rsa_null_sha", false);
 pref("security.ssl3.rsa_null_md5", false);
 
+pref("security.ssl3.rsa_aes_128_gcm_sha256", true);
+
 pref("security.ssl3.ecdhe_ecdsa_aes_128_gcm_sha256", true);
 pref("security.ssl3.ecdhe_rsa_aes_128_gcm_sha256", true);
 
