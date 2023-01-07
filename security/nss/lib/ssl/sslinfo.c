@@ -169,7 +169,6 @@ SSL_GetPreliminaryChannelInfo(PRFileDesc *fd,
 
 static const SSLCipherSuiteInfo suiteInfo[] = {
 /* <------ Cipher suite --------------------> <auth> <KEA>  <bulk cipher> <MAC> <FIPS> */
-{0,CS(TLS_RSA_WITH_AES_128_GCM_SHA256),       S_RSA, K_RSA, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
 {0,CS(TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256), S_RSA, K_DHE, C_CHACHA20, B_256, M_AEAD_128, 0, 0, 0 },
 
 {0,CS(TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA), S_RSA, K_DHE, C_CAMELLIA, B_256, M_SHA, 0, 0, 0, },
@@ -195,8 +194,10 @@ static const SSLCipherSuiteInfo suiteInfo[] = {
 {0,CS(TLS_RSA_WITH_CAMELLIA_128_CBC_SHA),     S_RSA, K_RSA, C_CAMELLIA, B_128, M_SHA, 0, 0, 0, },
 {0,CS(TLS_RSA_WITH_RC4_128_SHA),              S_RSA, K_RSA, C_RC4, B_128, M_SHA, 0, 0, 0, },
 {0,CS(TLS_RSA_WITH_RC4_128_MD5),              S_RSA, K_RSA, C_RC4, B_128, M_MD5, 0, 0, 0, },
+{0,CS(TLS_RSA_WITH_AES_128_GCM_SHA256),       S_RSA, K_RSA, C_AESGCM, B_128, M_AEAD_128, 1, 0, 0, },
 {0,CS(TLS_RSA_WITH_AES_128_CBC_SHA256),       S_RSA, K_RSA, C_AES, B_128, M_SHA256, 1, 0, 0, },
 {0,CS(TLS_RSA_WITH_AES_128_CBC_SHA),          S_RSA, K_RSA, C_AES, B_128, M_SHA, 1, 0, 0, },
+{0,CS(TLS_RSA_WITH_AES_256_GCM_SHA384),       S_RSA, K_RSA, C_AESGCM, B_256, M_AEAD_128, 1, 0, 0, },
 
 {0,CS(TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA),     S_RSA, K_DHE, C_3DES,B_3DES,M_SHA, 1, 0, 0, },
 {0,CS(TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA),     S_DSA, K_DHE, C_3DES,B_3DES,M_SHA, 1, 0, 0, },

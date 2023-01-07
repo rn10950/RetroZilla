@@ -294,9 +294,9 @@ typedef struct {
 } ssl3CipherSuiteCfg;
 
 #ifndef NSS_DISABLE_ECC
-#define ssl_V3_SUITES_IMPLEMENTED 71
+#define ssl_V3_SUITES_IMPLEMENTED 72
 #else
-#define ssl_V3_SUITES_IMPLEMENTED 41
+#define ssl_V3_SUITES_IMPLEMENTED 42
 #endif /* NSS_DISABLE_ECC */
 
 #define MAX_DTLS_SRTP_CIPHER_SUITES 4
