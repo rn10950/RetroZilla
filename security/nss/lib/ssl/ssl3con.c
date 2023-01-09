@@ -106,13 +106,14 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
    /*      cipher_suite                     policy       enabled   isPresent */
 
 #ifndef NSS_DISABLE_ECC
+ { TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
+ { TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
  { TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256, SSL_ALLOWED, PR_FALSE, PR_FALSE},
  { TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256,   SSL_ALLOWED, PR_FALSE, PR_FALSE},
- { TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, SSL_ALLOWED, PR_TRUE, PR_FALSE},
- { TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,   SSL_ALLOWED, PR_TRUE, PR_FALSE},
    /* TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA is out of order to work around
     * bug 946147.
     */
@@ -163,6 +164,7 @@ static ssl3CipherSuiteCfg cipherSuites[ssl_V3_SUITES_IMPLEMENTED] = {
  { TLS_RSA_WITH_AES_128_CBC_SHA,            SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_RSA_WITH_AES_128_CBC_SHA256,         SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,       SSL_ALLOWED, PR_FALSE, PR_FALSE},
+ { TLS_RSA_WITH_AES_256_GCM_SHA384,         SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_RSA_WITH_AES_256_CBC_SHA,            SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_RSA_WITH_AES_256_CBC_SHA256,         SSL_ALLOWED, PR_TRUE,  PR_FALSE},
  { TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,       SSL_ALLOWED, PR_FALSE, PR_FALSE},
@@ -436,10 +438,12 @@ static const ssl3CipherSuiteDef cipher_suite_defs[] =
 
     {TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_dhe_rsa},
     {TLS_RSA_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_rsa},
+    {TLS_RSA_WITH_AES_256_GCM_SHA384, cipher_aes_256_gcm, mac_aead, kea_rsa},
 
     {TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_ecdhe_rsa},
     {TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, cipher_aes_128_gcm, mac_aead, kea_ecdhe_ecdsa},
     {TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, cipher_aes_256_gcm, mac_aead, kea_ecdhe_rsa}, // XXX: ssl_hash_sha384 hardcoded, see TenFourFox issue 480
+    {TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, cipher_aes_256_gcm, mac_aead, kea_ecdhe_ecdsa},
     {TLS_ECDHE_RSA_WITH_CAMELLIA_128_GCM_SHA256, cipher_camellia_128_gcm, mac_aead, kea_ecdhe_rsa},
     {TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256, cipher_camellia_128_gcm, mac_aead, kea_ecdhe_ecdsa},
 
@@ -694,12 +698,14 @@ ssl3_CipherSuiteAllowedForVersionRange(
     case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
     case TLS_RSA_WITH_AES_128_CBC_SHA256:
     case TLS_RSA_WITH_AES_128_GCM_SHA256:
+    case TLS_RSA_WITH_AES_256_GCM_SHA384:
     case TLS_DHE_DSS_WITH_AES_128_CBC_SHA256:
     case TLS_DHE_DSS_WITH_AES_256_CBC_SHA256:
     case TLS_RSA_WITH_NULL_SHA256:
         return vrange->max == SSL_LIBRARY_VERSION_TLS_1_2;
 
     case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+    case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
     case TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_GCM_SHA256:
     case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
     case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
@@ -3778,7 +3784,9 @@ ssl3_GetTls12PrfHashMechanism(sslSocket *ss)
     }
     return CKM_SHA256;
 #else
-    if (ss->ssl3.hs.cipher_suite == TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+    if (ss->ssl3.hs.cipher_suite == TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        || ss->ssl3.hs.cipher_suite == TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        || ss->ssl3.hs.cipher_suite == TLS_RSA_WITH_AES_256_GCM_SHA384)
 	return CKM_SHA384;
     return CKM_SHA256;
 #endif
@@ -3794,7 +3802,9 @@ ssl3_GetSuitePrfHash(sslSocket *ss) {
     }
     return ss->ssl3.hs.suite_def->prf_hash;
 #else
-    if (ss->ssl3.hs.cipher_suite == TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384)
+    if (ss->ssl3.hs.cipher_suite == TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        || ss->ssl3.hs.cipher_suite == TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        || ss->ssl3.hs.cipher_suite == TLS_RSA_WITH_AES_256_GCM_SHA384)
 	return ssl_hash_sha384;
     return ssl_hash_sha256;
 #endif
