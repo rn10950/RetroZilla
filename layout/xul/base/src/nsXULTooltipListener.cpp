@@ -43,6 +43,7 @@
 #include "nsIDOMXULDocument.h"
 #include "nsIDOMXULElement.h"
 #include "nsIDocument.h"
+#include "nsIFocusController.h"
 #include "nsXULAtoms.h"
 #include "nsIPresShell.h"
 #include "nsIFrame.h"
@@ -54,6 +55,7 @@
 #endif
 #include "nsGUIEvent.h"
 #include "nsIPrivateDOMEvent.h"
+#include "nsPIDOMWindow.h"
 #include "nsPresContext.h"
 #include "nsIScriptContext.h"
 #include "nsIScriptGlobalObject.h"
@@ -393,7 +395,27 @@ nsXULTooltipListener::ShowTooltip()
     return NS_ERROR_FAILURE; // the target node doesn't need a tooltip
 
   // set the node in the document that triggered the tooltip and show it
-  nsCOMPtr<nsIDOMXULDocument> xulDoc(do_QueryInterface(mCurrentTooltip->GetDocument()));
+  // Make sure the document still has focus.
+  nsIDocument* doc = mCurrentTooltip->GetDocument();
+  if (!doc || !nsContentUtils::IsChromeDoc(doc)) {
+    return NS_OK;
+  }
+  // old way to do doc->GetDocumentState().HasState(NS_DOCUMENT_STATE_WINDOW_INACTIVE)
+  nsPIDOMWindow* win = doc->GetWindow();
+  if (!win) {
+    return NS_OK;
+  }
+  nsIFocusController *focusController = win->GetRootFocusController();
+  PRBool isActive = PR_FALSE;
+  if (!focusController) {
+    return NS_OK;
+  }
+  focusController->GetActive(&isActive);
+  if (!isActive) {
+    return NS_OK;
+  }
+
+  nsCOMPtr<nsIDOMXULDocument> xulDoc(do_QueryInterface(doc));
   if (xulDoc) {
     // Make sure the target node is still attached to some document. 
     // It might have been deleted.
@@ -428,7 +450,7 @@ nsXULTooltipListener::ShowTooltip()
                                   (nsIDOMMouseListener*)this, PR_FALSE);
 
       // listen for mousedown, mouseup, keydown, and DOMMouseScroll events at document level
-      nsIDocument* doc = mSourceNode->GetDocument();
+      doc = mSourceNode->GetDocument();
       if (doc) {
         evtTarget = do_QueryInterface(doc);
         evtTarget->AddEventListener(NS_LITERAL_STRING("DOMMouseScroll"), 
