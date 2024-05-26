@@ -86,7 +86,7 @@ sslBuffer_AppendVariable(sslBuffer *b, const PRUint8 *data, unsigned int len,
 {
     PORT_Assert(size <= 4 && size > 0);
     PORT_Assert(b);
-    if (len >= (1ULL << (8 * size))) {
+    if (len >= (PR_UINT64(1) << (8 * size))) {
         PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
         return SECFailure;
     }
@@ -152,7 +152,7 @@ sslBuffer_InsertLength(sslBuffer *b, unsigned int at, unsigned int size)
     len = b->len - (at + size);
 
     PORT_Assert(size <= 4 && size > 0);
-    if (len >= (1ULL << (8 * size))) {
+    if (len >= (PR_UINT64(1) << (8 * size))) {
         PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
         return SECFailure;
     }

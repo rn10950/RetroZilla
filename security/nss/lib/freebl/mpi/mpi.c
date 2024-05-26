@@ -4494,17 +4494,17 @@ s_mp_ispow2d(mp_digit d)
         if (d & 0xaaaaaaaaU)
             pow += 1;
 #elif defined(MP_USE_LONG_LONG_DIGIT)
-        if (d & 0xffffffff00000000ULL)
+        if (d & PR_UINT64(0xffffffff00000000))
             pow += 32;
-        if (d & 0xffff0000ffff0000ULL)
+        if (d & PR_UINT64(0xffff0000ffff0000))
             pow += 16;
-        if (d & 0xff00ff00ff00ff00ULL)
+        if (d & PR_UINT64(0xff00ff00ff00ff00))
             pow += 8;
-        if (d & 0xf0f0f0f0f0f0f0f0ULL)
+        if (d & PR_UINT64(0xf0f0f0f0f0f0f0f0))
             pow += 4;
-        if (d & 0xccccccccccccccccULL)
+        if (d & PR_UINT64(0xcccccccccccccccc))
             pow += 2;
-        if (d & 0xaaaaaaaaaaaaaaaaULL)
+        if (d & PR_UINT64(0xaaaaaaaaaaaaaaaa))
             pow += 1;
 #elif defined(MP_USE_LONG_DIGIT)
         if (d & 0xffffffff00000000UL)
@@ -4807,7 +4807,7 @@ mp_to_fixlen_octets(const mp_int *mp, unsigned char *str, mp_size length)
 
         if (zeros > 0) {
             mp_digit d = DIGIT(mp, ix);
-            mp_digit m = ~0ULL << ((MP_DIGIT_SIZE - zeros) * CHAR_BIT);
+            mp_digit m = ~PR_UINT64(0) << ((MP_DIGIT_SIZE - zeros) * CHAR_BIT);
             ARGCHK((d & m) == 0, MP_BADARG);
             for (jx = MP_DIGIT_SIZE - zeros - 1; jx >= 0; jx--) {
                 *str++ = d >> (jx * CHAR_BIT);

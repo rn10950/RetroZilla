@@ -31,8 +31,12 @@ SECStatus tls13_UnprotectRecord(
     SSLContentType *innerType,
     SSL3AlertDescription *alert);
 
-#if defined(WIN32)
+#if defined(_MSC_VER)
+# if _MSC_VER >= 1300
 #define __func__ __FUNCTION__
+# else
+#define __func__ ""
+# endif
 #endif
 
 void tls13_SetHsState(sslSocket *ss, SSL3WaitState ws,

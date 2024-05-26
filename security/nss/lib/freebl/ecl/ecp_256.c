@@ -342,10 +342,10 @@ ec_GFp_nistp256_mod(const mp_int *a, mp_int *r, const GFMethod *meth)
         MP_DIGIT(r, 0) = r0;
 
         /* final reduction if necessary */
-        if ((r3 > 0xFFFFFFFF00000001ULL) ||
-            ((r3 == 0xFFFFFFFF00000001ULL) &&
+        if ((r3 > PR_UINT64(0xFFFFFFFF00000001)) ||
+            ((r3 == PR_UINT64(0xFFFFFFFF00000001)) &&
              (r2 || (r1 >> 32) ||
-              (r1 == 0xFFFFFFFFULL && r0 == MP_DIGIT_MAX)))) {
+              (r1 == PR_UINT64(0xFFFFFFFF) && r0 == MP_DIGIT_MAX)))) {
             /* very rare, just use mp_sub */
             MP_CHECKOK(mp_sub(r, &meth->irr, r));
         }

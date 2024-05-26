@@ -253,10 +253,8 @@ V5.30:0009 */
 #define force_inline inline
 #endif
 
-#ifdef _MSC_VER
-#if _MSC_VER < 1900
+#if !defined(__cplusplus) && defined(_MSC_VER) && _MSC_VER < 1900
 #define inline 
-#endif
 #endif
 
 /******************************************************************************/

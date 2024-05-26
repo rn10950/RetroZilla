@@ -1480,7 +1480,7 @@ ec_GFp_nistp256_points_mul_vartime(
         return ec_GFp_nistp256_base_point_mul(n1, out_x, out_y, group);
     }
 
-    /* If n1 == nULL, this is just an arbitary-point multiplication. */
+    /* If n1 == NULL, this is just an arbitary-point multiplication. */
     if (n1 == NULL) {
         return ec_GFp_nistp256_point_mul(n2, in_x, in_y, out_x, out_y, group);
     }

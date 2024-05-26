@@ -17,7 +17,7 @@
 /*
  * ROTR64/ROTL64(x, n): rotate a 64-bit integer x by n bites to the right/left.
  */
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && _MSC_VER > 1300
 #pragma intrinsic(_rotr64, _rotl64)
 #define ROTR64(x, n) _rotr64((x), (n))
 #define ROTL64(x, n) _rotl64((x), (n))

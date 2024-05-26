@@ -1400,18 +1400,18 @@ dtls_ReadSequenceNumber(const ssl3CipherSpec *spec, const PRUint8 *hdr)
      */
     if ((hdr[0] & 0xe0) == 0x20) {
         /* A 12-bit sequence number. */
-        cap = spec->nextSeqNum + (1ULL << 11);
+        cap = spec->nextSeqNum + (PR_UINT64(1) << 11);
         partial = (((sslSequenceNumber)hdr[0] & 0xf) << 8) |
                   (sslSequenceNumber)hdr[1];
-        mask = (1ULL << 12) - 1;
+        mask = (PR_UINT64(1) << 12) - 1;
     } else {
         /* A 30-bit sequence number. */
-        cap = spec->nextSeqNum + (1ULL << 29);
+        cap = spec->nextSeqNum + (PR_UINT64(1) << 29);
         partial = (((sslSequenceNumber)hdr[1] & 0x3f) << 24) |
                   ((sslSequenceNumber)hdr[2] << 16) |
                   ((sslSequenceNumber)hdr[3] << 8) |
                   (sslSequenceNumber)hdr[4];
-        mask = (1ULL << 30) - 1;
+        mask = (PR_UINT64(1) << 30) - 1;
     }
     seqNum = (cap & ~mask) | partial;
     /* The second check prevents the value from underflowing if we get a large

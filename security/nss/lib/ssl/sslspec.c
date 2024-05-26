@@ -21,8 +21,8 @@
  * rarely hit this limit.  See bug 1268745 for details.
  */
 #define MR_MAX RECORD_SEQ_MAX  /* 2^48-1 */
-#define MR_128 (0x5aULL << 28) /* For AES and similar. */
-#define MR_LOW (1ULL << 20)    /* For weak ciphers. */
+#define MR_128 (PR_UINT64(0x5a) << 28) /* For AES and similar. */
+#define MR_LOW (PR_UINT64(1) << 20)    /* For weak ciphers. */
 /* clang-format off */
 static const ssl3BulkCipherDef ssl_bulk_cipher_defs[] = {
     /*                                        |--------- Lengths ---------| */
