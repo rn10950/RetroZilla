@@ -44,8 +44,8 @@ void tls13_SetHsState(sslSocket *ss, SSL3WaitState ws,
  * PR_FALSE. Only call the macro not the function, because the trailing
  * wait_invalid is needed to terminate the argument list. */
 PRBool tls13_InHsState(sslSocket *ss, ...);
-#define TLS13_IN_HS_STATE(ss, ...) \
-    tls13_InHsState(ss, __VA_ARGS__, wait_invalid)
+#define TLS13_IN_HS_STATE(ss, x) \
+    tls13_InHsState(ss, x, wait_invalid)
 
 SSLHashType tls13_GetHashForCipherSuite(ssl3CipherSuite suite);
 SSLHashType tls13_GetHash(const sslSocket *ss);

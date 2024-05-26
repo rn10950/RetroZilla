@@ -179,9 +179,13 @@ tls13_HandshakeState(SSL3WaitState st)
 #define TLS13_BASE_WAIT_STATE(ws) (ws & ~TLS13_WAIT_STATE_MASK)
 /* We don't mask idle_handshake because other parts of the code use it*/
 #define TLS13_WAIT_STATE(ws) (((ws == idle_handshake) || (ws == wait_server_hello)) ? ws : ws | TLS13_WAIT_STATE_MASK)
-#define TLS13_CHECK_HS_STATE(ss, err, ...)                          \
+#define TLS13_CHECK_HS_STATE(ss, err, x)                          \
     tls13_CheckHsState(ss, err, #err, __func__, __FILE__, __LINE__, \
-                       __VA_ARGS__,                                 \
+                       x,                                  \
+                       wait_invalid)
+#define TLS13_CHECK_HS_STATE2(ss, err, x, y)                          \
+    tls13_CheckHsState(ss, err, #err, __func__, __FILE__, __LINE__, \
+                       x, y,                                \
                        wait_invalid)
 void
 tls13_SetHsState(sslSocket *ss, SSL3WaitState ws,
@@ -2865,7 +2869,7 @@ tls13_HandleCertificate(sslSocket *ss, PRUint8 *b, PRUint32 length)
         rv = TLS13_CHECK_HS_STATE(ss, SSL_ERROR_RX_UNEXPECTED_CERTIFICATE,
                                   wait_client_cert);
     } else {
-        rv = TLS13_CHECK_HS_STATE(ss, SSL_ERROR_RX_UNEXPECTED_CERTIFICATE,
+        rv = TLS13_CHECK_HS_STATE2(ss, SSL_ERROR_RX_UNEXPECTED_CERTIFICATE,
                                   wait_cert_request, wait_server_cert);
     }
     if (rv != SECSuccess)

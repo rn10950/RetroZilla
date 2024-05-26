@@ -21,7 +21,6 @@
 #include "sdb.h"
 #include "pkcs11t.h"
 #include "seccomon.h"
-#include <sqlite3.h>
 #include "prthread.h"
 #include "prio.h"
 #include <stdio.h>
@@ -42,6 +41,9 @@
 #include <sys/vfs.h>
 #endif
 #include "utilpars.h"
+
+#define SQLITE_THREADSAFE 1
+#include "../sqlite/sqlite3.c"
 
 #ifdef SQLITE_UNSAFE_THREADS
 #include "prlock.h"
