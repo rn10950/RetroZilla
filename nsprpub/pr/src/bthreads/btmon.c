@@ -217,3 +217,12 @@ PR_IMPLEMENT(PRIntn)
     return( mon->entryCount );
 }
 
+/*
+** If the current thread is in |mon|, this assertion is guaranteed to
+** succeed.  Otherwise, the behavior of this function is undefined.
+*/
+PR_IMPLEMENT(void)
+    PR_AssertCurrentThreadInMonitor(PRMonitor *mon)
+{
+    PR_ASSERT_CURRENT_THREAD_OWNS_LOCK(mon->cvar->lock);
+}
