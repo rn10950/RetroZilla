@@ -13,7 +13,7 @@ DEFAULT_COMPILER = cl
 ifdef NS_USE_GCC
 	CC           = gcc
 	CCC          = g++
-	LINK         = ld
+	LD           = ld
 	AR           = ar
 	AR          += cr $@
 	RANLIB       = ranlib
@@ -23,8 +23,8 @@ ifdef NS_USE_GCC
 else
 	CC           = cl
 	CCC          = cl
-	LINK         = link
-	LDFLAGS     += -nologo
+	LD           = link
+        LDFLAGS += -nologo
 	AR           = lib
 	AR          += -nologo -OUT:$@
 	RANLIB       = echo
@@ -123,14 +123,14 @@ ifdef NS_USE_GCC
 	DEFINES    += -DDEBUG -UNDEBUG -DDEBUG_$(USERNAME)
     endif
 else # !NS_USE_GCC
-    OS_CFLAGS += -W3 -nologo -D_CRT_SECURE_NO_WARNINGS \
-		 -D_CRT_NONSTDC_NO_WARNINGS
+    WARNING_CFLAGS = -W3 -nologo -D_CRT_SECURE_NO_WARNINGS \
+                      -D_CRT_NONSTDC_NO_WARNINGS
     OS_DLLFLAGS += -nologo -DLL -SUBSYSTEM:WINDOWS
     ifndef NSS_ENABLE_WERROR
         NSS_ENABLE_WERROR = 0
     endif
     ifeq ($(NSS_ENABLE_WERROR),1)
-        OS_CFLAGS += -WX
+        WARNING_CFLAGS += -WX
     endif
     ifeq ($(_MSC_VER),$(_MSC_VER_6))
     ifndef MOZ_DEBUG_SYMBOLS
@@ -194,11 +194,6 @@ endif
 	LDFLAGS    += /FIXED:NO
     endif
 ifneq ($(_MSC_VER),$(_MSC_VER_6))
-    # Convert certain deadly warnings to errors (see list at end of file)
-    OS_CFLAGS += -we4002 -we4003 -we4004 -we4006 -we4009 -we4013 \
-     -we4015 -we4028 -we4033 -we4035 -we4045 -we4047 -we4053 -we4054 -we4063 \
-     -we4064 -we4078 -we4087 -we4090 -we4098 -we4390 -we4551 -we4553 -we4715
-
     # NSS has too many of these to fix, downgrade the warning
     # Disable C4267: conversion from 'size_t' to 'type', possible loss of data
     # Disable C4244: conversion from 'type1' to 'type2', possible loss of data
@@ -224,6 +219,7 @@ ifdef USE_64
 	ifeq ($(_MSC_VER_GE_11),1)
 		LDFLAGS += -SUBSYSTEM:CONSOLE,5.02
 	endif
+	CPU_ARCH = x86_64
 else
 	DEFINES += -D_X86_
 	# VS2012 defaults to -arch:SSE2. Use -arch:IA32 to avoid requiring
@@ -236,6 +232,7 @@ else
 		endif
 		LDFLAGS += -SUBSYSTEM:CONSOLE,5.01
 	endif
+	CPU_ARCH = x386
 endif
 endif
 ifeq ($(CPU_ARCH), ALPHA)
@@ -267,7 +264,7 @@ ifdef USE_64
 	ASFLAGS = -nologo -Cp -Sn -Zi $(INCLUDES)
 else
 	AS	= ml.exe
-	ASFLAGS = -nologo -Cp -Sn -Zi -coff $(INCLUDES)
+	ASFLAGS = -nologo -Cp -Sn -Zi -coff -safeseh $(INCLUDES)
 endif
 endif
 
@@ -379,32 +376,3 @@ endif
 ifndef TARGETS
     TARGETS = $(LIBRARY) $(SHARED_LIBRARY) $(IMPORT_LIBRARY) $(PROGRAM)
 endif
-
-# list of MSVC warnings converted to errors above:
-# 4002: too many actual parameters for macro 'identifier'
-# 4003: not enough actual parameters for macro 'identifier'
-# 4004: incorrect construction after 'defined'
-# 4006: #undef expected an identifier
-# 4009: string too big; trailing characters truncated
-# 4015: 'identifier' : type of bit field must be integral
-# 4028: formal parameter different from declaration
-# 4033: 'function' must return a value
-# 4035: 'function' : no return value
-# 4045: 'identifier' : array bounds overflow
-# 4047: 'function' : 'type 1' differs in levels of indirection from 'type 2'
-# 4053: one void operand for '?:'
-# 4054: 'conversion' : from function pointer 'type1' to data pointer 'type2'
-# 4059: pascal string too big, length byte is length % 256
-# 4063: case 'identifier' is not a valid value for switch of enum 'identifier'
-# 4064: switch of incomplete enum 'identifier'
-# 4078: case constant 'value' too big for the type of the switch expression
-# 4087: 'function' : declared with 'void' parameter list
-# 4090: 'function' : different 'const' qualifiers
-# 4098: 'function' : void function returning a value
-# 4390: ';' : empty controlled statement found; is this the intent?
-# 4541: RTTI train wreck
-# 4715: not all control paths return a value
-# 4013: function undefined; assuming extern returning int
-# 4553: '==' : operator has no effect; did you intend '='?
-# 4551: function call missing argument list
-

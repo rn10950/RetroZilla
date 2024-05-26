@@ -5,7 +5,7 @@
 ;+#
 ;+# OK, this file is meant to support SUN, LINUX, AIX and WINDOWS
 ;+#   1. For all unix platforms, the string ";-"  means "remove this line"
-;+#   2. For all unix platforms, the string " DATA " will be removed from any 
+;+#   2. For all unix platforms, the string " DATA " will be removed from any
 ;+#     line on which it occurs.
 ;+#   3. Lines containing ";+" will have ";+" removed on SUN and LINUX.
 ;+#      On AIX, lines containing ";+" will be removed.
@@ -173,9 +173,6 @@ SSL_SetCanFalseStartCallback;
 ;+};
 ;+NSS_3.20 {    # NSS 3.20 release
 ;+    global:
-;+# If the 3.20 release includes any additional functions
-;+# besides SSL_DHEGroupPrefSet and SSL_EnableWeakDHEPrimeGroup
-;+# they should be labeled as NSS_3.20a
 SSL_DHEGroupPrefSet;
 SSL_EnableWeakDHEPrimeGroup;
 ;+    local:
@@ -187,6 +184,59 @@ SSL_GetPreliminaryChannelInfo;
 SSL_SignaturePrefSet;
 SSL_SignaturePrefGet;
 SSL_SignatureMaxCount;
+;+    local:
+;+*;
+;+};
+;+NSS_3.22 {    # NSS 3.22 release
+;+    global:
+SSL_PeerSignedCertTimestamps;
+SSL_SetSignedCertTimestamps;
+;+    local:
+;+*;
+;+};
+;+NSS_3.23 {    # NSS 3.23 release
+;+    global:
+SSL_SetDowngradeCheckVersion;
+;+    local:
+;+*;
+;+};
+;+NSS_3.24 {    # NSS 3.24 release
+;+    global:
+SSL_ConfigServerCert;
+;+    local:
+;+*;
+;+};
+;+NSS_3.27 {    # NSS 3.27 release
+;+    global:
+SSL_NamedGroupConfig;
+;+    local:
+;+*;
+;+};
+;+NSS_3.28 {    # NSS 3.28 release
+;+    global:
+SSL_ExportEarlyKeyingMaterial;
+SSL_SendAdditionalKeyShares;
+SSL_SignatureSchemePrefSet;
+SSL_SignatureSchemePrefGet;
+;+    local:
+;+*;
+;+};
+;+NSS_3.30 {    # NSS 3.30 release
+;+    global:
+SSL_SetSessionTicketKeyPair;
+;+    local:
+;+*;
+;+};
+;+NSS_3.30.0.1 { # Additional symbols for NSS 3.30 release
+;+    global:
+SSL_AlertReceivedCallback;
+SSL_AlertSentCallback;
+;+    local:
+;+*;
+;+};
+;+NSS_3.33 {    # NSS 3.33 release
+;+    global:
+SSL_GetExperimentalAPI;
 ;+    local:
 ;+*;
 ;+};

@@ -53,7 +53,7 @@ to change are:
     single digit.  This is just a printf() format string, so you
     can adjust it appropriately.
 
-(3) The macros DIGIT_MAX and MP_WORD_MAX, which specify the 
+(3) The macros DIGIT_MAX and MP_WORD_MAX, which specify the
     largest value expressible in an mp_digit and an mp_word,
     respectively.
 
@@ -66,14 +66,6 @@ part.  The code in the library does not make any significant
 assumptions about the sizes of things, but there is little if any
 reason to change the other parameters, so I would recommend you leave
 them as you found them.
-
-The library comes with a Perl script, 'types.pl', which will scan your
-current Makefile settings, and attempt to find good definitions for
-these types.  It relies on a Unix sort of build environment, so it
-probably won't work under MacOS or Windows, but it can be convenient
-if you're porting to a new flavour of Unix.  Just run 'types.pl' at
-the command line, and it will spit out its results to the standard
-output.
 
 
 Conventions
@@ -234,7 +226,6 @@ mp_div(a, b, q, r)      - computes q, r such that a = bq + r
 mp_div_2d(a, d, q, r)   - computes q = a / 2^d, r = a % 2^d
 mp_expt(a, b, c)        - computes c = a ** b
 mp_2expt(a, k)          - computes a = 2^k
-mp_sqrt(a, c)           - computes c = floor(sqrt(a))
 
 The mp_div_2d() function efficiently computes division by powers of
 two.  Either the q or r parameter may be NULL, in which case that
@@ -282,7 +273,6 @@ mp_cmp_z(a)             - compare a <=> 0
 mp_cmp_d(a, d)          - compare a <=> d, d is a single digit
 mp_cmp(a, b)            - compare a <=> b
 mp_cmp_mag(a, b)        - compare |a| <=> |b|
-mp_cmp_int(a, z)        - compare a <=> z, z is a signed long integer
 mp_isodd(a)             - return nonzero if odd, zero otherwise
 mp_iseven(a)            - return nonzero if even, zero otherwise
 
@@ -355,7 +345,7 @@ returns values of x and y satisfying Bezout's identity.  This is used
 by mp_invmod() to find modular inverses.  However, if you do not need
 these values, you will find that mp_gcd() is MUCH more efficient,
 since it doesn't need all the intermediate values that mp_xgcd()
-requires in order to compute x and y. 
+requires in order to compute x and y.
 
 The mp_gcd() (and mp_xgcd()) functions use the binary (extended) GCD
 algorithm due to Josef Stein.
@@ -371,7 +361,7 @@ mp_read_radix(mp, str, r)  - convert a string in radix r to an mp_int
 mp_read_raw(mp, s, len)    - convert a string of bytes to an mp_int
 mp_radix_size(mp, r)       - return length of buffer needed by mp_toradix()
 mp_raw_size(mp)            - return length of buffer needed by mp_toraw()
-mp_toradix(mp, str, r)     - convert an mp_int to a string of radix r 
+mp_toradix(mp, str, r)     - convert an mp_int to a string of radix r
                              digits
 mp_toraw(mp, str)          - convert an mp_int to a string of bytes
 mp_tovalue(ch, r)          - convert ch to its value when taken as
@@ -397,7 +387,7 @@ The mp_read_radix() and mp_toradix() functions support bases from 2 to
 than this, you will need to write them yourself (that's why mp_div_d()
 is provided, after all).
 
-Note:   mp_read_radix() will accept as digits either capital or 
+Note:   mp_read_radix() will accept as digits either capital or
 ----    lower-case letters.  However, the current implementation of
         mp_toradix() only outputs upper-case letters, when writing
         bases betwee 10 and 36.  The underlying code supports using
@@ -458,14 +448,14 @@ Note:  The mpp_random() and mpp_random_size() functions use the C
        to change.
 
 mpp_divis_vector(a, v, s, w)  - is a divisible by any of the s digits
-                                in v?  If so, let w be the index of 
+                                in v?  If so, let w be the index of
                                 that digit
 
 mpp_divis_primes(a, np)       - is a divisible by any of the first np
-                                primes?  If so, set np to the prime 
+                                primes?  If so, set np to the prime
                                 which divided a.
 
-mpp_fermat(a, d)              - test if w^a = w (mod a).  If so, 
+mpp_fermat(a, d)              - test if w^a = w (mod a).  If so,
                                 returns MP_YES, otherwise MP_NO.
 
 mpp_pprime(a, nt)             - perform nt iterations of the Rabin-
@@ -496,7 +486,7 @@ The file 'mpi-config.h' defines several configurable parameters for
 the library, which you can adjust to suit your application.  At the
 time of this writing, the available options are:
 
-MP_IOFUNC       - Define true to include the mp_print() function, 
+MP_IOFUNC       - Define true to include the mp_print() function,
                   which is moderately useful for debugging.  This
                   implicitly includes <stdio.h>.
 
@@ -505,9 +495,6 @@ MP_MODARITH     - Define true to include the modular arithmetic
                   in your application, you can set this to zero to
                   leave out all the modular routines.
 
-MP_NUMTH        - Define true to include number theoretic functions
-                  such as mp_gcd(), mp_lcm(), and mp_invmod().
-
 MP_LOGTAB       - If true, the file "logtab.h" is included, which
                   is basically a static table of base 2 logarithms.
                   These are used to compute how big the buffers for
@@ -515,28 +502,14 @@ MP_LOGTAB       - If true, the file "logtab.h" is included, which
                   the library includes <math.h> and uses log().  This
                   typically forces you to link against math libraries.
 
-MP_MEMSET       - If true, use memset() to zero buffers.  If you run
-                  into weird alignment related bugs, set this to zero
-                  and an explicit loop will be used.
-
-MP_MEMCPY       - If true, use memcpy() to copy buffers.  If you run
-                  into weird alignment bugs, set this to zero and an
-                  explicit loop will be used.
-
-MP_CRYPTO       - If true, whenever arrays of digits are free'd, they
-                  are zeroed first.  This is useful if you're using
-                  the library in a cryptographic environment; however,
-                  it does add overhead to each free operation.  For
-                  performance, if you don't care about zeroing your
-                  buffers, set this to false.
 
 MP_ARGCHK       - Set to 0, 1, or 2.  This defines how the argument
-                  checking macro, ARGCHK(), gets expanded.  If this 
-                  is set to zero, ARGCHK() expands to nothing; no 
+                  checking macro, ARGCHK(), gets expanded.  If this
+                  is set to zero, ARGCHK() expands to nothing; no
                   argument checks are performed.  If this is 1, the
                   ARGCHK() macro expands to code that returns MP_BADARG
-                  or similar at runtime.  If it is 2, ARGCHK() expands 
-                  to an assert() call that aborts the program on a 
+                  or similar at runtime.  If it is 2, ARGCHK() expands
+                  to an assert() call that aborts the program on a
                   bad input.
 
 MP_DEBUG        - Turns on debugging output.  This is probably not at
@@ -548,14 +521,14 @@ MP_DEFPREC      - The default precision of a newly-created mp_int, in
                   the mp_set_prec() function, but this is its initial
                   value.
 
-MP_SQUARE       - If this is set to a nonzero value, the mp_sqr() 
+MP_SQUARE       - If this is set to a nonzero value, the mp_sqr()
                   function will use an alternate algorithm that takes
                   advantage of the redundant inner product computation
                   when both multiplicands are identical.  Unfortunately,
                   with some compilers this is actually SLOWER than just
                   calling mp_mul() with the same argument twice.  So
                   if you set MP_SQUARE to zero, mp_sqr() will be expan-
-                  ded into a call to mp_mul().  This applies to all 
+                  ded into a call to mp_mul().  This applies to all
                   the uses of mp_sqr(), including mp_sqrmod() and the
                   internal calls to s_mp_sqr() inside mpi.c
 
@@ -588,7 +561,7 @@ CFLAGS=-ansi -pedantic -Wall -O2
 
 If all goes well, the library should compile without warnings using
 this combination.  You should, of course, make whatever adjustments
-you find necessary.  
+you find necessary.
 
 The MPI library distribution comes with several additional programs
 which are intended to demonstrate the use of the library, and provide
@@ -600,7 +573,7 @@ directory) for manipulating large numbers.  These include:
 basecvt.c       A radix-conversion program, supporting bases from
                 2 to 64 inclusive.
 
-bbsrand.c       A BBS (quadratic residue) pseudo-random number 
+bbsrand.c       A BBS (quadratic residue) pseudo-random number
                 generator.  The file 'bbsrand.c' is just the driver
                 for the program; the real code lives in the files
                 'bbs_rand.h' and 'bbs_rand.c'
@@ -642,97 +615,11 @@ Most of these can be built from the Makefile that comes with the
 library.  Try 'make tools', if your environment supports it.
 
 
-Testing the Library
--------------------
-
-Automatic test vectors are included, in the form of a program called
-'mpi-test'.  To build this program and run all the tests, simply
-invoke the shell script 'all-tests'.  If all the tests pass, you
-should see a message:
-
-        All tests passed
-
-If something went wrong, you'll get:
-
-        One or more tests failed.
-
-If this happens, scan back through the preceding lines, to see which
-test failed.  Any failure indicates a bug in the library, which needs
-to be fixed before it will give accurate results.  If you get any such
-thing, please let me know, and I'll try to fix it.  Please let me know
-what platform and compiler you were using, as well as which test
-failed.  If a reason for failure was given, please send me that text
-as well.
-
-If you're on a system where the standard Unix build tools don't work,
-you can build the 'mpi-test' program manually, and run it by hand.
-This is tedious and obnoxious, sorry.
-
-Further manual testing can be performed by building the manual testing
-programs, whose source is found in the 'tests' subdirectory.  Each
-test is in a source file called 'mptest-X.c'.  The Makefile contains a
-target to build all of them at once:
-
-        make tests
-
-Read the comments at the top of each source file to see what the
-driver is supposed to test.  You probably don't need to do this; these
-programs were only written to help me as I was developing the library.
-
-The relevant files are:
-
-mpi-test.c              The source for the test driver
-
-make-test-arrays        A Perl script to generate some of the internal
-                        data structures used by mpi-test.c
-
-test-arrays.txt         The source file for make-test-arrays
-
-all-tests               A Bourne shell script which runs all the
-                        tests in the mpi-test suite
-
-Running 'make mpi-test' should build the mpi-test program.  If you
-cannot use make, here is what needs to be done:
-
-(1) Use 'make-test-arrays' to generate the file 'test-info.c' from
-    the 'test-arrays.txt' file.  Since Perl can be found everywhere,
-    this should be no trouble.  Under Unix, this looks like:
-
-        make-test-arrays test-arrays.txt > test-info.c
-
-(2) Build the MPI library:
-
-        gcc -ansi -pedantic -Wall -c mpi.c
-
-(3) Build the mpi-test program:
-
-        gcc -ansi -pedantic -Wall -o mpi-test mpi.o mpi-test.c
-
-When you've got mpi-test, you can use 'all-tests' to run all the tests
-made available by mpi-test.  If any of them fail, there should be a
-diagnostic indicating what went wrong.  These are fairly high-level
-diagnostics, and won't really help you debug the problem; they're
-simply intended to help you isolate which function caused the problem.
-If you encounter a problem of this sort, feel free to e-mail me, and I
-will certainly attempt to help you debug it.
-
-Note:   Several of the tests hard-wired into 'mpi-test' operate under
-----    the assumption that you are using at least a 16-bit mp_digit 
-        type.  If that is not true, several tests might fail, because 
-        of range problems with the maximum digit value.
-
-        If you are using an 8-bit digit, you will also need to 
-        modify the code for mp_read_raw(), which assumes that
-        multiplication by 256 can be done with mp_mul_d(), a
-        fact that fails when DIGIT_MAX is 255.  You can replace
-        the call with s_mp_lshd(), which will give you the same
-        effect, and without doing as much work. :)
-
 Acknowledgements:
 ----------------
 
 The algorithms used in this library were drawn primarily from Volume
-2 of Donald Knuth's magnum opus, _The Art of Computer Programming_, 
+2 of Donald Knuth's magnum opus, _The Art of Computer Programming_,
 "Semi-Numerical Methods".  Barrett's algorithm for modular reduction
 came from Menezes, Oorschot, and Vanstone's _Handbook of Applied
 Cryptography_, Chapter 14.

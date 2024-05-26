@@ -25,16 +25,18 @@ Error LoadMechanismList(void);
 Error FipsMode(char *arg);
 Error ChkFipsMode(char *arg);
 Error AddModule(char *moduleName, char *libFile, char *ciphers,
-      char *mechanisms, char* modparms);
+                char *mechanisms, char *modparms);
 Error DeleteModule(char *moduleName);
 Error ListModule(char *moduleName);
 Error ListModules();
+Error InitPW(void);
 Error ChangePW(char *tokenName, char *pwFile, char *newpwFile);
 Error EnableModule(char *moduleName, char *slotName, PRBool enable);
 Error RawAddModule(char *dbmodulespec, char *modulespec);
 Error RawListModule(char *modulespec);
 Error SetDefaultModule(char *moduleName, char *slotName, char *mechanisms);
 Error UnsetDefaultModule(char *moduleName, char *slotName, char *mechanisms);
+PRBool IsP11KitEnabled(void);
 void out_of_memory(void);
 
 #endif /*MODUTIL_H*/

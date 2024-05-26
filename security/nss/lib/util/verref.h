@@ -15,7 +15,7 @@
 /* Suppress unused variable warnings. */
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 4101)
+#pragma warning(disable : 4101)
 #endif
 /* This works for both gcc and clang */
 #if defined(__GNUC__) && !defined(NSS_NO_GCC48)
@@ -28,6 +28,9 @@
 #endif
 {
     extern const char NSS_VERSION_VARIABLE[];
+#if defined(__GNUC__)
+    __attribute__((unused))
+#endif
     volatile const char _nss_version_c = NSS_VERSION_VARIABLE[0];
 }
 #undef NSS_VERSION_VARIABLE

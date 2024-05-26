@@ -1090,3 +1090,52 @@ SECMOD_CreateModuleEx;
 ;+    local:
 ;+       *;
 ;+};
+;+NSS_3.22 { 	# NSS 3.22 release
+;+    global:
+PK11_SignWithMechanism;
+PK11_VerifyWithMechanism;
+;+    local:
+;+       *;
+;+};
+;+NSS_3.30 { 	# NSS 3.30 release
+;+    global:
+CERT_CompareAVA;
+PK11_HasAttributeSet;
+;+    local:
+;+       *;
+;+};
+;+NSS_3.31 { 	# NSS 3.31 release
+;+    global:
+CERT_GetCertIsPerm;
+CERT_GetCertIsTemp;
+PK11_FindCertFromURI;
+PK11_FindCertsFromURI;
+PK11_GetModuleURI;
+PK11_GetTokenURI;
+;+    local:
+;+       *;
+;+};
+;+NSS_3.33 { 	# NSS 3.33 release
+;+    global:
+CERT_FindCertByIssuerAndSNCX;
+CERT_FindCertByNicknameOrEmailAddrCX;
+CERT_FindCertByNicknameOrEmailAddrForUsageCX;
+;+    local:
+;+       *;
+;+};
+;+NSS_3.34 { 	# NSS 3.34 release
+;+    global:
+PK11_CreateManagedGenericObject;
+SGN_NewContextWithAlgorithmID;
+SEC_SignDataWithAlgorithmID;
+SEC_DerSignDataWithAlgorithmID;
+SEC_CreateSignatureAlgorithmParameters;
+;+    local:
+;+       *;
+;+};
+;+NSS_3.39 { 	# NSS 3.39 release
+;+    global:
+CERT_GetCertKeyType;
+;+    local:
+;+       *;
+;+};

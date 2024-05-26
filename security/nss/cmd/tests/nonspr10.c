@@ -26,9 +26,7 @@
 #include "cryptoht.h"
 #include "ecl-exp.h"
 #include "hasht.h"
-#include "key.h"
 #include "keyhi.h"
-#include "keyt.h"
 #include "keythi.h"
 #include "nss.h"
 #include "nssb64.h"
@@ -83,7 +81,8 @@
 #include "sslproto.h"
 #include "sslt.h"
 
-int main()
+int
+main()
 {
     return 0;
 }
