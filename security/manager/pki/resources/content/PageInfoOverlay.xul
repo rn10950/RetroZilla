@@ -115,6 +115,9 @@
             case 3:
               protocolVersion = " (TLS1.2)";
               break;
+            case 4:
+              protocolVersion = " (TLS1.3)";
+              break;
           }
           return {
             hostName : hName,
