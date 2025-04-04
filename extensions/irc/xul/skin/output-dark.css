@@ -75,6 +75,28 @@ a.chatzilla-link:visited {
     color: silver;
 }
 
+/* Style userlist as white-on-black. */
+treechildren {
+    background: black;
+    color: white;
+}
+
+/* For Mac, who's theme sucks. */
+treechildren:-moz-tree-row(unselected),
+treechildren:-moz-tree-cell(unselected),
+treechildren:-moz-tree-cell-text(unselected) {
+    border-color: black !important;
+    background: black !important;
+    color: white !important;
+}
+treechildren::-moz-tree-row(unselected),
+treechildren::-moz-tree-cell(unselected),
+treechildren::-moz-tree-cell-text(unselected) {
+    border-color: black !important;
+    background: black !important;
+    color: white !important;
+}
+
 #splash {
     color: #444444;
 }

@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+#filter substitution
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+  <Description about="urn:mozilla:install-manifest"
+               em:id="@INSTALL_EXTENSION_ID@"
+               em:name="ChatZilla @MOZ_LANG_TITLE@ Language Pack"
+               em:version="@CHATZILLA_VERSION@"
+               em:type="8"
+               em:creator="@MOZ_LANGPACK_CREATOR@"
+               em:homepageURL="@MOZ_LANGPACK_HOMEPAGE@">
+#ifdef MOZ_LANGPACK_CONTRIBUTORS
+    @MOZ_LANGPACK_CONTRIBUTORS@
+#endif
+
+    <em:iconURL>chrome://chatzilla/skin/images/logo.png</em:iconURL>
+
+    <!-- require ChatZilla (ignored on Gecko <= 1.8.*) -->
+    <em:requires>
+      <Description>
+        <em:id>{59c81df5-4b7a-477b-912d-4e0fdf64e5f2}</em:id>
+        <em:minVersion>@CHATZILLA_BASE_VERSION@</em:minVersion>
+        <em:maxVersion>@CHATZILLA_BASE_VERSION@.*</em:maxVersion>
+      </Description>
+    </em:requires>
+
+    <!-- target: Mozilla, version 1.0 to 1.8 -->
+    <em:targetApplication>
+      <Description>
+        <em:id>{86c18b42-e466-45a9-ae7a-9b95ba6f5640}</em:id>
+        <em:minVersion>1.0</em:minVersion>
+        <em:maxVersion>1.8</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+
+    <!-- target: Mozilla Firefox, version 1.0 to 4.0.* -->
+    <em:targetApplication>
+      <Description>
+        <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
+        <em:minVersion>1.0</em:minVersion>
+        <em:maxVersion>4.0.*</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+
+    <!-- target: SeaMonkey, version 1.0 to 2.1.* -->
+    <em:targetApplication>
+      <Description>
+        <em:id>{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}</em:id>
+        <em:minVersion>1.0</em:minVersion>
+        <em:maxVersion>2.1.*</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+
+    <!-- target: Flock, version 0.4 to 1.0+ -->
+    <em:targetApplication>
+      <Description>
+        <em:id>{a463f10c-3994-11da-9945-000d60ca027b}</em:id>
+        <em:minVersion>0.4</em:minVersion>
+        <em:maxVersion>1.0+</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+
+    <!-- target: Netscape Navigator, version 9.0b1 to 9.0.* -->
+    <em:targetApplication>
+      <Description>
+        <em:id>{3db10fab-e461-4c80-8b97-957ad5f8ea47}</em:id>
+        <em:minVersion>9.0b1</em:minVersion>
+        <em:maxVersion>9.0.*</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+
+    <!-- target: Songbird, version 0.7 to 1.0 -->
+    <em:targetApplication>
+      <Description>
+        <em:id>songbird@songbirdnest.com</em:id>
+        <em:minVersion>0.7</em:minVersion>
+        <em:maxVersion>1.0</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+
+    <!-- package files -->
+    <em:file>
+      <Description about="urn:mozilla:extension:file:chatzilla.jar">
+        <em:locale>locale/@AB_CD@/chatzilla/</em:locale>
+      </Description>
+    </em:file>
+  </Description>
+</RDF>
