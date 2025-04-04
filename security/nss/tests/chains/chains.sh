@@ -51,13 +51,13 @@ is_httpserv_alive()
 wait_for_httpserv()
 {
   echo "trying to connect to httpserv at `date`"
-  echo "tstclnt -4 -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v"
-  ${BINDIR}/tstclnt -4 -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v
+  echo "tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v"
+  ${BINDIR}/tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v
   if [ $? -ne 0 ]; then
       sleep 5
       echo "retrying to connect to httpserv at `date`"
-      echo "tstclnt -4 -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v"
-      ${BINDIR}/tstclnt -4 -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v
+      echo "tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v"
+      ${BINDIR}/tstclnt -p ${NSS_AIA_PORT} -h ${HOSTADDR} -q -v
       if [ $? -ne 0 ]; then
           html_failed "Waiting for Server"
       fi
@@ -349,12 +349,6 @@ create_cert_req()
     if [ "${TYPE}" != "EE" ]; then
         CA_FLAG="-2"
         EXT_DATA="y
--1
-y
-"
-    else
-        CA_FLAG="-2"
-        EXT_DATA="n
 -1
 y
 "
@@ -980,8 +974,8 @@ check_ocsp()
     OCSP_HOST=$(${BINDIR}/pp -w -t certificate -i ${CERT_FILE} | grep URI | sed "s/.*:\/\///" | sed "s/:.*//")
     OCSP_PORT=$(${BINDIR}/pp -w -t certificate -i ${CERT_FILE} | grep URI | sed "s/^.*:.*:\/\/.*:\([0-9]*\).*$/\1/")
 
-    echo "tstclnt -4 -h ${OCSP_HOST} -p ${OCSP_PORT} -q -t 20"
-    tstclnt -4 -h ${OCSP_HOST} -p ${OCSP_PORT} -q -t 20
+    echo "tstclnt -h ${OCSP_HOST} -p ${OCSP_PORT} -q -t 20"
+    tstclnt -h ${OCSP_HOST} -p ${OCSP_PORT} -q -t 20
     return $?
 }
 
@@ -1218,11 +1212,9 @@ parse_config()
                 ENTITY=
             fi
 
-            if [ -n "${VERIFY}" ] && \
-               [ -z "$NSS_DISABLE_LIBPKIX" ]; then
+            if [ -n "${VERIFY}" ]; then
                 verify_cert "-pp"
-		if [ -n "${VERIFY_CLASSIC_ENGINE_TOO}" ] && \
-		   [ -z "$NSS_DISABLE_LIBPKIX" ]; then
+		if [ -n "${VERIFY_CLASSIC_ENGINE_TOO}" ]; then
 		    verify_cert ""
 		    verify_cert "-p"
 		fi
@@ -1264,12 +1256,6 @@ process_scenario()
     rm ${AIA_FILES}
 }
 
-# process ipsec.cfg separately
-chains_ipsec()
-{
-    process_scenario "ipsec.cfg"
-}
-
 # process ocspd.cfg separately
 chains_ocspd()
 {
@@ -1291,7 +1277,6 @@ chains_main()
     do
         [ `echo ${LINE} | cut -b 1` != "#" ] || continue
 
-	[ ${LINE} != 'ipsec.cfg' ] || continue
 	[ ${LINE} != 'ocspd.cfg' ] || continue
 	[ ${LINE} != 'method.cfg' ] || continue
 
@@ -1305,7 +1290,6 @@ chains_init
 VERIFY_CLASSIC_ENGINE_TOO=
 chains_ocspd
 VERIFY_CLASSIC_ENGINE_TOO=1
-chains_ipsec
 chains_run_httpserv get
 chains_method
 chains_stop_httpserv
