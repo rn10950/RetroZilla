@@ -641,7 +641,7 @@ void SHA224_Clone(SHA224Context *dest, SHA224Context *src)
 
 /* common #defines for SHA512 and SHA384 */
 #if defined(HAVE_LONG_LONG)
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && _MSC_VER >= 1300
 #pragma intrinsic(_rotr64,_rotl64)
 #define ROTR64(x,n) _rotr64(x,n)
 #define ROTL64(x,n) _rotl64(x,n)

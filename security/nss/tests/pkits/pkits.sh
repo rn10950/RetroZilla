@@ -93,7 +93,7 @@ pkits_init()
   ${BINDIR}/certutil -N -d ${PKITSdb} -f ${PKITSdb}/pw
 
   ${BINDIR}/certutil -A -n TrustAnchorRootCertificate -t "C,C,C" -i \
-      $certs/TrustAnchorRootCertificate.crt -d $PKITSdb
+      $certs/TrustAnchorRootCertificate.crt -d $PKITSdb -f ${PKITSdb}/pw
   if [ -z "$NSS_NO_PKITS_CRLS" ]; then
     ${BINDIR}/crlutil -I -i $crls/TrustAnchorRootCRL.crl -d ${PKITSdb} -f ${PKITSdb}/pw
   else
@@ -310,15 +310,16 @@ pkits_SignatureVerification()
   pkits $certs/ValidDSASignaturesTest4EE.crt $certs/DSACACert.crt
   restore_db
 
-  VFY_ACTION="Valid DSA Parameter Inheritance Test5"; log_banner
-  certImport DSACACert
-  crlImport DSACACRL.crl
-  certImport DSAParametersInheritedCACert
-  crlImport DSAParametersInheritedCACRL.crl
-  pkits $certs/ValidDSAParameterInheritanceTest5EE.crt \
-      $certs/DSAParametersInheritedCACert.crt \
-      $certs/DSACACert.crt
-  restore_db
+  # NSS doesn't support DSA parameter inheritance anymore (see bug 671097)
+  # VFY_ACTION="Valid DSA Parameter Inheritance Test5"; log_banner
+  # certImport DSACACert
+  # crlImport DSACACRL.crl
+  # certImport DSAParametersInheritedCACert
+  # crlImport DSAParametersInheritedCACRL.crl
+  # pkits $certs/ValidDSAParameterInheritanceTest5EE.crt \
+  #     $certs/DSAParametersInheritedCACert.crt \
+  #     $certs/DSACACert.crt
+  # restore_db
 
   VFY_ACTION="Invalid DSA Signature Test6"; log_banner
   certImport DSACACert

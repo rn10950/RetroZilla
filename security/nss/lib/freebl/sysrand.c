@@ -10,14 +10,13 @@
 
 static size_t rng_systemFromNoise(unsigned char *dest, size_t maxLen);
 
-#if defined(XP_UNIX) || defined(XP_BEOS)
+#if (defined(XP_UNIX) || defined(XP_BEOS)) && defined(SEED_ONLY_DEV_URANDOM)
+#include "unix_urandom.c"
+#elif defined(XP_UNIX) || defined(XP_BEOS)
 #include "unix_rand.c"
 #endif
 #ifdef XP_WIN
 #include "win_rand.c"
-#endif
-#ifdef XP_OS2
-#include "os2_rand.c"
 #endif
 
 /*
@@ -43,4 +42,3 @@ rng_systemFromNoise(unsigned char *dest, size_t maxLen)
    }
    return retBytes;
 }
-

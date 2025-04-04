@@ -146,14 +146,6 @@ endif
 # [16.0] Global environ ment defines
 #######################################################################
 
-ifdef NSS_DISABLE_ECC
-DEFINES += -DNSS_DISABLE_ECC
-endif
- 
-ifdef NSS_ECC_MORE_THAN_SUITE_B
-DEFINES += -DNSS_ECC_MORE_THAN_SUITE_B
-endif
-
 ifdef NSS_ALLOW_UNSUPPORTED_CRITICAL
 DEFINES += -DNSS_ALLOW_UNSUPPORTED_CRITICAL
 endif
@@ -162,12 +154,39 @@ ifdef BUILD_LIBPKIX_TESTS
 DEFINES += -DBUILD_LIBPKIX_TESTS
 endif
 
+ifdef NSS_DISABLE_LIBPKIX
+DEFINES += -DNSS_DISABLE_LIBPKIX
+endif
+
 ifdef NSS_DISABLE_DBM
 DEFINES += -DNSS_DISABLE_DBM
 endif
 
+ifdef NSS_DISABLE_CHACHAPOLY
+DEFINES += -DNSS_DISABLE_CHACHAPOLY
+endif
+
 ifdef NSS_PKIX_NO_LDAP
 DEFINES += -DNSS_PKIX_NO_LDAP
+endif
+
+# FIPS support requires startup tests to be executed at load time of shared modules.
+# For performance reasons, these tests are disabled by default.
+# When compiling binaries that must support FIPS mode,
+# you should define NSS_FORCE_FIPS
+#
+# NSS_NO_INIT_SUPPORT is always defined on platforms that don't support
+# executing the startup tests at library load time.
+ifndef NSS_FORCE_FIPS
+DEFINES += -DNSS_NO_INIT_SUPPORT
+endif
+
+ifdef NSS_SEED_ONLY_DEV_URANDOM
+DEFINES += -DSEED_ONLY_DEV_URANDOM
+endif
+
+ifdef NSS_PKCS1_AllowMissingParameters
+DEFINES += -DNSS_PKCS1_AllowMissingParameters
 endif
 
 # Avoid building object leak test code for optimized library
@@ -184,13 +203,7 @@ DEFINES += -DUSE_UTIL_DIRECTLY
 USE_UTIL_DIRECTLY = 1
 
 # Build with NO_NSPR_10_SUPPORT to avoid using obsolete NSPR features
-#DEFINES += -DNO_NSPR_10_SUPPORT
+DEFINES += -DNO_NSPR_10_SUPPORT
 
 # Hide old, deprecated, TLS cipher suite names when building NSS
 DEFINES += -DSSL_DISABLE_DEPRECATED_CIPHER_SUITE_NAMES
-
-# build with NO_PKCS11_BYPASS by default
-ifndef NSS_PKCS11_BYPASS
-DEFINES += -DNO_PKCS11_BYPASS
-NSS_NO_PKCS11_BYPASS = 1
-endif

@@ -403,16 +403,28 @@ typedef long PRInt32;
 #if PR_BYTES_PER_LONG == 8 && !defined(__APPLE__)
 typedef long PRInt64;
 typedef unsigned long PRUint64;
+#define PR_INT64(x)  x ## L
+#define PR_UINT64(x) x ## UL
 #elif defined(WIN16)
 typedef __int64 PRInt64;
 typedef unsigned __int64 PRUint64;
+#define PR_INT64(x)  x ## i64
+#define PR_UINT64(x) x ## ui64
 #elif defined(WIN32) && !defined(__GNUC__)
 typedef __int64  PRInt64;
 typedef unsigned __int64 PRUint64;
+#define PR_INT64(x)  x ## i64
+#define PR_UINT64(x) x ## ui64
 #else
 typedef long long PRInt64;
 typedef unsigned long long PRUint64;
+#define PR_INT64(x)  x ## LL
+#define PR_UINT64(x) x ## ULL
 #endif /* PR_BYTES_PER_LONG == 8 */
+
+#define PR_INT64_MAX PR_INT64(0x7fffffffffffffff)
+#define PR_INT64_MIN (-PR_INT64_MAX - 1)
+#define PR_UINT64_MAX PR_UINT64(-1)
 #else  /* !HAVE_LONG_LONG */
 typedef struct {
 #ifdef IS_LITTLE_ENDIAN
@@ -422,6 +434,10 @@ typedef struct {
 #endif
 } PRInt64;
 typedef PRInt64 PRUint64;
+
+#define PR_INT64_MAX (PRInt64){0x7fffffff, 0xffffffff}
+#define PR_INT64_MIN (PRInt64){0xffffffff, 0xffffffff}
+#define PR_UINT64_MAX (PRUint64){0xffffffff, 0xffffffff}
 #endif /* !HAVE_LONG_LONG */
 
 /************************************************************************

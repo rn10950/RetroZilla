@@ -28,9 +28,10 @@ NSS_CMSMessage_Create(PLArenaPool *poolp)
     PRBool poolp_is_ours = PR_FALSE;
 
     if (poolp == NULL) {
-        poolp = PORT_NewArena (1024);           /* XXX what is right value? */
-        if (poolp == NULL)
+        poolp = PORT_NewArena(1024); /* XXX what is right value? */
+        if (poolp == NULL) {
             return NULL;
+        }
         poolp_is_ours = PR_TRUE;
     }
 
@@ -44,8 +45,9 @@ NSS_CMSMessage_Create(PLArenaPool *poolp)
             if (mark) {
                 PORT_ArenaRelease(poolp, mark);
             }
-        } else
+        } else {
             PORT_FreeArena(poolp, PR_FALSE);
+        }
         return NULL;
     }
 
@@ -53,8 +55,9 @@ NSS_CMSMessage_Create(PLArenaPool *poolp)
     cmsg->poolp_is_ours = poolp_is_ours;
     cmsg->refCount = 1;
 
-    if (mark)
-	PORT_ArenaUnmark(poolp, mark);
+    if (mark) {
+        PORT_ArenaUnmark(poolp, mark);
+    }
 
     return cmsg;
 }
@@ -69,16 +72,17 @@ NSS_CMSMessage_Create(PLArenaPool *poolp)
  */
 void
 NSS_CMSMessage_SetEncodingParams(NSSCMSMessage *cmsg,
-			PK11PasswordFunc pwfn, void *pwfn_arg,
-			NSSCMSGetDecryptKeyCallback decrypt_key_cb, void *decrypt_key_cb_arg,
-			SECAlgorithmID **detached_digestalgs, SECItem **detached_digests)
+                                 PK11PasswordFunc pwfn, void *pwfn_arg,
+                                 NSSCMSGetDecryptKeyCallback decrypt_key_cb, void *decrypt_key_cb_arg,
+                                 SECAlgorithmID **detached_digestalgs, SECItem **detached_digests)
 {
     if (cmsg == NULL) {
         return;
     }
+    if (pwfn) {
+        PK11_SetPasswordFunc(pwfn);
+    }
 
-    if (pwfn)
-	PK11_SetPasswordFunc(pwfn);
     cmsg->pwfn_arg = pwfn_arg;
     cmsg->decrypt_key_cb = decrypt_key_cb;
     cmsg->decrypt_key_cb_arg = decrypt_key_cb_arg;
@@ -95,23 +99,26 @@ NSS_CMSMessage_Destroy(NSSCMSMessage *cmsg)
     if (cmsg == NULL)
         return;
 
-    PORT_Assert (cmsg->refCount > 0);
-    if (cmsg->refCount <= 0)	/* oops */
-	return;
+    PORT_Assert(cmsg->refCount > 0);
+    if (cmsg->refCount <= 0) { /* oops */
+        return;
+    }
 
-    cmsg->refCount--;		/* thread safety? */
-    if (cmsg->refCount > 0)
-	return;
+    cmsg->refCount--; /* thread safety? */
+    if (cmsg->refCount > 0) {
+        return;
+    }
 
     NSS_CMSContentInfo_Destroy(&(cmsg->contentInfo));
 
     /* if poolp is not NULL, cmsg is the owner of its arena */
-    if (cmsg->poolp_is_ours)
-	PORT_FreeArena (cmsg->poolp, PR_FALSE);	/* XXX clear it? */
+    if (cmsg->poolp_is_ours) {
+        PORT_FreeArena(cmsg->poolp, PR_FALSE); /* XXX clear it? */
+    }
 }
 
 /*
- * NSS_CMSMessage_Copy - return a copy of the given message. 
+ * NSS_CMSMessage_Copy - return a copy of the given message.
  *
  * The copy may be virtual or may be real -- either way, the result needs
  * to be passed to NSS_CMSMessage_Destroy later (as does the original).
@@ -119,10 +126,11 @@ NSS_CMSMessage_Destroy(NSSCMSMessage *cmsg)
 NSSCMSMessage *
 NSS_CMSMessage_Copy(NSSCMSMessage *cmsg)
 {
-    if (cmsg == NULL)
-	return NULL;
+    if (cmsg == NULL) {
+        return NULL;
+    }
 
-    PORT_Assert (cmsg->refCount > 0);
+    PORT_Assert(cmsg->refCount > 0);
 
     cmsg->refCount++; /* XXX chrisk thread safety? */
     return cmsg;
@@ -155,7 +163,7 @@ NSS_CMSMessage_GetContentInfo(NSSCMSMessage *cmsg)
 }
 
 /*
- * Return a pointer to the actual content. 
+ * Return a pointer to the actual content.
  * In the case of those types which are encrypted, this returns the *plain* content.
  * In case of nested contentInfos, this descends and retrieves the innermost content.
  */
@@ -163,8 +171,8 @@ SECItem *
 NSS_CMSMessage_GetContent(NSSCMSMessage *cmsg)
 {
     NSSCMSContentInfo *cinfo;
-    SECItem           *pItem;
-
+    SECItem *pItem;
+    
     if (cmsg == NULL) {
         return NULL;
     }
@@ -191,9 +199,9 @@ NSS_CMSMessage_ContentLevelCount(NSSCMSMessage *cmsg)
     }
 
     /* walk down the chain of contentinfos */
-    for (cinfo = &(cmsg->contentInfo); cinfo != NULL; ) {
-	count++;
-	cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo);
+    for (cinfo = &(cmsg->contentInfo); cinfo != NULL;) {
+        count++;
+        cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo);
     }
     return count;
 }
@@ -214,8 +222,9 @@ NSS_CMSMessage_ContentLevel(NSSCMSMessage *cmsg, int n)
     }
 
     /* walk down the chain of contentinfos */
-    for (cinfo = &(cmsg->contentInfo); cinfo != NULL && count < n; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
-	count++;
+    for (cinfo = &(cmsg->contentInfo); cinfo != NULL && count < n;
+         cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
+        count++;
     }
 
     return cinfo;
@@ -234,13 +243,14 @@ NSS_CMSMessage_ContainsCertsOrCrls(NSSCMSMessage *cmsg)
     }
 
     /* descend into CMS message */
-    for (cinfo = &(cmsg->contentInfo); cinfo != NULL; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
-	if (!NSS_CMSType_IsData(NSS_CMSContentInfo_GetContentTypeTag(cinfo)))
-	    continue;	/* next level */
-	
-	if (NSS_CMSSignedData_ContainsCertsOrCrls(cinfo->content.signedData))
-	    return PR_TRUE;
-	/* callback here for generic wrappers? */
+    for (cinfo = &(cmsg->contentInfo); cinfo != NULL;
+         cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
+        if (!NSS_CMSType_IsData(NSS_CMSContentInfo_GetContentTypeTag(cinfo)))
+            continue; /* next level */
+
+        if (NSS_CMSSignedData_ContainsCertsOrCrls(cinfo->content.signedData))
+            return PR_TRUE;
+        /* callback here for generic wrappers? */
     }
     return PR_FALSE;
 }
@@ -258,16 +268,16 @@ NSS_CMSMessage_IsEncrypted(NSSCMSMessage *cmsg)
     }
 
     /* walk down the chain of contentinfos */
-    for (cinfo = &(cmsg->contentInfo); cinfo != NULL; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo))
-    {
-	switch (NSS_CMSContentInfo_GetContentTypeTag(cinfo)) {
-	case SEC_OID_PKCS7_ENVELOPED_DATA:
-	case SEC_OID_PKCS7_ENCRYPTED_DATA:
-	    return PR_TRUE;
-	default:
-	    /* callback here for generic wrappers? */
-	    break;
-	}
+    for (cinfo = &(cmsg->contentInfo); cinfo != NULL;
+         cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
+        switch (NSS_CMSContentInfo_GetContentTypeTag(cinfo)) {
+            case SEC_OID_PKCS7_ENVELOPED_DATA:
+            case SEC_OID_PKCS7_ENCRYPTED_DATA:
+                return PR_TRUE;
+            default:
+                /* callback here for generic wrappers? */
+                break;
+        }
     }
     return PR_FALSE;
 }
@@ -292,20 +302,21 @@ NSS_CMSMessage_IsSigned(NSSCMSMessage *cmsg)
     }
 
     /* walk down the chain of contentinfos */
-    for (cinfo = &(cmsg->contentInfo); cinfo != NULL; cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo))
-    {
-	switch (NSS_CMSContentInfo_GetContentTypeTag(cinfo)) {
-	case SEC_OID_PKCS7_SIGNED_DATA:
-            if (cinfo->content.signedData == NULL) {
-                return PR_FALSE;
-            }
-	    if (!NSS_CMSArray_IsEmpty((void **)cinfo->content.signedData->signerInfos))
-		return PR_TRUE;
-	    break;
-	default:
-	    /* callback here for generic wrappers? */
-	    break;
-	}
+    for (cinfo = &(cmsg->contentInfo); cinfo != NULL;
+         cinfo = NSS_CMSContentInfo_GetChildContentInfo(cinfo)) {
+        switch (NSS_CMSContentInfo_GetContentTypeTag(cinfo)) {
+            case SEC_OID_PKCS7_SIGNED_DATA:
+                if (cinfo->content.signedData == NULL) {
+                    return PR_FALSE;
+                }
+                if (!NSS_CMSArray_IsEmpty((void **)cinfo->content.signedData->signerInfos)) {
+                    return PR_TRUE;
+                }
+                break;
+            default:
+                /* callback here for generic wrappers? */
+                break;
+        }
     }
     return PR_FALSE;
 }
@@ -321,15 +332,16 @@ NSS_CMSMessage_IsContentEmpty(NSSCMSMessage *cmsg, unsigned int minLen)
 {
     SECItem *item = NULL;
 
-    if (cmsg == NULL)
-	return PR_TRUE;
+    if (cmsg == NULL) {
+        return PR_TRUE;
+    }
 
     item = NSS_CMSContentInfo_GetContent(NSS_CMSMessage_GetContentInfo(cmsg));
 
     if (!item) {
-	return PR_TRUE;
-    } else if(item->len <= minLen) {
-	return PR_TRUE;
+        return PR_TRUE;
+    } else if (item->len <= minLen) {
+        return PR_TRUE;
     }
 
     return PR_FALSE;

@@ -5,7 +5,6 @@
 #ifndef _KEYI_H_
 #define _KEYI_H_
 
-
 SEC_BEGIN_PROTOS
 /* NSS private functions */
 /* map an oid to a keytype... actually this function and it's converse
@@ -16,7 +15,23 @@ KeyType seckey_GetKeyType(SECOidTag pubKeyOid);
  * algorithm, key and parameters (parameters is the parameters field
  * of a algorithm ID structure (SECAlgorithmID)*/
 SECStatus sec_DecodeSigAlg(const SECKEYPublicKey *key, SECOidTag sigAlg,
-             const SECItem *param, SECOidTag *encalg, SECOidTag *hashalg);
+                           const SECItem *param, SECOidTag *encalg, SECOidTag *hashalg);
+
+/* extract the RSA-PSS hash algorithms and salt length from
+ * parameters, taking into account of the default implications.
+ *
+ * (parameters is the parameters field of a algorithm ID structure
+ * (SECAlgorithmID)*/
+SECStatus sec_DecodeRSAPSSParams(PLArenaPool *arena,
+                                 const SECItem *params,
+                                 SECOidTag *hashAlg,
+                                 SECOidTag *maskHashAlg,
+                                 unsigned long *saltLength);
+
+/* convert the encoded RSA-PSS parameters into PKCS #11 mechanism parameters */
+SECStatus sec_DecodeRSAPSSParamsToMechanism(PLArenaPool *arena,
+                                            const SECItem *params,
+                                            CK_RSA_PKCS_PSS_PARAMS *mech);
 
 SEC_END_PROTOS
 
