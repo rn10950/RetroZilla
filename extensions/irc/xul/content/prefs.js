@@ -22,6 +22,7 @@
  *
  * Contributor(s):
  *   Robert Ginda, <rginda@netscape.com>, original author
+ *   James Ross, silver@warwickcompsoc.co.uk
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -56,7 +57,7 @@ function initPrefs()
     profilePath.append("chatzilla");
 
     client.prefManager.addPref("profilePath", profilePath.path, null, null,
-                                                                      "global");
+                                                                      "hidden");
 
     profilePath = new nsLocalFile(client.prefs["profilePath"]);
 
@@ -69,7 +70,6 @@ function initPrefs()
     scriptPath.append("scripts");
     if (!scriptPath.exists())
         mkdir(scriptPath);
-    client.prefManager.scriptPath = scriptPath;
 
     var logPath = profilePath.clone();
     logPath.append("logs");
@@ -85,12 +85,18 @@ function initPrefs()
     var logDefault = client.prefManager.logPath.clone();
     logDefault.append(escapeFileName("client.log"));
 
-    var gotos = ["goto-url",        "goto-url-newwin",
+    var gotos = ["goto-url-newtab", "goto-url-newwin",
                  "goto-url-newtab", "goto-url-newtab"];
-    if (client.host == "XULrunner")
+    if (client.host == "XULRunner")
     {
         gotos = ["goto-url-external", "goto-url-external",
                  "goto-url-external", "goto-url-external"];
+    }
+    else if (client.host == "Songbird")
+    {
+        // Songbird has a browser, but only supports a single browser window
+        gotos = ["goto-url-newtab", "goto-url-newtab",
+                 "goto-url-newtab", "goto-url-newtab"];
     }
 
     // Set up default nickname, if possible.
@@ -110,7 +116,7 @@ function initPrefs()
             var nick = en.get(vars[i]);
             if (nick)
             {
-                defaultNick = nick;
+                defaultNick = nick.replace(/ /g, "_");
                 break;
             }
         }
@@ -124,14 +130,25 @@ function initPrefs()
 
     var prefs =
         [
-         ["activityFlashDelay", 200,      "global"],
+         ["activityFlashDelay", 200,      "hidden"],
          ["aliases",            [],       "lists.aliases"],
          ["autoAwayCap",        300,      "global"],
          ["autoAwayPeriod",     2,        "appearance.misc"],
          ["autoRejoin",         false,    ".connect"],
+         ["away",               "",       "hidden"],
          ["awayNick",           "",       ".ident"],
+         ["awayIdleTime",       0,        ".ident"],
+         ["awayIdleMsg",        "",       ".ident"],
          ["bugURL",           "https://bugzilla.mozilla.org/show_bug.cgi?id=%s",
                                           "appearance.misc"],
+         ["bugURL.comment",     "#c%s",   "appearance.misc"],
+         ["ceip.userid",        "",       "hidden"],
+         ["ceip.uploadUrl",     "http://silver.warwickcompsoc.co.uk/mozilla/chatzilla/ceip/1/upload", "hidden"],
+         ["ceip.uploadSize",    32 * 1024, "hidden"],
+         ["ceip.log.client",    false,    "hidden"],
+         ["ceip.log.command",   false,    "hidden"],
+         ["ceip.log.menu",      false,    "hidden"],
+         ["ceip.log.dialog",    false,    "hidden"],
          ["channelHeader",      true,     "global.header"],
          ["channelLog",         false,    "global.log"],
          ["channelMaxLines",    500,      "global.maxLines"],
@@ -150,30 +167,31 @@ function initPrefs()
          ["dcc.downloadsFolder", getURLSpecFromFile(downloadsPath.path), "dcc"],
          ["dcc.listenPorts",    [],       "dcc.ports"],
          ["dcc.useServerIP",    true,     "dcc"],
-         ["debugMode",          "",       "global"],
+         ["debugMode",          "",       "hidden"],
          ["defaultQuitMsg",     "",       ".connect"],
          ["desc",               "New Now Know How", ".ident"],
          ["deleteOnPart",       true,     "global"],
          ["displayHeader",      true,     "appearance.misc"],
-         ["guessCommands",      true,     "global"],
+         ["guessCommands",      true,     "hidden"],
          ["hasPrefs",           false,    "hidden"],
          ["font.family",        "default", "appearance.misc"],
          ["font.size",          0,        "appearance.misc"],
          ["identd.enabled",     false,    client.prefManager.identGroup],
          ["initialURLs",        [],       "startup.initialURLs"],
-         ["initialScripts",     [getURLSpecFromFile(scriptPath.path)],
+         ["initialScripts",     ["scripts/"],
                                           "startup.initialScripts"],
-         ["instrumentation.key", 0,      "hidden"],
-         ["instrumentation.inst1", 0,    "hidden"],
+         ["instrumentation.key", 0,       "hidden"],
+         ["instrumentation.ceip", false,  "hidden"],
          ["link.focus",         true,     "global.links"],
          ["log",                false,                                  ".log"],
-         ["logFileName",        makeLogNameClient,                      ".log"],
-         ["logFile.client",     "client.$y-$m-$d.log",                  ".log"],
-         ["logFile.network",    "$(network)/$(network).$y-$m-$d.log",   ".log"],
+         ["logFileName",        makeLogNameClient,                    "hidden"],
+         ["logFile.client",     "client.$y-$m-$d.log",                "hidden"],
+         ["logFile.network",    "$(network)/$(network).$y-$m-$d.log", "hidden"],
          ["logFile.channel",    "$(network)/channels/$(channel).$y-$m-$d.log",
-                                                                        ".log"],
-         ["logFile.user",       "$(network)/users/$(user).$y-$m-$d.log",".log"],
-         ["logFile.dccuser",    "dcc/$(user)/$(user).$y-$m-$d.log",     ".log"],
+                                                                      "hidden"],
+         ["logFile.user",       "$(network)/users/$(user).$y-$m-$d.log",
+                                                                      "hidden"],
+         ["logFile.dccuser",    "dcc/$(user)/$(user).$y-$m-$d.log",   "hidden"],
          ["logFolder",          getURLSpecFromFile(logPath.path), ".log"],
          ["messages.click",     gotos[0],   "global.links"],
          ["messages.ctrlClick", gotos[1],   "global.links"],
@@ -183,12 +201,10 @@ function initPrefs()
                                           "appearance.motif"],
          ["motif.light",        "chrome://chatzilla/skin/output-light.css",
                                           "appearance.motif"],
-         ["motif.default",      "chrome://chatzilla/skin/output-default.css",
-                                          "appearance.motif"],
-         ["motif.current",      "chrome://chatzilla/skin/output-default.css",
+         ["motif.current",      "chrome://chatzilla/skin/output-light.css",
                                           "appearance.motif"],
          //["msgBeep",            "beep beep", "global.sounds"],
-         ["multiline",          false,    "global"],
+         ["multiline",          false,    "hidden"],
          ["munger.bold",        true,     "munger"],
          ["munger.bugzilla-link", true,   "munger"],
          ["munger.channel-link",true,     "munger"],
@@ -207,14 +223,14 @@ function initPrefs()
          ["networkHeader",      true,     "global.header"],
          ["networkLog",         false,    "global.log"],
          ["networkMaxLines",    200,      "global.maxLines"],
-         ["newTabLimit",        15,       "global"],
+         ["newTabLimit",        30,       "global"],
          ["notify.aggressive",  true,     "global"],
          ["nickCompleteStr",    ":",      "global"],
          ["nickname",           defaultNick, ".ident"],
          ["nicknameList",       [],       "lists.nicknameList"],
-         ["outgoing.colorCodes",  false,  "global"],
+         ["outgoing.colorCodes",  true,   "global"],
          ["outputWindowURL",   "chrome://chatzilla/content/output-window.html",
-                                          "appearance.misc"],
+                                          "hidden"],
          ["proxy.typeOverride", "",       ".connect"],
          ["sortUsersByMode",    true,     "appearance.userlist"],
          //["queryBeep",          "beep",   "global.sounds"],
@@ -236,9 +252,10 @@ function initPrefs()
          ["sound.channel.stalk", "beep",      "global.soundEvts"],
          ["sound.user.start",    "beep beep", "global.soundEvts"],
          ["sound.user.stalk",    "beep",      "global.soundEvts"],
-         ["timestamps",         false,     "appearance.timestamps"],
-         ["timestampFormat",    "[%h:%n]", "appearance.timestamps"],
-         ["urls.list",          [],       "hidden"],
+         ["inputSpellcheck",     true,                  "global"],
+         ["timestamps",         false,        "appearance.timestamps"],
+         ["timestamps.display", "[%H:%M]",    "appearance.timestamps"],
+         ["timestamps.log",     "[%Y-%m-%d %H:%M:%S]", "hidden"],
          ["urls.store.max",     100,      "global"],
          ["urls.display",       10,       "hidden"],
          ["username",           "chatzilla", ".ident"],
@@ -262,10 +279,9 @@ function initPrefs()
     CIRCNetwork.prototype.MAX_MESSAGES  = client.prefs["networkMaxLines"];
     CIRCNetwork.prototype.PROXY_TYPE_OVERRIDE = client.prefs["proxy.typeOverride"];
     CIRCChannel.prototype.MAX_MESSAGES  = client.prefs["channelMaxLines"];
-    CIRCChanUser.prototype.MAX_MESSAGES = client.prefs["userMaxLines"];
-    var dccUserMaxLines = client.prefs["dccUserMaxLines"];
-    CIRCDCCChat.prototype.MAX_MESSAGES  = dccUserMaxLines;
-    CIRCDCCFileTransfer.prototype.MAX_MESSAGES = dccUserMaxLines;
+    CIRCUser.prototype.MAX_MESSAGES     = client.prefs["userMaxLines"];
+    CIRCDCCChat.prototype.MAX_MESSAGES  = client.prefs["dccUserMaxLines"];
+    CIRCDCCFileTransfer.prototype.MAX_MESSAGES = client.prefs["dccUserMaxLines"];
     CIRCDCC.prototype.listenPorts       = client.prefs["dcc.listenPorts"];
     client.MAX_MESSAGES                 = client.prefs["clientMaxLines"];
     client.charset                      = client.prefs["charset"];
@@ -275,15 +291,6 @@ function initPrefs()
 
 function makeLogName(obj, type)
 {
-    // We like some control on the number of digits.
-    function formatTimeNumber(num, digits)
-    {
-        var rv = num.toString();
-        while (rv.length < digits)
-            rv = "0" + rv;
-        return rv;
-    };
-
     function replaceNonPrintables(ch) {
         var rv = ch.charCodeAt().toString(16);
         if (rv.length == 1)
@@ -368,10 +375,10 @@ function makeLogName(obj, type)
     // 4 short codes: $y, $m, $d, $h.
     // These are time codes, each replaced with a fixed-length number.
     var d = new Date();
-    var shortCodes = { y: formatTimeNumber(d.getFullYear(), 4),
-                       m: formatTimeNumber(d.getMonth() + 1, 2),
-                       d: formatTimeNumber(d.getDate(), 2),
-                       h: formatTimeNumber(d.getHours(), 2)
+    var shortCodes = { y: padNumber(d.getFullYear(), 4),
+                       m: padNumber(d.getMonth() + 1, 2),
+                       d: padNumber(d.getDate(), 2),
+                       h: padNumber(d.getHours(), 2)
                      };
 
     // Replace all $-variables in one go.
@@ -420,9 +427,10 @@ function getNetworkPrefManager(network)
         [
          ["autoAwayPeriod",   defer, "appearance.misc"],
          ["autoRejoin",       defer, ".connect"],
-         ["away",             "",    "hidden"],
+         ["away",             defer, "hidden"],
          ["awayNick",         defer, ".ident"],
          ["bugURL",           defer, "appearance.misc"],
+         ["bugURL.comment",   defer, "appearance.misc"],
          ["charset",          defer, ".connect"],
          ["collapseActions",  defer, "appearance.misc"],
          ["collapseMsgs",     defer, "appearance.misc"],
@@ -441,16 +449,17 @@ function getNetworkPrefManager(network)
          ["identd.enabled",   defer, client.prefManager.identGroup],
          ["ignoreList",       [],    "hidden"],
          ["log",              client.prefs["networkLog"], ".log"],
-         ["logFileName",      makeLogNameNetwork,         ".log"],
+         ["logFileName",      makeLogNameNetwork, "hidden"],
          ["motif.current",    defer, "appearance.motif"],
          ["nickname",         defer, ".ident"],
          ["nicknameList",     defer, "lists.nicknameList"],
          ["notifyList",       [],    "lists.notifyList"],
-         ["outputWindowURL",  defer, "appearance.misc"],
+         ["outputWindowURL",  defer, "hidden"],
          ["proxy.typeOverride", defer, ".connect"],
          ["reconnect",        defer, ".connect"],
-         ["timestamps",       defer, "appearance.timestamps"],
-         ["timestampFormat",  defer, "appearance.timestamps"],
+         ["timestamps",         defer, "appearance.timestamps"],
+         ["timestamps.display", defer, "appearance.timestamps"],
+         ["timestamps.log",     defer, "hidden"],
          ["username",         defer, ".ident"],
          ["usermode",         defer, ".ident"],
          ["autoperform",      [],    "lists.autoperform"]
@@ -520,6 +529,7 @@ function getChannelPrefManager(channel)
         [
          ["autoRejoin",       defer, ".connect"],
          ["bugURL",           defer, "appearance.misc"],
+         ["bugURL.comment",   defer, "appearance.misc"],
          ["charset",          defer, ".connect"],
          ["collapseActions",  defer, "appearance.misc"],
          ["collapseMsgs",     defer, "appearance.misc"],
@@ -531,11 +541,12 @@ function getChannelPrefManager(channel)
          ["font.size",        defer, "appearance.misc"],
          ["hasPrefs",         false, "hidden"],
          ["log",              client.prefs["channelLog"], ".log"],
-         ["logFileName",      makeLogNameChannel,         ".log"],
+         ["logFileName",      makeLogNameChannel, "hidden"],
          ["motif.current",    defer, "appearance.motif"],
-         ["timestamps",       defer, "appearance.timestamps"],
-         ["timestampFormat",  defer, "appearance.timestamps"],
-         ["outputWindowURL",  defer, "appearance.misc"]
+         ["timestamps",         defer, "appearance.timestamps"],
+         ["timestamps.display", defer, "appearance.timestamps"],
+         ["timestamps.log",     defer, "hidden"],
+         ["outputWindowURL",  defer, "hidden"]
         ];
 
     var branch = "extensions.irc.networks." + pref_mungeName(network.encodedName) +
@@ -584,11 +595,12 @@ function getUserPrefManager(user)
          ["font.size",        defer, "appearance.misc"],
          ["hasPrefs",         false, "hidden"],
          ["motif.current",    defer, "appearance.motif"],
-         ["outputWindowURL",  defer, "appearance.misc"],
+         ["outputWindowURL",  defer, "hidden"],
          ["log",              client.prefs["userLog"], ".log"],
-         ["logFileName",      makeLogNameUser,         ".log"],
-         ["timestamps",       defer, "appearance.timestamps"],
-         ["timestampFormat",  defer, "appearance.timestamps"]
+         ["logFileName",      makeLogNameUser, "hidden"],
+         ["timestamps",         defer, "appearance.timestamps"],
+         ["timestamps.display", defer, "appearance.timestamps"],
+         ["timestamps.log",     defer, "hidden"]
         ];
 
     var branch = "extensions.irc.networks." + pref_mungeName(network.encodedName) +
@@ -629,11 +641,12 @@ function getDCCUserPrefManager(user)
          ["font.size",        defer, "appearance.misc"],
          ["hasPrefs",         false, "hidden"],
          ["motif.current",    defer, "appearance.motif"],
-         ["outputWindowURL",  defer, "appearance.misc"],
+         ["outputWindowURL",  defer, "hidden"],
          ["log",              client.prefs["dccUserLog"], ".log"],
-         ["logFileName",      makeLogNameUser,            ".log"],
-         ["timestamps",       defer, "appearance.timestamps"],
-         ["timestampFormat",  defer, "appearance.timestamps"]
+         ["logFileName",      makeLogNameUser, "hidden"],
+         ["timestamps",         defer, "appearance.timestamps"],
+         ["timestamps.display", defer, "appearance.timestamps"],
+         ["timestamps.log",     defer, "hidden"]
         ];
 
     var branch = "extensions.irc.dcc.users." +
@@ -660,8 +673,16 @@ function destroyPrefs()
 
 function onPrefChanged(prefName, newValue, oldValue)
 {
+    if (newValue == oldValue)
+        return;
+
     switch (prefName)
     {
+        case "awayIdleTime":
+            uninitIdleAutoAway(oldValue);
+            initIdleAutoAway(newValue);
+            break;
+
         case "channelMaxLines":
             CIRCChannel.prototype.MAX_MESSAGES = newValue;
             break;
@@ -703,6 +724,10 @@ function onPrefChanged(prefName, newValue, oldValue)
             CIRCNetwork.prototype.PROXY_TYPE_OVERRIDE = newValue;
             break;
 
+        case "reconnect":
+            CIRCNetwork.prototype.stayingPower = newValue;
+            break;
+
         case "showModeSymbols":
             if (newValue)
                 setListMode("symbol");
@@ -723,7 +748,7 @@ function onPrefChanged(prefName, newValue, oldValue)
             break;
 
         case "userMaxLines":
-            CIRCChanUser.prototype.MAX_MESSAGES = newValue;
+            CIRCUser.prototype.MAX_MESSAGES = newValue;
             break;
 
         case "userlistLeft":
@@ -753,6 +778,7 @@ function onPrefChanged(prefName, newValue, oldValue)
 
         case "multiline":
             multilineInputMode(newValue);
+            delete client.multiLineForPaste;
             break;
 
         case "munger.colorCodes":
@@ -772,7 +798,9 @@ function onPrefChanged(prefName, newValue, oldValue)
             break;
 
         case "timestamps":
-        case "timestampFormat":
+        case "timestamps.display":
+        case "collapseActions":
+        case "collapseMsgs":
             client.dispatch("sync-timestamp");
             break;
 
@@ -781,16 +809,31 @@ function onPrefChanged(prefName, newValue, oldValue)
             break;
 
         case "aliases":
-            initAliases();
+            updateAliases();
+            break;
+
+        case "inputSpellcheck":
+            updateSpellcheck(newValue);
+            break;
+
+        case "urls.store.max":
+            if (client.urlLogger)
+            {
+                client.urlLogger.autoLimit = newValue;
+                client.urlLogger.limit(newValue);
+            }
             break;
 
         default:
             // Make munger prefs apply without a restart
-            if ((m = prefName.match(/^munger\.(\S+)$/))
-                && (m[1] in client.munger.entries))
+            var m, rule;
+            if ((m = prefName.match(/^munger\.(\S+)$/)) &&
+                (rule = client.munger.getRule(m[1])))
             {
-                client.munger.entries[m[1]].enabled = newValue;
+                rule.enabled = newValue;
             }
+            if (prefName.substr(0, 9) == "ceip.log.")
+                client.ceip.notifyUpdate();
     }
 }
 
@@ -802,6 +845,9 @@ function onNetworkPrefChanged(network, prefName, newValue, oldValue)
         network.prefManager.destroy();
         return;
     }
+
+    if (newValue == oldValue)
+        return;
 
     network.updateHeader();
 
@@ -854,7 +900,9 @@ function onNetworkPrefChanged(network, prefName, newValue, oldValue)
             break;
 
         case "timestamps":
-        case "timestampFormat":
+        case "timestamps.display":
+        case "collapseActions":
+        case "collapseMsgs":
             network.dispatch("sync-timestamp");
             break;
 
@@ -880,6 +928,9 @@ function onChannelPrefChanged(channel, prefName, newValue, oldValue)
         channel.prefManager.destroy();
         return;
     }
+
+    if (newValue == oldValue)
+        return;
 
     channel.updateHeader();
 
@@ -918,7 +969,9 @@ function onChannelPrefChanged(channel, prefName, newValue, oldValue)
             break;
 
         case "timestamps":
-        case "timestampFormat":
+        case "timestamps.display":
+        case "collapseActions":
+        case "collapseMsgs":
             channel.dispatch("sync-timestamp");
             break;
 
@@ -940,6 +993,9 @@ function onUserPrefChanged(user, prefName, newValue, oldValue)
         user.prefManager.destroy();
         return;
     }
+
+    if (newValue == oldValue)
+        return;
 
     user.updateHeader();
 
@@ -963,7 +1019,9 @@ function onUserPrefChanged(user, prefName, newValue, oldValue)
             break;
 
         case "timestamps":
-        case "timestampFormat":
+        case "timestamps.display":
+        case "collapseActions":
+        case "collapseMsgs":
             user.dispatch("sync-timestamp");
             break;
 
@@ -981,6 +1039,9 @@ function onDCCUserPrefChanged(user, prefName, newValue, oldValue)
         user.prefManager.destroy();
         return;
     }
+
+    if (newValue == oldValue)
+        return;
 
     // DCC Users are a pain, they can have multiple views!
     function updateDCCView(view)
@@ -1005,7 +1066,9 @@ function onDCCUserPrefChanged(user, prefName, newValue, oldValue)
                 break;
 
             case "timestamps":
-            case "timestampFormat":
+            case "timestamps.display":
+            case "collapseActions":
+            case "collapseMsgs":
                 view.dispatch("sync-timestamp");
                 break;
 
@@ -1025,7 +1088,17 @@ function onDCCUserPrefChanged(user, prefName, newValue, oldValue)
 
 function initAliases()
 {
+    client.commandManager.aliasList = new Object();
+    updateAliases();
+}
+
+function updateAliases()
+{
     var aliasDefs = client.prefs["aliases"];
+
+    // Flag all aliases as 'removed' first.
+    for (var name in client.commandManager.aliasList)
+        client.commandManager.aliasList[name] = false;
 
     for (var i = 0; i < aliasDefs.length; ++i)
     {
@@ -1035,11 +1108,26 @@ function initAliases()
             var name = ary[1];
             var list = ary[2];
 
+            // Remove the alias, if it exists, or we'll keep stacking them.
+            if (name in client.commandManager.aliasList)
+                client.commandManager.removeCommand({name: name});
             client.commandManager.defineCommand(name, list);
+            // Flag this alias as 'used'.
+            client.commandManager.aliasList[name] = true;
         }
         else
         {
             dd("Malformed alias: " + aliasDefs[i]);
+        }
+    }
+
+    // Purge any aliases that were defined but are no longer in the pref.
+    for (var name in client.commandManager.aliasList)
+    {
+        if (!client.commandManager.aliasList[name])
+        {
+            client.commandManager.removeCommand({name: name});
+            delete client.commandManager.aliasList[name];
         }
     }
 }

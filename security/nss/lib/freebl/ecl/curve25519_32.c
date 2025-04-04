@@ -9,10 +9,13 @@
 #include "ecl-priv.h"
 #include "mpi.h"
 
-#include <stdint.h>
 #include <stdio.h>
 
-typedef uint32_t elem[32];
+#include "seccomon.h"
+#include "secerr.h"
+#include "prtypes.h"
+
+typedef PRUint32 elem[32];
 
 /*
  * Add two field elements.
@@ -21,8 +24,8 @@ typedef uint32_t elem[32];
 static void
 add(elem out, const elem a, const elem b)
 {
-    uint32_t j;
-    uint32_t u = 0;
+    PRUint32 j;
+    PRUint32 u = 0;
     for (j = 0; j < 31; ++j) {
         u += a[j] + b[j];
         out[j] = u & 0xFF;
@@ -39,8 +42,8 @@ add(elem out, const elem a, const elem b)
 static void
 sub(elem out, const elem a, const elem b)
 {
-    uint32_t j;
-    uint32_t u;
+    PRUint32 j;
+    PRUint32 u;
     u = 218;
     for (j = 0; j < 31; ++j) {
         u += a[j] + 0xFF00 - b[j];
@@ -57,8 +60,8 @@ sub(elem out, const elem a, const elem b)
 static void
 squeeze(elem a)
 {
-    uint32_t j;
-    uint32_t u;
+    PRUint32 j;
+    PRUint32 u;
     u = 0;
     for (j = 0; j < 31; ++j) {
         u += a[j];
@@ -88,8 +91,8 @@ static void
 reduce(elem a)
 {
     elem aorig;
-    uint32_t j;
-    uint32_t negative;
+    PRUint32 j;
+    PRUint32 negative;
 
     for (j = 0; j < 32; ++j) {
         aorig[j] = a[j];
@@ -108,9 +111,9 @@ reduce(elem a)
 static void
 mult(elem out, const elem a, const elem b)
 {
-    uint32_t i;
-    uint32_t j;
-    uint32_t u;
+    PRUint32 i;
+    PRUint32 j;
+    PRUint32 u;
 
     for (i = 0; i < 32; ++i) {
         u = 0;
@@ -132,8 +135,8 @@ mult(elem out, const elem a, const elem b)
 static void
 mult121665(elem out, const elem a)
 {
-    uint32_t j;
-    uint32_t u;
+    PRUint32 j;
+    PRUint32 u;
 
     u = 0;
     for (j = 0; j < 31; ++j) {
@@ -160,9 +163,9 @@ mult121665(elem out, const elem a)
 static void
 square(elem out, const elem a)
 {
-    uint32_t i;
-    uint32_t j;
-    uint32_t u;
+    PRUint32 i;
+    PRUint32 j;
+    PRUint32 u;
 
     for (i = 0; i < 32; ++i) {
         u = 0;
@@ -186,13 +189,13 @@ square(elem out, const elem a)
  * Constant time swap between r and s depending on b
  */
 static void
-cswap(uint32_t p[64], uint32_t q[64], uint32_t b)
+cswap(PRUint32 p[64], PRUint32 q[64], PRUint32 b)
 {
-    uint32_t j;
-    uint32_t swap = 1 + ~b;
+    PRUint32 j;
+    PRUint32 swap = 1 + ~b;
 
     for (j = 0; j < 64; ++j) {
-        const uint32_t t = swap & (p[j] ^ q[j]);
+        const PRUint32 t = swap & (p[j] ^ q[j]);
         p[j] ^= t;
         q[j] ^= t;
     }
@@ -205,19 +208,19 @@ static void
 monty(elem x_2_out, elem z_2_out,
       const elem point, const elem scalar)
 {
-    uint32_t x_3[64] = { 0 };
-    uint32_t x_2[64] = { 0 };
-    uint32_t a0[64];
-    uint32_t a1[64];
-    uint32_t b0[64];
-    uint32_t b1[64];
-    uint32_t c1[64];
-    uint32_t r[32];
-    uint32_t s[32];
-    uint32_t t[32];
-    uint32_t u[32];
-    uint32_t swap = 0;
-    uint32_t k_t = 0;
+    PRUint32 x_3[64] = { 0 };
+    PRUint32 x_2[64] = { 0 };
+    PRUint32 a0[64];
+    PRUint32 a1[64];
+    PRUint32 b0[64];
+    PRUint32 b1[64];
+    PRUint32 c1[64];
+    PRUint32 r[32];
+    PRUint32 s[32];
+    PRUint32 t[32];
+    PRUint32 u[32];
+    PRUint32 swap = 0;
+    PRUint32 k_t = 0;
     int j;
 
     for (j = 0; j < 32; ++j) {
@@ -363,7 +366,7 @@ ec_Curve25519_mul(PRUint8 *q, const PRUint8 *s, const PRUint8 *p)
     elem z_2 = { 0 };
     elem X = { 0 };
     elem scalar = { 0 };
-    uint32_t i;
+    PRUint32 i;
 
     /* read and mask scalar */
     for (i = 0; i < 32; ++i) {

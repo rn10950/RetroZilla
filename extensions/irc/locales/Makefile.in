@@ -1,0 +1,117 @@
+#
+# ***** BEGIN LICENSE BLOCK *****
+# Version: MPL 1.1/GPL 2.0/LGPL 2.1
+#
+# The contents of this file are subject to the Mozilla Public License Version
+# 1.1 (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+# http://www.mozilla.org/MPL/
+#
+# Software distributed under the License is distributed on an "AS IS" basis,
+# WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+# for the specific language governing rights and limitations under the
+# License.
+#
+# The Original Code is mozilla.org code.
+#
+# The Initial Developer of the Original Code is
+# Robert Kaiser <kairo@kairo.at>.
+# Portions created by the Initial Developer are Copyright (C) 2007
+# the Initial Developer. All Rights Reserved.
+#
+# Contributor(s):
+#
+# Alternatively, the contents of this file may be used under the terms of
+# either the GNU General Public License Version 2 or later (the "GPL"), or
+# the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+# in which case the provisions of the GPL or the LGPL are applicable instead
+# of those above. If you wish to allow use of your version of this file only
+# under the terms of either the GPL or the LGPL, and not to allow others to
+# use your version of this file under the terms of the MPL, indicate your
+# decision by deleting the provisions above and replace them with the notice
+# and other provisions required by the GPL or the LGPL. If you do not delete
+# the provisions above, a recipient may use your version of this file under
+# the terms of any one of the MPL, the GPL or the LGPL.
+#
+# ***** END LICENSE BLOCK *****
+
+
+DEPTH=../../..
+topsrcdir=@top_srcdir@
+srcdir=@srcdir@
+VPATH=@srcdir@
+relativesrcdir = extensions/irc/locales
+
+CHATZILLA_VERSION=$(shell grep "const __cz_version" "$(srcdir)/../xul/content/static.js" | sed "s|.*\"\([^\"]\{1,\}\)\".*|\1|")
+CHATZILLA_BASE_VERSION=$(shell echo "$(CHATZILLA_VERSION)" | sed "s|\([0-9]\{1,\}\.[0-9]\{1,\}\.[0-9]\{1,\}\).*|\1|")
+
+XPI_NAME               = chatzilla
+USE_EXTENSION_MANIFEST = 1
+NO_JAR_AUTO_REG        = 1
+INSTALL_EXTENSION_ID   = {59c81df5-4b7a-477b-912d-4e0fdf64e5f2}
+XPI_PKGNAME            = chatzilla-$(CHATZILLA_VERSION)
+
+# include config.mk before we override the AB_CD var it sets
+include $(topsrcdir)/config/config.mk
+
+# if the wanted language is not in all-locales, fall back to en-US
+ifeq (,$(filter $(AB_CD),$(shell cat $(srcdir)/all-locales)))
+override AB_CD = en-US
+endif
+
+DEFINES += -DAB_CD=$(AB_CD)
+
+ifneq (en-US,$(AB_CD))
+XPI_NAME               = chatzilla-$(AB_CD)
+INSTALL_EXTENSION_ID   = langpack-$(AB_CD)@chatzilla.mozilla.org
+XPI_PKGNAME            = chatzilla-$(CHATZILLA_VERSION).$(AB_CD)
+DIST_FILES             = generic/install.rdf generic/install.js
+XULAPP_DEFINES = \
+    $(DEFINES) \
+    $(ACDEFINES) \
+    -I$(call EXPAND_LOCALE_SRCDIR,toolkit/locales)/defines.inc \
+    -I$(LOCALE_SRCDIR)/defines.inc \
+    $(NULL)
+endif
+
+DEFINES += -DINSTALL_EXTENSION_ID=$(INSTALL_EXTENSION_ID)
+DEFINES += -DCHATZILLA_VERSION=$(CHATZILLA_VERSION)
+DEFINES += -DCHATZILLA_BASE_VERSION=$(CHATZILLA_BASE_VERSION)
+
+include $(topsrcdir)/config/rules.mk
+
+ifneq (en-US,$(AB_CD))
+libs realchrome::
+	@echo "Comparing $(AB_CD) to en-US"
+	@$(PERL) $(topsrcdir)/toolkit/locales/compare-locales.pl $(srcdir)/en-US $(LOCALE_SRCDIR)
+endif
+
+libs-%: AB_CD=$*
+libs-%:
+	# XXX: it would be nice if we could just do nothing if no langpack is being done
+	#  currently, we just go and (re)build en-US if called with a non-supported locale
+	$(MAKE) libs AB_CD=$*
+
+repackage-zip: $(STAGEDIST)
+ifneq (en-US,$(AB_CD))
+	$(RM) -rf $(STAGEDIST)/extensions/$(INSTALL_EXTENSION_ID)
+	mkdir $(STAGEDIST)/extensions/$(INSTALL_EXTENSION_ID)
+	$(RM) -r $(DIST)/xpi-stage/$(XPI_NAME)/chrome/chatzilla
+	# use tar for copying as cp doesn't portably preserve timestamps
+	cd $(DIST)/xpi-stage/$(XPI_NAME) && \
+	  tar $(TAR_CREATE_FLAGS) - * | ( cd $(STAGEDIST)/extensions/$(INSTALL_EXTENSION_ID) && tar -xf - )
+	@echo "$(AB_CD)"
+endif
+
+repackage-zip-%: $(STAGEDIST)
+	@$(MAKE) repackage-zip AB_CD=$* STAGEDIST=$(STAGEDIST)
+
+repackage-win32-installer: $(STAGEDIST)
+ifneq (en-US,$(AB_CD))
+	mkdir -p $(STAGEDIST)/optional/extensions
+	cp -r $(DIST)/xpi-stage/$(XPI_NAME) $(STAGEDIST)/optional/extensions/$(INSTALL_EXTENSION_ID)
+endif
+
+repackage-win32-installer-%: $(STAGEDIST)
+	@$(MAKE) repackage-win32-installer AB_CD=$* STAGEDIST=$(STAGEDIST) 
+	

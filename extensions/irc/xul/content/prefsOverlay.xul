@@ -21,6 +21,7 @@
    -
    - Contributor(s):
    -   James Ross, <silver@warwickcompsoc.co.uk>, original author
+   -   Robert Kaiser <kairo@kairo.at>
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -40,7 +41,7 @@
 
 <overlay id="ovCZPrefs" 
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-  <!-- Tree entry -->
+  <!-- Tree entry (Mozilla/SeaMonkey 1.x) -->
   <treechildren id="panelChildren">
     <treeitem container="false" id="chatzillaItem" insertbefore="advancedItem">
       <treerow>
@@ -49,8 +50,16 @@
       </treerow>
     </treeitem>
   </treechildren>
+  <!-- Tree entry (SeaMonkey 2) -->
+  <treechildren id="prefsPanelChildren">
+    <treeitem id="chatzillaItem"
+              insertbefore="securityItem"
+              label="&pref-irc.window.title;"
+              prefpane="chatzilla_pane"
+              url="chrome://chatzilla/content/pref-irc-toolkit.xul"/>
+  </treechildren>
 
-  <!-- Startup option -->
+  <!-- Startup code (Mozilla/SeaMonkey 1.x) -->
   <script type="application/x-javascript">
     <![CDATA[
         var panel;
@@ -59,11 +68,18 @@
             _elementIDs.push("generalStartupChat");
     ]]>
   </script>
+  <!-- Startup preference (SeaMonkey 2) -->
+  <preferences id="appearance_preferences">
+    <preference id="general.startup.chat"
+                name="general.startup.chat"
+                type="bool"/>
+  </preferences>
+  <!-- Startup checkbox -->
   <groupbox id="generalStartupPreferences">
     <checkbox id="generalStartupChat" label="&startup.chat.label;"
               accesskey="&startup.chat.accesskey;" pref="true" preftype="bool"
               prefstring="general.startup.chat" prefattribute="checked"
-              wsm_persist="true"/>
+              wsm_persist="true" preference="general.startup.chat"/>
   </groupbox>
 </overlay>
 

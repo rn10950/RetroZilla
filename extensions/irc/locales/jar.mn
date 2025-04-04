@@ -1,0 +1,16 @@
+#filter substitution
+
+chatzilla.jar:
+# the "% locale" line gets put into the .manifest used by toolkit-based apps
+% locale chatzilla @AB_CD@ %locale/@AB_CD@/chatzilla/
+* locale/@AB_CD@/chatzilla/contents.rdf          (generic/chrome/contents.rdf)
+  locale/@AB_CD@/chatzilla/chatzillaOverlay.dtd  (%chrome/chatzillaOverlay.dtd)
+  locale/@AB_CD@/chatzilla/browserOverlay.dtd    (%chrome/browserOverlay.dtd)
+  locale/@AB_CD@/chatzilla/pref-irc.dtd          (%chrome/pref-irc.dtd)
+  locale/@AB_CD@/chatzilla/chatzilla.dtd         (%chrome/chatzilla.dtd)
+  locale/@AB_CD@/chatzilla/chatzilla.properties  (%chrome/chatzilla.properties)
+  locale/@AB_CD@/chatzilla/config.dtd            (%chrome/config.dtd)
+  locale/@AB_CD@/chatzilla/ceip.dtd              (%chrome/ceip.dtd)
+  locale/@AB_CD@/chatzilla/channels.dtd          (%chrome/channels.dtd)
+  locale/@AB_CD@/chatzilla/about.dtd             (%chrome/about.dtd)
+  locale/@AB_CD@/chatzilla/install-plugin.dtd    (%chrome/install-plugin.dtd)

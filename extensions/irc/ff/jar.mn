@@ -1,3 +1,7 @@
+# The registration of the overlays specific to Firefox below should match
+# the ../xul/content/ff/contents.rdf file.
 chatzilla.jar:
+% content chatzilla-ff %content/chatzilla/ff/
+% overlay chrome://chatzilla/content/chatzilla.xul chrome://chatzilla/content/ff/overlay.xul application={ec8030f7-c20a-464f-9b0e-13a3a9e97384}
 	content/chatzilla/ff/contents.rdf            (../xul/content/ff/contents.rdf)
 	content/chatzilla/ff/overlay.xul             (../xul/content/ff/overlay.xul)

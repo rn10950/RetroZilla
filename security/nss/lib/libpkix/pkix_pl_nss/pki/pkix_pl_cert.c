@@ -2914,8 +2914,7 @@ PKIX_PL_Cert_CheckValidity(
         requiredUsages = ((PKIX_PL_NssContext*)plContext)->certificateUsage;
         allowOverride =
             (PRBool)((requiredUsages & certificateUsageSSLServer) ||
-                     (requiredUsages & certificateUsageSSLServerWithStepUp) ||
-                     (requiredUsages & certificateUsageIPsec));
+                     (requiredUsages & certificateUsageSSLServerWithStepUp));
         val = CERT_CheckCertValidTimes(cert->nssCert, timeToCheck, allowOverride);
         if (val != secCertTimeValid){
                 PKIX_ERROR(PKIX_CERTCHECKCERTVALIDTIMESFAILED);
@@ -3002,17 +3001,8 @@ PKIX_PL_Cert_VerifyCertAndKeyType(
     if (CERT_CheckKeyUsage(cert->nssCert, requiredKeyUsage) != SECSuccess) {
         PKIX_ERROR(PKIX_CERTCHECKKEYUSAGEFAILED);
     }
-    if (certUsage != certUsageIPsec) {
-        if (!(certType & requiredCertType)) {
-            PKIX_ERROR(PKIX_CERTCHECKCERTTYPEFAILED);
-        }
-    } else {
-        PRBool isCritical;
-        PRBool allowed = cert_EKUAllowsIPsecIKE(cert->nssCert, &isCritical);
-        /* If the extension isn't critical, we allow any EKU value. */
-        if (isCritical && !allowed) {
-            PKIX_ERROR(PKIX_CERTCHECKCERTTYPEFAILED);
-        }
+    if (!(certType & requiredCertType)) {
+        PKIX_ERROR(PKIX_CERTCHECKCERTTYPEFAILED);
     }
 cleanup:
     PKIX_DECREF(basicConstraints);

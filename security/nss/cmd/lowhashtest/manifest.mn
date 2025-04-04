@@ -22,4 +22,3 @@ CSRCS = \
 	lowhashtest.c \
 	$(NULL)
 
-USE_STATIC_LIBS = 1

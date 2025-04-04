@@ -469,8 +469,3 @@ EXPORTS ;-
 ;+	global:
 		PR_ParseTimeStringToExplodedTime;
 ;+} NSPR_4.6;
-;+NSPR_4.8 {
-;+	global:
-		PR_AssertCurrentThreadOwnsLock;
-		PR_AssertCurrentThreadInMonitor;
-;+} NSPR_4.7;

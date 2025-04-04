@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE window SYSTEM "chrome://chatzilla/locale/install-plugin.dtd">
+
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://chatzilla/skin/install-plugin.css" type="text/css"?>
+
+<dialog xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        xmlns:html="http://www.w3.org/1999/xhtml" onload="onLoad();"
+        title="&windowtitle;"
+        ondialogaccept="return doOK()"
+        ondialogcancel="doCancel()">
+    <script src="install-plugin.js"/>
+    <script src="../lib/js/file-utils.js"/>
+    <script src="../lib/js/utils.js"/>
+    <grid>
+        <columns><column/><column flex="1"/></columns>
+        <rows>
+            <row align="center">
+                <label id="lbl-source" accesskey="&source.accesskey;"
+                       control="txt-source" value="&source.label;"/>
+                <textbox id="txt-source"/>
+                <button id="btn-browse" label="&browse.label;"
+                        accesskey="&browse.accesskey;"/>
+            </row>
+            <row align="center">
+                <label id="lbl-name" control="txt-name"
+                       value="&name.label;" accesskey="&name.accesskey;"/>
+                <textbox id="txt-name" disabled="true"/>
+            </row>
+            <row align="center">
+                <spacer/>
+                <checkbox id="chk-name-auto" checked="true"
+                          label="&name.autopick.label;"
+                          accesskey="&name.autopick.accesskey;"/>
+            </row>
+        </rows>
+    </grid>
+</dialog>

@@ -112,15 +112,11 @@ ifndef TARGETS
     TARGETS = $(LIBRARY) $(SHARED_LIBRARY) $(PROGRAM)
 endif
 
-# Make both .cpp and .cc work.
-CPPSRCS1 = $(CPPSRCS:.cpp=$(OBJ_SUFFIX))
-CPPSRCS2 = $(CPPSRCS1:.cc=$(OBJ_SUFFIX))
-
 ifndef OBJS
     SIMPLE_OBJS = $(JRI_STUB_CFILES) \
 		$(addsuffix $(OBJ_SUFFIX), $(JMC_GEN)) \
 		$(CSRCS:.c=$(OBJ_SUFFIX)) \
-		$(CPPSRCS2) \
+		$(CPPSRCS:.cpp=$(OBJ_SUFFIX)) \
 		$(ASFILES:$(ASM_SUFFIX)=$(OBJ_SUFFIX)) \
 		$(BUILT_CSRCS:.c=$(OBJ_SUFFIX)) \
 		$(BUILT_CPPSRCS:.cpp=$(OBJ_SUFFIX)) \

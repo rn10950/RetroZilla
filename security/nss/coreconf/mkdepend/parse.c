@@ -429,16 +429,9 @@ struct symtab **
 slookup(char *symbol, struct inclist *file)
 {
 	register int first = 0;
-	register int last;
+	register int last = file->i_ndefs - 1;
 
-	if (!file)
-	{
-	    return NULL;
-	}
-
-	last = file->i_ndefs - 1;
-
-	while (last >= first)
+	if (file) while (last >= first)
 	{
 	    /* Fast inline binary search */
 	    register char *s1;
@@ -468,7 +461,7 @@ slookup(char *symbol, struct inclist *file)
 	        last = middle - 1;
 	    }
 	}
-	return NULL;
+	return(NULL);
 }
 
 static int 

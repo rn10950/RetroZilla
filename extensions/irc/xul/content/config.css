@@ -59,3 +59,7 @@
 scroller {
 	overflow: auto;
 }
+
+listbox {
+	min-height: 7em;
+}

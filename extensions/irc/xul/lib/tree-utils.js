@@ -37,21 +37,22 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/*
- * BasicOView provides functionality of tree whose elements have no children.
- * Usage:
- * var myTree = new BasicOView()
- * myTree.setColumnNames (["col 1", "col 2"]);
- * myTree.data = [["row 1, col 1", "row 1, col 2"],
- *                    ["row 2, col 1", "row 2, col 2"]];
- * { override get*Properties, etc, as suits your purpose. }
+/**
+ * An implemention of |nsITreeView| for a tree whose elements have no children.
  *
- * treeBoxObject.view = myTree;
- * 
- * You'll need to make the appropriate myTree.tree.invalidate calls
- * when myTree.data changes.
+ * Code using BasicOView can override |getRowProperties|, |getColumnProperties|,
+ * |getCellProperties|, etc., as needed.
+ *
+ * Code using |BasicOView| will need to make the appropriate |myTree.tree
+ * .invalidate| calls when |myTree.data| changes.
+ *
+ * @syntax
+ *   var myTree = new BasicOView()
+ *   myTree.setColumnNames(["col 1", "col 2"]);
+ *   myTree.data = [["row 1, col 1", "row 1, col 2"],
+ *                  ["row 2, col 1", "row 2, col 2"]];
+ *   treeBoxObject.view = myTree;
  */
-
 function BasicOView()
 {
     this.tree = null;
@@ -428,14 +429,16 @@ function bov_pactcell (action)
 {
 }
 
-/*
- * record for the XULTreeView.  these things take care of keeping the
- * XULTreeView properly informed of changes in value and child count.  you 
- * shouldn't have to maintain tree state at all.
+/**
+ * A single entry in an |XULTreeView|.
  *
- * |share| should be an otherwise empty object to store cache data.
- * you should use the same object as the |share| for the XULTreeView that you
- * indend to contain these records.
+ * These things take care of keeping the |XULTreeView| properly informed of
+ * changes in value and child count. You shouldn't have to maintain tree state
+ * at all - just update the |XULTreeViewRecord| objects.
+ *
+ * @param share An otherwise empty object to store cache data. You should use
+ *              the same object as the |share| for the |XULTreeView| that you
+ *              indend to contain these records.
  *
  */
 function XULTreeViewRecord(share)
@@ -718,7 +721,7 @@ function xtvr_rkids (always)
 XULTreeViewRecord.prototype.appendChild =
 function xtvr_appchild (child)
 {
-    if (!(child instanceof XULTreeViewRecord))
+    if (!isinstance(child, XULTreeViewRecord))
         throw Components.results.NS_ERROR_INVALID_ARG;
     
     child.isHidden = false;
@@ -1011,14 +1014,16 @@ function xtvr_find (targetRow, myRow)
     return null;
 }   
 
-/* XTLabelRecords can be used to drop a label into an arbitrary place in an
- * arbitrary tree.  normally, specializations of XULTreeViewRecord are tied to
- * a specific tree because of implementation details.  XTLabelRecords are
- * specially designed (err, hacked) to work around these details.  this makes
- * them slower, but more generic.
+/**
+ * Used to drop a label into an arbitrary place in an arbitrary tree.
  *
- * we set up a getter for _share that defers to the parent object.  this lets
- * XTLabelRecords work in any tree.
+ * Normally, specializations of |XULTreeViewRecord| are tied to a specific
+ * tree because of implementation details.  |XTLabelRecords| are specially
+ * designed (err, hacked) to work around these details - this makes them
+ * slower, but more generic.
+ *
+ * We set up a getter for |_share| that defers to the parent object. This lets
+ * |XTLabelRecords| work in any tree.
  */
 function XTLabelRecord (columnName, label, blankCols)
 {
@@ -1045,8 +1050,9 @@ function tolr_getshare()
     return null;
 }
 
-/* XTRootRecord is used internally by XULTreeView, you probably don't need to 
- * make any of these */ 
+/**
+ * Used internally by |XULTreeView|.
+ */
 function XTRootRecord (tree, share)
 {
     this._share = share;
@@ -1177,11 +1183,15 @@ function torr_vfpchange (start, amount)
     }
 }
 
-/*
- * XULTreeView provides functionality of tree whose elements have multiple
+/**
+ * An implemention of |nsITreeView| for a tree whose elements have multiple
  * levels of children.
+ *
+ * Code using |XULTreeView| can override |getRowProperties|, |getColumnProperties|,
+ * |getCellProperties|, etc., as needed.
+ *
+ * @param share An otherwise empty object to store cache data.
  */
-
 function XULTreeView(share)
 {
     if (!share)
