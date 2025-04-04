@@ -37,6 +37,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+// Namespaces we happen to need:
+const XHTML_NS = "http://www.w3.org/1999/xhtml";
+
 var utils = new Object();
 
 var DEBUG = true;
@@ -110,17 +113,25 @@ if (DEBUG) {
 }
 
 var jsenv = new Object();
+// Netscape/Mozilla security manager, for gaining priviledges with consent.
 jsenv.HAS_SECURITYMANAGER = ((typeof netscape == "object") &&
                              (typeof netscape.security == "object"));
+// XPCOM, one of two socket implementation providers.
 jsenv.HAS_XPCOM = ((typeof Components == "object") &&
-                   (typeof Components.classes == "object"));
-jsenv.HAS_JAVA = (typeof java == "object");
-jsenv.HAS_RHINO = (typeof defineClass == "function");
-jsenv.HAS_DOCUMENT = (typeof document == "object");
-jsenv.HAS_NSPR_EVENTQ = jsenv.HAS_DOCUMENT;
-jsenv.HAS_STREAM_PROVIDER = ("nsIStreamProvider" in Components.interfaces);
-jsenv.HAS_SERVER_SOCKETS = ("nsIServerSocket" in Components.interfaces);
-jsenv.HAS_THREAD_MANAGER = ("nsIThreadManager" in Components.interfaces);
+                   (typeof Components.classes == "object") &&
+                   (typeof Components.interfaces == "object"));
+// Rhino (JS-in-Java), the other socket implementation provider.
+// XXX Bug 435772 - we avoid any Java tests if we have XPCOM so as to avoid
+// the Java plugin instanciating itself to answer our query.
+jsenv.HAS_RHINO = !jsenv.HAS_XPCOM && (typeof defineClass == "function");
+// NSPR Event Queue, i.e. we're living in a browser/GUI-like place.
+jsenv.HAS_NSPR_EVENTQ = (typeof document == "object");
+// Specific XPCOM interfaces that we really care about.
+var ci = jsenv.HAS_XPCOM ? Components.interfaces : {};
+jsenv.HAS_STREAM_PROVIDER = ("nsIStreamProvider" in ci);
+jsenv.HAS_SERVER_SOCKETS = ("nsIServerSocket" in ci);
+jsenv.HAS_THREAD_MANAGER = ("nsIThreadManager" in ci);
+delete ci;
 
 function dumpObject (o, pfx, sep)
 {
@@ -300,6 +311,12 @@ function ecmaUnescape(str)
     return str.replace(/%u?([\da-f]{1,4})/ig, replaceEscapes);
 }
 
+function encodeForXMLAttribute(value) {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+                .replace(/'/g, "&apos;");
+}
+
 function replaceVars(str, vars)
 {
     // replace "string $with a $variable", with
@@ -389,10 +406,10 @@ function matchObject (o, pattern, negate)
 
     function _match (o, pattern)
     {
-        if (pattern instanceof Function)
+        if (isinstance(pattern, Function))
             return pattern(o);
 
-        for (p in pattern)
+        for (var p in pattern)
         {
             var val;
                 /* nice to have, but slow as molases, allows you to match
@@ -405,7 +422,7 @@ function matchObject (o, pattern, negate)
                 */
             val = o[p];
 
-            if (pattern[p] instanceof Function)
+            if (isinstance(pattern[p], Function))
             {
                 if (!pattern[p](val))
                     return false;
@@ -424,7 +441,7 @@ function matchObject (o, pattern, negate)
 
     }
 
-    if (!(pattern instanceof Array))
+    if (!isinstance(pattern, Array))
         return Boolean (negate ^ _match(o, pattern));
 
     for (var i in pattern)
@@ -433,6 +450,22 @@ function matchObject (o, pattern, negate)
 
     return negate;
 
+}
+
+function equalsObject(o1, o2)
+{
+    for (var p in o1)
+    {
+        if (!(p in o2) || (o1[p] != o2[p]))
+            return false;
+    }
+    for (p in o2)
+    {
+        // If the property did exist in o1, the previous loop tested it:
+        if (!(p in o1))
+            return false;
+    }
+    return true;
 }
 
 function utils_lcfn(text)
@@ -474,7 +507,8 @@ function encodeChar(ch)
 
 function escapeFileName(fileName)
 {
-    return fileName.replace(/[^\w\d.,#\-_%]/g, encodeChar);
+    // Escape / \ : * ? " < > | so they don't cause trouble.
+    return fileName.replace(/[\/\\\:\*\?"<>\|]/g, encodeChar);
 }
 
 function getCommonPfx (list, lcFn)
@@ -609,11 +643,33 @@ function getContentWindow(frame)
         if (!frame || !("contentWindow" in frame))
             return false;
 
+        // The "in" operator does not detect wrappedJSObject, so don't bother.
+        if (frame.contentWindow.wrappedJSObject)
+            return frame.contentWindow.wrappedJSObject;
         return frame.contentWindow;
     }
     catch (ex)
     {
         // throws exception is contentWindow is gone
+        return null;
+    }
+}
+
+function getContentDocument(frame)
+{
+    try
+    {
+        if (!frame || !("contentDocument" in frame))
+            return false;
+
+        // The "in" operator does not detect wrappedJSObject, so don't bother.
+        if (frame.contentDocument.wrappedJSObject)
+            return frame.contentDocument.wrappedJSObject;
+        return frame.contentDocument;
+    }
+    catch (ex)
+    {
+        // throws exception is contentDocument is gone
         return null;
     }
 }
@@ -745,6 +801,11 @@ function arrayRemoveAt (ary, i)
     ary.splice (i, 1);
 }
 
+function objectContains(o, p)
+{
+    return Object.hasOwnProperty.call(o, p);
+}
+
 /* length should be an even number >= 6 */
 function abbreviateWord (str, length)
 {
@@ -836,6 +897,17 @@ function randomRange (min, max)
 
     return Math.floor(Math.random() * (max - min + 1)) + min;
 
+}
+
+// Creates a random string of |len| characters from a-z, A-Z, 0-9.
+function randomString(len) {
+    var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    var rv = "";
+
+    for (var i = 0; i < len; i++)
+        rv += chars.substr(Math.floor(Math.random() * chars.length), 1);
+
+    return rv;
 }
 
 function getStackTrace ()
@@ -1125,9 +1197,9 @@ function getHostmaskParts(hostmask)
     var rv;
     // A bit cheeky this, we try the matches here, and then branch
     // according to the ones we like.
-    var ary1 = hostmask.match(/(\S*)!(\S*)@(.*)/);
-    var ary2 = hostmask.match(/(\S*)@(.*)/);
-    var ary3 = hostmask.match(/(\S*)!(.*)/);
+    var ary1 = hostmask.match(/([^ ]*)!([^ ]*)@(.*)/);
+    var ary2 = hostmask.match(/([^ ]*)@(.*)/);
+    var ary3 = hostmask.match(/([^ ]*)!(.*)/);
     if (ary1)
         rv = { nick: ary1[1],  user: ary1[2], host: ary1[3] };
     else if (ary2)
@@ -1274,3 +1346,182 @@ function compareVersions(ver1, ver2)
         return 1;
     return 0;
 }
+
+// Zero-pad Numbers (or pad with something else if you wish)
+function padNumber(num, digits, pad)
+{
+    pad = pad || "0";
+    var rv = num.toString();
+    while (rv.length < digits)
+        rv = pad + rv;
+    return rv;
+}
+
+const timestr = {
+    A: { method: "getDay" },
+    a: { method: "getDay" },
+    B: { method: "getMonth" },
+    b: { method: "getMonth" },
+    c: { replace: null },
+    D: { replace: "%m/%d/%y" },
+    d: { method: "getDate", pad: 2 },
+    e: { method: "getDate", pad: 2, padwith: " " },
+    F: { replace: "%Y-%m-%d" },
+    h: { replace: "%b" },
+    H: { method: "getHours", pad: 2 },
+    k: { method: "getHours", pad: 2, padwith: " " },
+    M: { method: "getMinutes", pad: 2 },
+    p: { AM: null, PM: null },
+    P: { AM: null, PM: null },
+    r: { replace: null },
+    R: { replace: "%H:%M" },
+    S: { method: "getSeconds", pad: 2 },
+    T: { replace: "%H:%M:%S" },
+    w: { method: "getDay" },
+    x: { replace: null },
+    X: { replace: null },
+    Y: { method: "getFullYear" },
+    initialized: false
+}
+
+function strftime(format, time)
+{
+    /* Javascript implementation of standard C strftime */
+
+    if (!timestr.initialized)
+    {
+        timestr.A.values = getMsg("datetime.day.long").split("^");
+        timestr.a.values = getMsg("datetime.day.short").split("^");
+        timestr.B.values = getMsg("datetime.month.long").split("^");
+        timestr.b.values = getMsg("datetime.month.short").split("^");
+        // Just make sure the locale isn't playing silly with us.
+        ASSERT(timestr.A.values.length == 7, "datetime.day.long bad!");
+        ASSERT(timestr.a.values.length == 7, "datetime.day.short bad!");
+        ASSERT(timestr.B.values.length == 12, "datetime.month.long bad!");
+        ASSERT(timestr.b.values.length == 12, "datetime.month.short bad!");
+
+        timestr.p.AM = getMsg("datetime.uam");
+        timestr.p.PM = getMsg("datetime.upm");
+        timestr.P.AM = getMsg("datetime.lam");
+        timestr.P.PM = getMsg("datetime.lpm");
+
+        timestr.c.replace = getMsg("datetime.presets.lc");
+        timestr.r.replace = getMsg("datetime.presets.lr");
+        timestr.x.replace = getMsg("datetime.presets.lx");
+        timestr.X.replace = getMsg("datetime.presets.ux");
+
+        timestr.initialized = true;
+    }
+
+
+    function getDayOfYear(dateobj)
+    {
+       var yearobj = new Date(dateobj.getFullYear(), 0, 1, 0, 0, 0, 0);
+       return Math.floor((dateobj - yearobj) / 86400000) + 1;
+    };
+
+    time = time || new Date();
+    if (!isinstance(time, Date))
+        throw "Expected date object";
+
+    var ary;
+    while ((ary = format.match(/(^|[^%])%(\w)/)))
+    {
+        var start = ary[1] ? (ary.index + 1) : ary.index;
+        var rpl = "";
+        if (ary[2] in timestr)
+        {
+            var tbranch = timestr[ary[2]];
+            if (("method" in tbranch) && ("values" in tbranch))
+               rpl = tbranch.values[time[tbranch.method]()];
+            else if ("method" in tbranch)
+                rpl = time[tbranch.method]().toString();
+            else if ("replace" in tbranch)
+                rpl = tbranch.replace;
+
+            if ("pad" in tbranch)
+            {
+                var padwith = ("padwith" in tbranch) ? tbranch.padwith : "0";
+                rpl = padNumber(rpl, tbranch.pad, padwith);
+            }
+        }
+        if (!rpl)
+        {
+            switch (ary[2])
+            {
+                case "C":
+                    var century = Math.floor(time.getFullYear() / 100);
+                    rpl = padNumber(century, 2);
+                    break;
+                case "I":
+                case "l":
+                    var hour = (time.getHours() + 11) % 12 + 1;
+                    var padwith = (ary[2] == "I") ? "0" : " ";
+                    rpl = padNumber(hour, 2, padwith);
+                    break;
+                case "j":
+                    rpl = padNumber(getDayOfYear(time), 3);
+                    break;
+                case "m":
+                    rpl = padNumber(time.getMonth() + 1, 2);
+                    break;
+                case "p":
+                case "P":
+                    var bit = (time.getHours() < 12) ? "AM" : "PM";
+                    rpl = timestr[ary[2]][bit];
+                    break;
+                case "s":
+                    rpl = Math.round(time.getTime() / 1000);
+                    break;
+                case "u":
+                    rpl = (time.getDay() + 6) % 7 + 1;
+                    break;
+                case "y":
+                    rpl = time.getFullYear().toString().substr(2);
+                    break;
+                case "z":
+                    var mins = time.getTimezoneOffset();
+                    rpl = (mins > 0) ? "-" : "+";
+                    mins = Math.abs(mins);
+                    var hours = Math.floor(mins / 60);
+                    rpl += padNumber(hours, 2) + padNumber(mins - (hours * 60), 2);
+                    break;
+            }
+        }
+        if (!rpl)
+            rpl = "%%" + ary[2];
+        format = format.substr(0, start) + rpl + format.substr(start + 2);
+    }
+    return format.replace(/%%/, "%");
+}
+
+// This used to be strres.js, copied here to help remove that...
+var strBundleService = null;
+function srGetStrBundle(path)
+{
+    const STRBSCID = "@mozilla.org/intl/stringbundle;1";
+    const STRBSIF = "nsIStringBundleService";
+    var strBundle = null;
+    if (!strBundleService)
+    {
+        try
+        {
+            strBundleService = getService(STRBSCID, STRBSIF);
+        }
+        catch (ex)
+        {
+            dump("\n--** strBundleService failed: " + ex + "\n");
+            return null;
+        }
+    }
+
+    strBundle = strBundleService.createBundle(path); 
+    if (!strBundle)
+        dump("\n--** strBundle createInstance failed **--\n");
+
+    return strBundle;
+}
+
+// No-op window.getAttention if it's not found, this is for in-a-tab mode.
+if (typeof getAttention == "undefined")
+    getAttention = function() {};

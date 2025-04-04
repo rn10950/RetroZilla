@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE dialog SYSTEM "chrome://chatzilla/locale/ceip.dtd">
+
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+
+<dialog xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+    xmlns:html="http://www.w3.org/1999/xhtml"
+    windowtype="irc:chatzilla:ceip"
+    id="chatzilla-window"
+    buttons="accept,cancel"
+    ondialogaccept="doOK()"
+    onload="doLoad()"
+    onunload="doUnload()"
+    title="&window.title;" style="&window.size;">
+
+  <script src="config.js"/>
+
+  <vbox>
+    <description>&intro.label;</description>
+    <groupbox align="start">
+      <caption label="&groupSend.label;"/>
+      <checkbox label="&sendClient.label;" accesskey="&sendClient.accesskey;" id="ceip-client"/>
+      <checkbox label="&sendCommand.label;" accesskey="&sendCommand.accesskey;" id="ceip-command"/>
+      <hbox>
+        <label value="&sendID.label;"/>
+        <label id="ceip-userid"/>
+        <label value="&sendIDSrc.label;"/>
+      </hbox>
+    </groupbox>
+    <groupbox>
+      <caption label="&groupNotSent.label;"/>
+      <html:ul style="margin: 0;">
+        <html:li style="padding: 0;"><label value="&notsentNickname.label;"/></html:li>
+        <html:li style="padding: 0;"><label value="&notsentMessages.label;"/></html:li>
+        <html:li style="padding: 0;"><label value="&notsentArguments.label;"/></html:li>
+        <html:li style="padding: 0;"><label value="&notsentURLs.label;"/></html:li>
+        <html:li style="padding: 0;"><label value="&notsentFiles.label;"/></html:li>
+      </html:ul>
+    </groupbox>
+  </vbox>
+</dialog>

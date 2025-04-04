@@ -50,11 +50,15 @@
 <?xul-overlay href="chrome://chatzilla/content/menus.xul"?>
 
 <window id="chatzilla-window"
+  xmlns:html="http://www.w3.org/1999/xhtml"
   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:aaa="http://www.w3.org/2005/07/aaa"
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
   orient="vertical" onload="onLoad();" onunload="onUnload();"
   onclose="return onClose();" onmouseover="onMouseOver(event);"
   persist="width height screenX screenY sizemode" windowtype="irc:chatzilla">
+  
+  <html:link rel="icon" href="chrome://chatzilla/skin/images/logo.png" style="display:none"/>
   
   <overlaytarget id="scripts-overlay-target"/>
   <overlaytarget id="popup-overlay-target"/>
@@ -67,48 +71,15 @@
       <hbox id="tabpanels-contents-box" flex="1">
         <vbox id="user-list-box" width="125" persist="collapsed width">
  
-          <tree id="user-list" container="true" datasources="rdf:null" flex="1"
-            containment="http://home.netscape.com/NC-irc#chanuser"
-            hidecolumnpicker="true"
-            context="context:userlist">
-
-            <template>
-              <rule>
-                <conditions>
-                  <content uri="?container"/>
-                  <member container="?container" child="?member"/>
-                </conditions>
-                
-                <bindings>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#sortname" object="?sortname"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#founder" object="?founder"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#admin" object="?admin"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#op" object="?op"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#halfop" object="?halfop"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#voice" object="?voice"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#nick" object="?nick"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#unicodeName" object="?unicodeName"/>
-                  <binding subject="?member" predicate="http://home.netscape.com/NC-irc#away" object="?away"/>
-                </bindings>
-                
-                <action>
-                  <treechildren>
-                    <treeitem uri="?member" flex="1"
-                      properties="founder-?founder admin-?admin op-?op halfop-?halfop voice-?voice away-?away">
-                      <treerow>
-                          <treecell properties="founder-?founder admin-?admin op-?op halfop-?halfop voice-?voice away-?away"
-                           label="?nick" unicodeName="?unicodeName"/>
-                      </treerow>
-                    </treeitem>
-                  </treechildren>
-                </action>
-              </rule>
-            </template>
-    
+          <tree id="user-list" flex="1" hidecolumnpicker="true"
+                ondblclick="onUserDoubleClick(event);"
+                context="context:userlist" aaa:live="off" aria-live="off"
+                aaa:relevant="additions removals text"
+                aria-relevant="additions removals text">
             <treecols>
-              <treecol id="usercol" hideheader="true" flex="1"
-                properties="founder-?founder admin-?admin op-?op halfop-?halfop voice-?voice away-?away"/>
+              <treecol id="usercol" hideheader="true" flex="1"/>
             </treecols>
+            <treechildren/>
           </tree>
     
         </vbox> <!-- user-list-box -->
@@ -117,22 +88,28 @@
           <grippy/>
         </splitter>
   
-        <vbox flex="1">
+        <vbox flex="1" id="browser-box">
           <deck id="output-deck" flex="1"/>
         </vbox>
   
       </hbox> <!-- tabpanels-contents-box -->
     
-      <hbox id="tabstrip-box" flex="0" crop="right">
-        <hbox id="view-tabs" persist="collapsed" flex="1">
+      <vbox id="tabstrip-box" flex="0" crop="right">
+        <hbox id="view-tabs" persist="collapsed" flex="1"
+            ondragover="nsDragAndDrop.dragOver(event, tabsDropObserver)"
+            ondragexit="nsDragAndDrop.dragExit(event, tabsDropObserver)"
+            ondragdrop="nsDragAndDrop.drop(event, tabsDropObserver)">
           <tabs class="tabs-bottom" id="views-tbar-inner" flex="1"
               onselect="onTabSelect(event)" setfocus="false">
-            <tab collapsed="true"/> <!-- dummy tab to keep the freaking xbl from
-                                         causing an exception -->
+            <tab hidden="true"/> <!-- dummy tab to keep the freaking xbl from
+                                      causing an exception -->
           </tabs>
           <spacer id="views-tbar-spacer"/>
         </hbox>
-      </hbox>
+        <hbox id="tabs-drop-indicator-bar" collapsed="true">
+          <hbox id="tabs-drop-indicator" mousethrough="always"/>
+        </hbox>
+      </vbox>
   
     </vbox> <!-- upper-box -->
   
@@ -140,10 +117,13 @@
       collapsed="true"/>
   
     <hbox id="input-widgets" align="center">
-      <button id="server-nick" type="menu" label=""/>
+      <button id="server-nick" type="menu" label="" tooltiptext="&server-nick.tooltip;"/>
       <hbox id="multiline-box" flex="1" collapsed="true">
-        <textbox id="multiline-input" multiline="true" flex="1" height="100px"
-          class="multiline-input-widget" onfocus="onInputFocus();"/>
+        <box id="multiline-hug-box" flex="1">
+          <textbox id="multiline-input" multiline="true" flex="1" height="100px"
+            class="multiline-input-widget" onfocus="onInputFocus();"
+            tabindex="-1"/>
+        </box>
         <vbox>
           <toolbarbutton id="button-input" flex="1"
             oncommand="onMultilineSend(event);"
@@ -154,14 +134,16 @@
         </vbox>
       </hbox>
       <hbox id="singleline-box" flex="1" collapsed="true">
-        <textbox id="input" class="input-widget" flex="1"
-          onfocus="onInputFocus();"/>
+        <box id="singleline-hug-box" flex="1">
+          <textbox id="input" class="input-widget" flex="1"
+            onfocus="onInputFocus();" tabindex="-1"/>
+        </box>
         <toolbarbutton id="button-multiline-expand" 
           oncommand="dispatch('pref multiline true');" 
           tooltiptext="&multiline-expand.tooltip;"/>
       </hbox>
     </hbox>
-  
+
   <overlaytarget id="statusbar-overlay-target"/>
 
 </window>

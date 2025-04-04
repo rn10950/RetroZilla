@@ -33,3 +33,7 @@ ifdef NSS_BUILD_CAPI
 DIRS += capi
 endif
 endif
+
+#ifeq ($(OS_ARCH), Darwin)
+#DIRS += nssmkey
+#endif

@@ -28,6 +28,10 @@
     <RDF:li>chrome://chatzilla/skin/browserOverlay.css</RDF:li>
   </RDF:Seq>
 
+  <RDF:Seq about="chrome://songbird/content/xul/layoutBaseOverlay.xul">
+    <RDF:li>chrome://chatzilla/skin/browserOverlay.css</RDF:li>
+  </RDF:Seq>
+
   <RDF:Seq about="chrome://global/content/customizeToolbar.xul">
     <RDF:li>chrome://chatzilla/skin/browserOverlay.css</RDF:li>
   </RDF:Seq>

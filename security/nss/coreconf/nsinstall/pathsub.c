@@ -5,6 +5,7 @@
 /*
 ** Pathname subroutines.
 */
+#include <assert.h>
 #if defined(FREEBSD) || defined(BSDI) || defined(DARWIN)
 #include <sys/types.h>
 #endif /* FREEBSD */
@@ -157,6 +158,7 @@ relatepaths(char *from, char *to, char *outpath)
     int len;
     char buf[NAME_MAX];
 
+    assert(*from == '/' && *to == '/');
     if (!from || *from != '/')
 	fail("relatepaths: from path does not start with /");
     if (!to || *to != '/')
@@ -212,7 +214,7 @@ reversepath(char *inpath, char *name, int len, char *outpath)
 	    xchdir("..");
 	} else {
 	    cp -= 3;
-	    memcpy(cp, "../", 3);
+	    strncpy(cp, "../", 3);
 	    xchdir(buf);
 	}
     }

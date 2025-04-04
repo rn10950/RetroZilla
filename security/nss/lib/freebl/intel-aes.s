@@ -4,22 +4,9 @@
 
 	.text
 
-#define IV_OFFSET 256
+#define IV_OFFSET 16
+#define EXPANDED_KEY_OFFSET 48
 
-/*
- * Warning: the length values used in this module are "unsigned int"
- * in C, which is 32-bit.  When they're passed in registers, use only
- * the low 32 bits, because the top half is unspecified.
- *
- * This is called from C code, so the contents of those bits can
- * depend on the C compiler's optimization decisions.  This means that
- * mistakes might not be obvious in testing if those bits happen to be
- * zero in your build.
- *
- * Exception: 32-bit lea instructions use a 64-bit address because the
- * address size doesn't affect the result, and that form is more
- * compactly encoded and preferred by compilers over a 32-bit address.
- */
 
 /* in %rdi : the key
    in %rsi : buffer for expanded key
@@ -132,25 +119,27 @@ key_expansion128:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_encrypt_ecb_128,@function
 	.globl intel_aes_encrypt_ecb_128
 	.align	16
 intel_aes_encrypt_ecb_128:
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	48(%rdi), %rdi
+
 	movdqu	(%rdi), %xmm2
 	movdqu	160(%rdi), %xmm12
 	xor	%eax, %eax
-//	cmpl	$8*16, %r9d
-	cmpl	$128, %r9d
+//	cmpq	$8*16, %r9
+	cmpq	$128, %r9
 	jb	1f
-//	leal	-8*16(%r9), %r11d
-	leal	-128(%r9), %r11d
+//	leaq	-8*16(%r9), %r11
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -271,11 +260,11 @@ intel_aes_encrypt_ecb_128:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-//	addl	$8*16, %eax
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+//	addq	$8*16, %rax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm3
@@ -301,8 +290,8 @@ intel_aes_encrypt_ecb_128:
 	.byte 0x66,0x41,0x0f,0x38,0xdc,0xcb	/* aesenc	%xmm11, %xmm1 */
 	.byte 0x66,0x41,0x0f,0x38,0xdd,0xcc	/* aesenclast %xmm12, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	xor	%eax, %eax
@@ -313,25 +302,27 @@ intel_aes_encrypt_ecb_128:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_decrypt_ecb_128,@function
 	.globl intel_aes_decrypt_ecb_128
 	.align	16
 intel_aes_decrypt_ecb_128:
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	48(%rdi), %rdi
+
 	movdqu	(%rdi), %xmm2
 	movdqu	160(%rdi), %xmm12
 	xorl	%eax, %eax
-//	cmpl	$8*16, %r9d
-	cmpl	$128, %r9d
+//	cmpq	$8*16, %r9
+	cmpq	$128, %r9
 	jb	1f
-//	leal	-8*16(%r9), %r11d
-	leal	-128(%r9), %r11d
+//	leaq	-8*16(%r9), %r11
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -452,11 +443,11 @@ intel_aes_decrypt_ecb_128:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-//	addl	$8*16, %eax
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+//	addq	$8*16, %rax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm3
@@ -482,8 +473,8 @@ intel_aes_decrypt_ecb_128:
 	.byte 0x66,0x0f,0x38,0xde,0xcb	/* aesdec	%xmm7, %xmm1 */
 	.byte 0x66,0x0f,0x38,0xdf,0xca	/* aesdeclast %xmm2, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	xor	%eax, %eax
@@ -494,22 +485,23 @@ intel_aes_decrypt_ecb_128:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_encrypt_cbc_128,@function
 	.globl intel_aes_encrypt_cbc_128
 	.align	16
 intel_aes_encrypt_cbc_128:
-	testl	%r9d, %r9d
+	testq	%r9, %r9
 	je	2f
 
 //	leaq	IV_OFFSET(%rdi), %rdx
-	leaq	256(%rdi), %rdx
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	16(%rdi), %rdx
+	leaq	48(%rdi), %rdi
 
 	movdqu	(%rdx), %xmm0
 	movdqu	(%rdi), %xmm2
@@ -540,8 +532,8 @@ intel_aes_encrypt_cbc_128:
 	.byte 0x66,0x41,0x0f,0x38,0xdd,0xcc	/* aesenclast %xmm12, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
 	movdqa	%xmm1, %xmm0
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	1b
 
 	movdqu	%xmm0, (%rdx)
@@ -554,11 +546,10 @@ intel_aes_encrypt_cbc_128:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_decrypt_cbc_128,@function
@@ -566,15 +557,17 @@ intel_aes_encrypt_cbc_128:
 	.align	16
 intel_aes_decrypt_cbc_128:
 //	leaq	IV_OFFSET(%rdi), %rdx
-	leaq	256(%rdi), %rdx
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	16(%rdi), %rdx
+	leaq	48(%rdi), %rdi
 
 	movdqu	(%rdx), %xmm0   /* iv */
 	movdqu	(%rdi), %xmm2   /* first key block */
 	movdqu	160(%rdi), %xmm12 /* last key block */
 	xorl	%eax, %eax
-	cmpl	$128, %r9d
+	cmpq	$128, %r9
 	jb	1f
-	leal	-128(%r9), %r11d
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3 /* 1st data block */
 	movdqu	16(%r8, %rax), %xmm4 /* 2d data block */
 	movdqu	32(%r8, %rax), %xmm5
@@ -711,10 +704,10 @@ intel_aes_decrypt_cbc_128:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm3
@@ -743,8 +736,8 @@ intel_aes_decrypt_cbc_128:
 	pxor	%xmm0, %xmm1
 	movdqu	%xmm1, (%rsi, %rax)
 	movdqa	%xmm13, %xmm0
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	movdqu	%xmm0, (%rdx)
@@ -880,25 +873,27 @@ key_expansion192:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_encrypt_ecb_192,@function
 	.globl intel_aes_encrypt_ecb_192
 	.align	16
 intel_aes_encrypt_ecb_192:
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	48(%rdi), %rdi
+
 	movdqu	(%rdi), %xmm2
 	movdqu	192(%rdi), %xmm14
 	xorl	%eax, %eax
-//	cmpl	$8*16, %r9d
-	cmpl	$128, %r9d
+//	cmpq	$8*16, %r9
+	cmpq	$128, %r9
 	jb	1f
-//	leal	-8*16(%r9), %r11d
-	leal	-128(%r9), %r11d
+//	leaq	-8*16(%r9), %r11
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -1038,11 +1033,11 @@ intel_aes_encrypt_ecb_192:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-//	addl	$8*16, %eax
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+//	addq	$8*16, %rax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm3
@@ -1072,8 +1067,8 @@ intel_aes_encrypt_ecb_192:
 	.byte 0x66,0x41,0x0f,0x38,0xdc,0xcd	/* aesenc	%xmm13, %xmm1 */
 	.byte 0x66,0x41,0x0f,0x38,0xdd,0xce	/* aesenclast %xmm14, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	xor	%eax, %eax
@@ -1084,25 +1079,27 @@ intel_aes_encrypt_ecb_192:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_decrypt_ecb_192,@function
 	.globl intel_aes_decrypt_ecb_192
 	.align	16
 intel_aes_decrypt_ecb_192:
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	48(%rdi), %rdi
+
 	movdqu	(%rdi), %xmm2
 	movdqu	192(%rdi), %xmm14
 	xorl	%eax, %eax
-//	cmpl	$8*16, %r9d
-	cmpl	$128, %r9d
+//	cmpq	$8*16, %r9
+	cmpq	$128, %r9
 	jb	1f
-//	leal	-8*16(%r9), %r11d
-	leal	-128(%r9), %r11d
+//	leaq	-8*16(%r9), %r11
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -1242,11 +1239,11 @@ intel_aes_decrypt_ecb_192:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-//	addl	$8*16, %eax
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+//	addq	$8*16, %rax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm3
@@ -1276,8 +1273,8 @@ intel_aes_decrypt_ecb_192:
 	.byte 0x66,0x0f,0x38,0xde,0xcb	/* aesdec	%xmm3, %xmm1 */
 	.byte 0x66,0x0f,0x38,0xdf,0xca	/* aesdeclast %xmm2, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	xor	%eax, %eax
@@ -1288,22 +1285,23 @@ intel_aes_decrypt_ecb_192:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_encrypt_cbc_192,@function
 	.globl intel_aes_encrypt_cbc_192
 	.align	16
 intel_aes_encrypt_cbc_192:
-	testl	%r9d, %r9d
+	testq	%r9, %r9
 	je	2f
 
 //	leaq	IV_OFFSET(%rdi), %rdx
-	leaq	256(%rdi), %rdx
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	16(%rdi), %rdx
+	leaq	48(%rdi), %rdi
 
 	movdqu	(%rdx), %xmm0
 	movdqu	(%rdi), %xmm2
@@ -1338,8 +1336,8 @@ intel_aes_encrypt_cbc_192:
 	.byte 0x66,0x41,0x0f,0x38,0xdd,0xce	/* aesenclast %xmm14, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
 	movdqa	%xmm1, %xmm0
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	1b
 
 	movdqu	%xmm0, (%rdx)
@@ -1352,27 +1350,26 @@ intel_aes_encrypt_cbc_192:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %exx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_decrypt_cbc_192,@function
 	.globl intel_aes_decrypt_cbc_192
 	.align	16
 intel_aes_decrypt_cbc_192:
-//	leaq	IV_OFFSET(%rdi), %rdx
-	leaq	256(%rdi), %rdx
+	leaq	16(%rdi), %rdx
+	leaq	48(%rdi), %rdi
 
 	movdqu	(%rdx), %xmm0
 	movdqu	(%rdi), %xmm2
 	movdqu	192(%rdi), %xmm14
 	xorl	%eax, %eax
-	cmpl	$128, %r9d
+	cmpq	$128, %r9
 	jb	1f
-	leal	-128(%r9), %r11d
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -1528,10 +1525,10 @@ intel_aes_decrypt_cbc_192:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm3
@@ -1564,8 +1561,8 @@ intel_aes_decrypt_cbc_192:
 	pxor	%xmm0, %xmm1
 	movdqu	%xmm1, (%rsi, %rax)
 	movdqa	%xmm15, %xmm0
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	movdqu	%xmm0, (%rdx)
@@ -1708,25 +1705,27 @@ key_expansion256:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_encrypt_ecb_256,@function
 	.globl intel_aes_encrypt_ecb_256
 	.align	16
 intel_aes_encrypt_ecb_256:
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	48(%rdi), %rdi
+
 	movdqu	(%rdi), %xmm2
 	movdqu	224(%rdi), %xmm15
 	xorl	%eax, %eax
-//	cmpl	$8*16, %r9d
-	cmpl	$128, %r9d
+//	cmpq	$8*16, %r9
+	cmpq	$128, %r9
 	jb	1f
-//	leal	-8*16(%r9), %r11d
-	leal	-128(%r9), %r11d
+//	leaq	-8*16(%r9), %r11
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -1885,11 +1884,11 @@ intel_aes_encrypt_ecb_256:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-//	addl	$8*16, %eax
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+//	addq	$8*16, %rax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	(%rdi), %xmm8
@@ -1925,8 +1924,8 @@ intel_aes_encrypt_ecb_256:
 	.byte 0x66,0x41,0x0f,0x38,0xdc,0xce	/* aesenc	%xmm14, %xmm1 */
 	.byte 0x66,0x41,0x0f,0x38,0xdd,0xcf	/* aesenclast %xmm15, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	xor	%eax, %eax
@@ -1937,25 +1936,27 @@ intel_aes_encrypt_ecb_256:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_decrypt_ecb_256,@function
 	.globl intel_aes_decrypt_ecb_256
 	.align	16
 intel_aes_decrypt_ecb_256:
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	48(%rdi), %rdi
+
 	movdqu	(%rdi), %xmm2
 	movdqu	224(%rdi), %xmm15
 	xorl	%eax, %eax
-//	cmpl	$8*16, %r9d
-	cmpl	$128, %r9d
+//	cmpq	$8*16, %r9
+	cmpq	$128, %r9
 	jb	1f
-//	leal	-8*16(%r9), %r11d
-	leal	-128(%r9), %r11d
+//	leaq	-8*16(%r9), %r11
+	leaq	-128(%r9), %r11
 2:	movdqu	(%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -2114,11 +2115,11 @@ intel_aes_decrypt_ecb_256:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-//	addl	$8*16, %eax
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+//	addq	$8*16, %rax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm2
@@ -2154,8 +2155,8 @@ intel_aes_decrypt_ecb_256:
 	.byte 0x66,0x41,0x0f,0x38,0xdf,0xc8	/* aesdeclast %xmm8, %xmm1 */
 	movdqu	112(%rdi), %xmm8
 	movdqu	%xmm1, (%rsi, %rax)
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	xor	%eax, %eax
@@ -2166,22 +2167,23 @@ intel_aes_decrypt_ecb_256:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_encrypt_cbc_256,@function
 	.globl intel_aes_encrypt_cbc_256
 	.align	16
 intel_aes_encrypt_cbc_256:
-	testl	%r9d, %r9d
+	testq	%r9, %r9
 	je	2f
 
 //	leaq	IV_OFFSET(%rdi), %rdx
-	leaq	256(%rdi), %rdx
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	16(%rdi), %rdx
+	leaq	48(%rdi), %rdi
 
 	movdqu	(%rdx), %xmm0
 	movdqu	(%rdi), %xmm8
@@ -2221,8 +2223,8 @@ intel_aes_encrypt_cbc_256:
 	.byte 0x66,0x41,0x0f,0x38,0xdd,0xcf	/* aesenclast %xmm15, %xmm1 */
 	movdqu	%xmm1, (%rsi, %rax)
 	movdqa	%xmm1, %xmm0
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	1b
 
 	movdqu	%xmm0, (%rdx)
@@ -2235,11 +2237,10 @@ intel_aes_encrypt_cbc_256:
 /* in %rdi : cx - context
    in %rsi : output - pointer to output buffer
    in %rdx : outputLen - pointer to variable for length of output
-             (already filled in by caller)
-   in %ecx : maxOutputLen - length of output buffer
-             (already checked by caller)
+             (filled by caller)
+   in %rcx : maxOutputLen - length of output buffer
    in %r8  : input - pointer to input buffer
-   in %r9d : inputLen - length of input buffer
+   in %r9  : inputLen - length of input buffer
    on stack: blocksize - AES blocksize (always 16, unused)
 */
 	.type intel_aes_decrypt_cbc_256,@function
@@ -2247,17 +2248,19 @@ intel_aes_encrypt_cbc_256:
 	.align	16
 intel_aes_decrypt_cbc_256:
 //	leaq	IV_OFFSET(%rdi), %rdx
-	leaq	256(%rdi), %rdx
+//	leaq	EXPANDED_KEY_OFFSET(%rdi), %rdi
+	leaq	16(%rdi), %rdx
+	leaq	48(%rdi), %rdi
 
 	movdqu	(%rdx), %xmm0
 	movdqu	(%rdi), %xmm2
 	movdqu	224(%rdi), %xmm15
 	xorl	%eax, %eax
-//	cmpl	$8*16, %r9d
-	cmpl	$128, %r9d
+//	cmpq	$8*16, %r9
+	cmpq	$128, %r9
 	jb	1f
-//	leal	-8*16(%r9), %r11d
-	leal	-128(%r9), %r11d
+//	leaq	-8*16(%r9), %r11
+	leaq	-128(%r9), %r11
 2:	movdqu  (%r8, %rax), %xmm3
 	movdqu	16(%r8, %rax), %xmm4
 	movdqu	32(%r8, %rax), %xmm5
@@ -2432,11 +2435,11 @@ intel_aes_decrypt_cbc_256:
 	movdqu	%xmm8, 80(%rsi, %rax)
 	movdqu	%xmm9, 96(%rsi, %rax)
 	movdqu	%xmm10, 112(%rsi, %rax)
-//	addl	$8*16, %eax
-	addl	$128, %eax
-	cmpl	%r11d, %eax
+//	addq	$8*16, %rax
+	addq	$128, %rax
+	cmpq	%r11, %rax
 	jbe	2b
-1:	cmpl	%eax, %r9d
+1:	cmpq	%rax, %r9
 	je	5f
 
 	movdqu	16(%rdi), %xmm2
@@ -2474,8 +2477,8 @@ intel_aes_decrypt_cbc_256:
 	pxor	%xmm0, %xmm1
 	movdqu	(%r8, %rax), %xmm0  /* fetch the IV before we store the block */
 	movdqu	%xmm1, (%rsi, %rax) /* in case input buf = output buf */
-	addl	$16, %eax
-	cmpl	%eax, %r9d
+	addq	$16, %rax
+	cmpq	%rax, %r9
 	jne	4b
 
 5:	movdqu	%xmm0, (%rdx)

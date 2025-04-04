@@ -20,7 +20,7 @@ PROG_SUFFIX = .exe
 
 
 CCC			= gcc
-LD  			= gcc
+LINK			= gcc
 AR                      = emxomfar r $@
 # Keep AR_FLAGS blank so that we do not have to change rules.mk
 AR_FLAGS                = 
@@ -39,6 +39,8 @@ HIGHMEM_LDFLAG          = -Zhigh-mem
 endif
 
 ifndef NO_SHARED_LIB
+WRAP_MALLOC_LIB         = 
+WRAP_MALLOC_CFLAGS      = 
 DSO_CFLAGS              = 
 DSO_PIC_CFLAGS          = 
 MKSHLIB                 = $(CXX) $(CXXFLAGS) $(DSO_LDOPTS) -o $@

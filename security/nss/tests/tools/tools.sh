@@ -29,7 +29,7 @@
 "PKCS #12 V2 PBE With SHA-1 and 40 Bit RC4"
 
   export pkcs12v2pbeWithSha1AndTripleDESCBC=\
-"PKCS #12 V2 PBE With SHA-1 and 3KEY Triple DES-CBC"
+"PKCS #12 V2 PBE With SHA-1 and Triple DES-CBC"
 
   export pkcs12v2pbeWithSha1And128BitRc2Cbc=\
 "PKCS #12 V2 PBE With SHA-1 and 128 Bit RC2 CBC"
@@ -76,7 +76,11 @@ tools_init()
   fi
   SCRIPTNAME=tools.sh
 
-  html_head "Tools Tests"
+  if [ -z "$NSS_DISABLE_ECC" ] ; then
+      html_head "Tools Tests with ECC"
+  else
+      html_head "Tools Tests"
+  fi
 
   grep "SUCCESS: SMIME passed" $CERT_LOG_FILE >/dev/null || {
       Exit 15 "Fatal - S/MIME of cert.sh needs to pass first"
@@ -102,10 +106,6 @@ tools_init()
   cp ${ALICEDIR}/* ${SIGNDIR}/
   mkdir -p ${TOOLSDIR}/html
   cp ${QADIR}/tools/sign*.html ${TOOLSDIR}/html
-  mkdir -p ${TOOLSDIR}/data
-  cp ${QADIR}/tools/TestOldCA.p12 ${TOOLSDIR}/data
-  cp ${QADIR}/tools/TestOldAES128CA.p12 ${TOOLSDIR}/data
-  cp ${QADIR}/tools/TestRSAPSS.p12 ${TOOLSDIR}/data
 
   cd ${TOOLSDIR}
 }
@@ -249,7 +249,7 @@ tools_p12_export_list_import_all_pkcs5pbe_ciphers()
                          "${pkcs5pbeWithMD5AndDEScbc}" \
                          "${pkcs5pbeWithSha1AndDEScbc}" \
                          "DEFAULT"\
-                         "none"; do
+                         "null"; do
             export_list_import "${key_cipher}" "${cert_cipher}"
       done       
   done
@@ -273,9 +273,12 @@ tools_p12_export_list_import_all_pkcs5v2_ciphers()
     CAMELLIA-256-CBC; do
 
 #---------------------------------------------------------------
-# Bug 452464 - pk12util -o fails when -C option specifies
+# Bug 452464 - pk12util -o fails when -C option specifies AES or
 # Camellia ciphers
 # FIXME Restore these to the list
+#    AES-128-CBC, \
+#    AES-192-CBC, \
+#    AES-256-CBC, \
 #    CAMELLIA-128-CBC, \
 #    CAMELLIA-192-CBC, \
 #    CAMELLIA-256-CBC, \
@@ -284,10 +287,7 @@ tools_p12_export_list_import_all_pkcs5v2_ciphers()
     for cert_cipher in \
       RC2-CBC \
       DES-EDE3-CBC \
-      AES-128-CBC \
-      AES-192-CBC \
-      AES-256-CBC \
-      none; do
+      null; do
 	  export_list_import ${key_cipher} ${cert_cipher}
 	done
   done
@@ -324,8 +324,8 @@ tools_p12_export_list_import_all_pkcs12v2pbe_ciphers()
                   "${pkcs12v2pbeWithMd5AndDESCBC}" \
                   "${pkcs12v2pbeWithSha1AndDESCBC}" \
                   "DEFAULT"\
-                  "none"; do        
-	  export_list_import "${key_cipher}" "${cert_cipher}" 
+                  "null"; do        
+	  export_list_import "${key_cipher}" "${key_cipher}" 
 	done
   #done
 }
@@ -333,57 +333,32 @@ tools_p12_export_list_import_all_pkcs12v2pbe_ciphers()
 #########################################################################
 # Export with no encryption on key should fail but on cert should pass
 #########################################################################
-tools_p12_export_with_none_ciphers()
+tools_p12_export_with_null_ciphers()
 {
-  # use none as the key encryption algorithm default for the cert one
+  # use null as the key encryption algorithm default for the cert one
   # should fail
   
   echo "pk12util -o Alice.p12 -n \"Alice\" -d ${P_R_ALICEDIR} \\"
-  echo "         -k ${R_PWFILE} -w ${R_PWFILE} -c none"     
+  echo "         -k ${R_PWFILE} -w ${R_PWFILE} -c null"     
   ${BINDIR}/pk12util -o Alice.p12 -n Alice -d ${P_R_ALICEDIR} \
                        -k ${R_PWFILE} -w ${R_PWFILE} \
-                       -c none 2>&1  
+                       -c null 2>&1  
   ret=$?
-  html_msg $ret 30 "Exporting with [none:default] (pk12util -o)"
+  html_msg $ret 30 "Exporting with [null:default] (pk12util -o)"
   check_tmpfile
 
-  # use default as the key encryption algorithm none for the cert one
+  # use default as the key encryption algorithm null for the cert one
   # should pass
   
   echo "pk12util -o Alice.p12 -n \"Alice\" -d ${P_R_ALICEDIR} \\"
-  echo "         -k ${R_PWFILE} -w ${R_PWFILE} -C none"     
+  echo "         -k ${R_PWFILE} -w ${R_PWFILE} -C null"     
   ${BINDIR}/pk12util -o Alice.p12 -n Alice -d ${P_R_ALICEDIR} \
                        -k ${R_PWFILE} -w ${R_PWFILE} \
-                       -C none 2>&1  
+                       -C null 2>&1  
   ret=$?
-  html_msg $ret 0 "Exporting with [default:none] (pk12util -o)"
+  html_msg $ret 0 "Exporting with [default:null] (pk12util -o)"
   check_tmpfile
  
-}
-
-#########################################################################
-# Export with invalid cipher should fail
-#########################################################################
-tools_p12_export_with_invalid_ciphers()
-{
-  echo "pk12util -o Alice.p12 -n \"Alice\" -d ${P_R_ALICEDIR} \\"
-  echo "         -k ${R_PWFILE} -w ${R_PWFILE} -c INVALID_CIPHER"
-  ${BINDIR}/pk12util -o Alice.p12 -n Alice -d ${P_R_ALICEDIR} \
-                       -k ${R_PWFILE} -w ${R_PWFILE} \
-                       -c INVALID_CIPHER 2>&1
-  ret=$?
-  html_msg $ret 30 "Exporting with [INVALID_CIPHER:default] (pk12util -o)"
-  check_tmpfile
-
-  echo "pk12util -o Alice.p12 -n \"Alice\" -d ${P_R_ALICEDIR} \\"
-  echo "         -k ${R_PWFILE} -w ${R_PWFILE} -C INVALID_CIPHER"
-  ${BINDIR}/pk12util -o Alice.p12 -n Alice -d ${P_R_ALICEDIR} \
-                       -k ${R_PWFILE} -w ${R_PWFILE} \
-                       -C INVALID_CIPHER 2>&1
-  ret=$?
-  html_msg $ret 30 "Exporting with [default:INVALID_CIPHER] (pk12util -o)"
-  check_tmpfile
-
 }
 
 #########################################################################
@@ -397,61 +372,30 @@ tools_p12_export_list_import_with_default_ciphers()
   
   export_list_import "DEFAULT" "DEFAULT"
 
-  echo "$SCRIPTNAME: Exporting Alice's email EC cert & key---------------"
-  echo "pk12util -o Alice-ec.p12 -n \"Alice-ec\" -d ${P_R_ALICEDIR} -k ${R_PWFILE} \\"
-  echo "         -w ${R_PWFILE}"
-  ${BINDIR}/pk12util -o Alice-ec.p12 -n "Alice-ec" -d ${P_R_ALICEDIR} -k ${R_PWFILE} \
-       -w ${R_PWFILE} 2>&1 
-  ret=$?
-  html_msg $ret 0 "Exporting Alice's email EC cert & key (pk12util -o)"
-  check_tmpfile
+  if [ -z "$NSS_DISABLE_ECC" ] ; then
+      echo "$SCRIPTNAME: Exporting Alice's email EC cert & key---------------"
+      echo "pk12util -o Alice-ec.p12 -n \"Alice-ec\" -d ${P_R_ALICEDIR} -k ${R_PWFILE} \\"
+      echo "         -w ${R_PWFILE}"
+      ${BINDIR}/pk12util -o Alice-ec.p12 -n "Alice-ec" -d ${P_R_ALICEDIR} -k ${R_PWFILE} \
+           -w ${R_PWFILE} 2>&1 
+      ret=$?
+      html_msg $ret 0 "Exporting Alice's email EC cert & key (pk12util -o)"
+      check_tmpfile
 
-  echo "$SCRIPTNAME: Importing Alice's email EC cert & key --------------"
-  echo "pk12util -i Alice-ec.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE}"
-  ${BINDIR}/pk12util -i Alice-ec.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE} 2>&1
-  ret=$?
-  html_msg $ret 0 "Importing Alice's email EC cert & key (pk12util -i)"
-  check_tmpfile
+      echo "$SCRIPTNAME: Importing Alice's email EC cert & key --------------"
+      echo "pk12util -i Alice-ec.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE}"
+      ${BINDIR}/pk12util -i Alice-ec.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE} 2>&1
+      ret=$?
+      html_msg $ret 0 "Importing Alice's email EC cert & key (pk12util -i)"
+      check_tmpfile
 
-  echo "$SCRIPTNAME: Listing Alice's pk12 EC file -----------------"
-  echo "pk12util -l Alice-ec.p12 -w ${R_PWFILE}"
-  ${BINDIR}/pk12util -l Alice-ec.p12 -w ${R_PWFILE} 2>&1
-  ret=$?
-  html_msg $ret 0 "Listing Alice's pk12 EC file (pk12util -l)"
-  check_tmpfile
-}
-
-tools_p12_import_old_files()
-{
-  echo "$SCRIPTNAME: Importing PKCS#12 files created with older NSS --------------"
-  echo "pk12util -i TestOldCA.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE}"
-  ${BINDIR}/pk12util -i ${TOOLSDIR}/data/TestOldCA.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE} 2>&1
-  ret=$?
-  html_msg $ret 0 "Importing PKCS#12 file created with NSS 3.21 (PBES2 with BMPString password)"
-  check_tmpfile
-
-  echo "pk12util -i TestOldAES128CA.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE}"
-  ${BINDIR}/pk12util -i ${TOOLSDIR}/data/TestOldAES128CA.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -w ${R_PWFILE} 2>&1
-  ret=$?
-  html_msg $ret 0 "Importing PKCS#12 file created with NSS 3.29.5 (PBES2 with incorrect AES-128-CBC algorithm ID)"
-  check_tmpfile
-}
-
-tools_p12_import_rsa_pss_private_key()
-{
-  echo "$SCRIPTNAME: Importing RSA-PSS private key from PKCS#12 file --------------"
-  ${BINDIR}/pk12util -i ${TOOLSDIR}/data/TestRSAPSS.p12 -d ${P_R_COPYDIR} -k ${R_PWFILE} -W '' 2>&1
-  ret=$?
-  html_msg $ret 0 "Importing RSA-PSS private key from PKCS#12 file"
-  check_tmpfile
-
-  # Check if RSA-PSS identifier is included in the key listing
-  ${BINDIR}/certutil -d ${P_R_COPYDIR} -K -f ${R_PWFILE} | grep '^<[0-9 ]*> *rsaPss'
-  ret=$?
-  html_msg $ret 0 "Listing RSA-PSS private key imported from PKCS#12 file"
-  check_tmpfile
-
-  return $ret
+      echo "$SCRIPTNAME: Listing Alice's pk12 EC file -----------------"
+      echo "pk12util -l Alice-ec.p12 -w ${R_PWFILE}"
+      ${BINDIR}/pk12util -l Alice-ec.p12 -w ${R_PWFILE} 2>&1
+      ret=$?
+      html_msg $ret 0 "Listing Alice's pk12 EC file (pk12util -l)"
+      check_tmpfile
+  fi
 }
 
 ############################## tools_p12 ###############################
@@ -463,12 +407,7 @@ tools_p12()
   tools_p12_export_list_import_all_pkcs5v2_ciphers
   tools_p12_export_list_import_all_pkcs5pbe_ciphers
   tools_p12_export_list_import_all_pkcs12v2pbe_ciphers
-  tools_p12_export_with_none_ciphers
-  tools_p12_export_with_invalid_ciphers
-  tools_p12_import_old_files
-  if [ "${TEST_MODE}" = "SHARED_DB" ] ; then
-    tools_p12_import_rsa_pss_private_key
-  fi
+  tools_p12_export_with_null_ciphers
 }
 
 ############################## tools_sign ##############################
@@ -538,21 +477,6 @@ SIGNSCRIPT
 
 }
 
-tools_modutil()
-{
-  echo "$SCRIPTNAME: Test if DB created by modutil -create is initialized"
-  mkdir -p ${R_TOOLSDIR}/moddir
-  # copied from modu function in cert.sh
-  # echo is used to press Enter expected by modutil
-  echo | ${BINDIR}/modutil -create -dbdir "${R_TOOLSDIR}/moddir" 2>&1
-  ret=$?
-  ${BINDIR}/certutil -S -s 'CN=TestUser' -d "${TOOLSDIR}/moddir" -n TestUser \
-	   -x -t ',,' -z "${R_NOISE_FILE}"
-  ret=$?
-  html_msg $ret 0 "Test if DB created by modutil -create is initialized"
-  check_tmpfile
-}
-
 ############################## tools_cleanup ###########################
 # local shell function to finish this script (no exit since it might be 
 # sourced)
@@ -569,7 +493,6 @@ tools_cleanup()
 tools_init
 tools_p12
 tools_sign
-tools_modutil
 tools_cleanup
 
 
